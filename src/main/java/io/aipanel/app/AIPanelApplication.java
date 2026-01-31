@@ -1,57 +1,44 @@
 package io.aipanel.app;
 
-import io.aipanel.app.config.AiConfiguration;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Scene;
-import javafx.scene.paint.Color;
-import javafx.stage.Stage;
-import javafx.stage.StageStyle;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.ConfigurableApplicationContext;
+import io.aipanel.app.config.AppConfig;
+import io.aipanel.app.controllers.MainController;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
-import java.io.IOException;
+import javax.swing.*;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
 
-@SpringBootApplication
-@EnableConfigurationProperties(AiConfiguration.class)
-public class AIPanelApplication extends Application {
+public class AIPanelApplication {
 
-    private ConfigurableApplicationContext springContext;
+    private static AnnotationConfigApplicationContext springContext;
 
-    @Override
-    public void init() {
-        springContext = new SpringApplicationBuilder(AIPanelApplication.class)
-                .headless(false)
-                .run();
+    public static void main(String[] args) {
+        System.setProperty("sun.awt.exception.handler", AwtExceptionHandler.class.getName());
+
+        springContext = new AnnotationConfigApplicationContext();
+        springContext.register(AppConfig.class);  // твоя конфигурация
+        springContext.scan("io.aipanel.app");     // пакет с компонентами (если есть @Component)
+        springContext.refresh();
 
         var manager = new CookieManager();
         manager.setCookiePolicy(CookiePolicy.ACCEPT_ALL);
         CookieHandler.setDefault(manager);
+
+        SwingUtilities.invokeLater(() -> {
+            MainController controller = springContext.getBean(MainController.class);
+            controller.showWindow();
+        });
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (springContext != null) springContext.close();
+        }));
     }
 
-    @Override
-    public void start(Stage stage) throws IOException {
-        var fxmlLoader = new FXMLLoader(AIPanelApplication.class.getResource("/views/main-view.fxml"));
-        fxmlLoader.setControllerFactory(springContext::getBean);
-
-        var scene = new Scene(fxmlLoader.load(), 800, 700, Color.TRANSPARENT);
-        stage.setTitle("AI Panel");
-        stage.initStyle(StageStyle.TRANSPARENT);
-        stage.setAlwaysOnTop(true);
-        stage.setScene(scene);
-        stage.show();
-    }
-
-    @Override
-    public void stop() {
-        springContext.close();
-        Platform.exit();
-        System.exit(0);
+    public static class AwtExceptionHandler {
+        public void handle(Throwable t) {
+            System.err.println("!!! Critical error !!!");
+            t.printStackTrace();
+        }
     }
 }

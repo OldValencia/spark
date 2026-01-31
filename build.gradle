@@ -1,7 +1,6 @@
 plugins {
     id 'java'
     id 'application'
-    id 'org.openjfx.javafxplugin' version '0.1.0'
     id 'org.beryx.jlink' version '2.25.0'
 }
 
@@ -12,7 +11,7 @@ repositories {
     mavenCentral()
 }
 
-def junitVersion = '5.12.1'
+def junitVersion = '5.10.2'
 def lombokVersion = '1.18.42'
 
 java {
@@ -27,22 +26,40 @@ tasks.withType(JavaCompile).configureEach {
 
 application {
     mainClass = 'io.aipanel.app.AIPanelApplication'
+
+    applicationDefaultJvmArgs = [
+            '-XX:-OmitStackTraceInFastThrow',
+
+            '-Dsun.java2d.d3d=false',
+            '-Dsun.java2d.ddoffscreen=false',
+            '-Dsun.java2d.noddraw=true',
+            '-Dsun.java2d.uiScale=1.0',
+            '-Djogl.disable.openglcore=false',
+
+            '--add-exports=java.base/java.lang=ALL-UNNAMED',
+            '--add-exports=java.desktop/sun.awt=ALL-UNNAMED',
+            '--add-exports=java.desktop/sun.java2d=ALL-UNNAMED',
+
+            '--add-opens=java.desktop/sun.awt=ALL-UNNAMED',
+            '--add-opens=java.desktop/sun.lwawt=ALL-UNNAMED',
+            '--add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED'
+    ]
 }
 
-javafx {
-    version = '21.0.6'
-    modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.web', 'javafx.swing' ]
+jlink {
+    options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
+    launcher {
+        name = 'app'
+    }
+    addOptions('--add-modules', 'java.desktop,java.naming,java.management,java.sql')
 }
 
 dependencies {
-    // Apache Commons
     implementation 'org.apache.commons:commons-lang3:3.20.0'
-
-    // Spring Boot
-    implementation 'org.springframework.boot:spring-boot-starter:4.0.2'
-
-    // Jackson
+    implementation 'org.springframework:spring-context:7.0.3'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    implementation 'me.friwi:jcefmaven:141.0.10'
+    implementation 'org.yaml:snakeyaml:2.2'
 
     // Lombok
     compileOnly "org.projectlombok:lombok:$lombokVersion"
@@ -51,26 +68,8 @@ dependencies {
     // JUnit
     testImplementation "org.junit.jupiter:junit-jupiter-api:$junitVersion"
     testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:$junitVersion"
-
-    // JCEF (Chromium for Java)
-    implementation 'me.friwi:jcefmaven:141.0.10'
 }
 
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
-}
-
-jlink {
-    imageZip = layout.buildDirectory.file(
-            "distributions/app-${javafx.platform.classifier}.zip"
-    )
-    options = [
-            '--strip-debug',
-            '--compress', '2',
-            '--no-header-files',
-            '--no-man-pages'
-    ]
-    launcher {
-        name = 'app'
-    }
 }

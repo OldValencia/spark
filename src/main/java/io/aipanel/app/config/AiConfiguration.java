@@ -1,26 +1,33 @@
 package io.aipanel.app.config;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+import org.yaml.snakeyaml.Yaml;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
-@RequiredArgsConstructor
-@ConfigurationProperties(prefix = "ai")
+@Component
 public class AiConfiguration {
 
-    private List<AiConfig> configurations = new ArrayList<>();
+    private List<AiConfig> configurations;
 
-    @Getter
-    @Setter
-    public static class AiConfig {
-        private String name;
-        private String url;
-        private String icon;
+    public AiConfiguration() {
+        var yaml = new Yaml();
+        var inputStream = this.getClass()
+                .getClassLoader()
+                .getResourceAsStream("ai-configurations.yml");
+
+        Map<String, List<Map<String, String>>> obj = yaml.load(inputStream);
+
+        this.configurations = obj.get("configurations").stream()
+                .map(m -> new AiConfig(m.get("name"), m.get("url"), m.get("icon")))
+                .toList();
+    }
+
+    public record AiConfig(String name, String url, String icon) {
     }
 }
