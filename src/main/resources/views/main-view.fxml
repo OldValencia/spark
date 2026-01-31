@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.Region?>
+<?import java.net.URL?>
+
+<BorderPane style="-fx-background-color: transparent;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="io.aipanel.app.controllers.MainController">
+    <stylesheets>
+        <URL value="@/styles/styles.css" />
+    </stylesheets>
+
+    <top>
+        <HBox fx:id="topHBox" alignment="CENTER_LEFT" prefHeight="50.0" styleClass="frame-top">
+            <padding>
+                <Insets left="20.0" right="20.0" />
+            </padding>
+            <children>
+                <ComboBox fx:id="aiSelectBox" prefWidth="200.0" styleClass="ai-selector" />
+                <Region HBox.hgrow="ALWAYS" />
+                <Button styleClass="icon-button" text="⚙" />
+                <Button fx:id="closeButton" onAction="#handleCloseButtonAction" styleClass="icon-button, close-button" text="✕" />
+            </children>
+        </HBox>
+    </top>
+
+    <left>
+        <Pane prefWidth="12.0" styleClass="frame-side" BorderPane.alignment="CENTER" />
+    </left>
+
+    <right>
+        <Pane prefWidth="12.0" styleClass="frame-side" BorderPane.alignment="CENTER" />
+    </right>
+
+    <bottom>
+        <Pane prefHeight="12.0" styleClass="frame-bottom" BorderPane.alignment="CENTER" />
+    </bottom>
+
+    <center>
+        <Pane fx:id="browserAnchor" style="-fx-background-color: transparent;" />
+    </center>
+
+</BorderPane>

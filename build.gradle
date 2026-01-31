@@ -1,0 +1,76 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
+    id 'org.beryx.jlink' version '2.25.0'
+}
+
+group = 'io.aipanel'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+def junitVersion = '5.12.1'
+def lombokVersion = '1.18.42'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+application {
+    mainClass = 'io.aipanel.app.AIPanelApplication'
+}
+
+javafx {
+    version = '21.0.6'
+    modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.web', 'javafx.swing' ]
+}
+
+dependencies {
+    // Apache Commons
+    implementation 'org.apache.commons:commons-lang3:3.20.0'
+
+    // Spring Boot
+    implementation 'org.springframework.boot:spring-boot-starter:4.0.2'
+
+    // Jackson
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+
+    // Lombok
+    compileOnly "org.projectlombok:lombok:$lombokVersion"
+    annotationProcessor "org.projectlombok:lombok:$lombokVersion"
+
+    // JUnit
+    testImplementation "org.junit.jupiter:junit-jupiter-api:$junitVersion"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:$junitVersion"
+
+    // JCEF (Chromium for Java)
+    implementation 'me.friwi:jcefmaven:141.0.10'
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+jlink {
+    imageZip = layout.buildDirectory.file(
+            "distributions/app-${javafx.platform.classifier}.zip"
+    )
+    options = [
+            '--strip-debug',
+            '--compress', '2',
+            '--no-header-files',
+            '--no-man-pages'
+    ]
+    launcher {
+        name = 'app'
+    }
+}
