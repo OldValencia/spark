@@ -37,6 +37,8 @@ public class AiDock extends JPanel {
     private final AppPreferences appPreferences;
 
     private static final Map<String, Image> ICON_CACHE = new ConcurrentHashMap<>();
+    private static final FontMetrics CACHED_FONT_METRICS = new Canvas().getFontMetrics(Theme.FONT_SELECTOR);
+
     private int selectedIndex;
 
     public AiDock(List<AiConfiguration.AiConfig> configs, CefWebView cefWebView, AppPreferences appPreferences) {
@@ -85,7 +87,8 @@ public class AiDock extends JPanel {
                     try {
                         topBar.setAccentColor(Color.decode(cfg.color()));
                         topBar.repaint();
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                 }
             }
         });
@@ -148,14 +151,13 @@ public class AiDock extends JPanel {
     private void animate() {
         var needsRepaint = false;
         var allDone = true;
-
         var mousePt = getMousePosition();
         var isDockHovered = (mousePt != null);
 
         calculateTargets(isDockHovered);
 
         for (var item : dockItems) {
-            float diff = item.targetWidth - item.currentWidth;
+            var diff = item.targetWidth - item.currentWidth;
             if (Math.abs(diff) > 0.5f) {
                 item.currentWidth += diff * 0.2f; // Interpolation speed
                 needsRepaint = true;
@@ -168,7 +170,11 @@ public class AiDock extends JPanel {
         if (needsRepaint) {
             revalidateWidth();
             var topBar = SwingUtilities.getAncestorOfClass(GradientPanel.class, this);
-            if (topBar != null) topBar.repaint(); else repaint();
+            if (topBar != null) {
+                topBar.repaint();
+            } else {
+                repaint();
+            }
         } else if (allDone && !isDockHovered) {
             animationTimer.stop();
         }
@@ -199,10 +205,14 @@ public class AiDock extends JPanel {
         // 2. Check Others
         if (!foundHover) {
             for (int i = 0; i < dockItems.size(); i++) {
-                if (i == selectedIndex) continue;
+                if (i == selectedIndex) {
+                    continue;
+                }
 
                 var item = dockItems.get(i);
-                if (item.currentWidth < 1) continue;
+                if (item.currentWidth < 1) {
+                    continue;
+                }
 
                 if (x >= currentX && x <= currentX + item.currentWidth) {
                     updateHoverState(item);
@@ -351,7 +361,7 @@ public class AiDock extends JPanel {
     }
 
     private int getTextWidth(String text) {
-        return new Canvas().getFontMetrics(Theme.FONT_SELECTOR).stringWidth(text);
+        return CACHED_FONT_METRICS.stringWidth(text);
     }
 
     private void preloadIcon(AiConfiguration.AiConfig cfg) {
@@ -378,9 +388,7 @@ public class AiDock extends JPanel {
                     g.dispose();
 
                     return img;
-                }
-
-                else {
+                } else {
                     var original = ImageIO.read(url);
                     return resizeToDefaultIconSize(original);
                 }

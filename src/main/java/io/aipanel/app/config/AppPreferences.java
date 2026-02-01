@@ -16,6 +16,8 @@ public class AppPreferences {
 
     private static final String KEY_LAST_URL = "last_url";
     private static final String KEY_REMEMBER_AI = "remember_last_ai";
+    private static final String KEY_LAST_ZOOM_VALUE = "last_zoom_value";
+    private static final String KEY_ZOOM_ENABLED = "zoom_enabled";
 
     public AppPreferences() {
         load();
@@ -61,5 +63,28 @@ public class AppPreferences {
 
     public boolean isRememberLastAi() {
         return Boolean.parseBoolean(props.getProperty(KEY_REMEMBER_AI, "true"));
+    }
+
+    public void setLastZoomValue(Double zoomValue) {
+        if (isZoomEnabled()) {
+            props.setProperty(KEY_LAST_ZOOM_VALUE, String.valueOf(zoomValue));
+            save();
+        }
+    }
+
+    public Double getLastZoomValue() {
+        return Double.valueOf(props.getProperty(KEY_LAST_ZOOM_VALUE));
+    }
+
+    public void setZoomEnabled(boolean zoomEnabled) {
+        props.setProperty(KEY_ZOOM_ENABLED, String.valueOf(zoomEnabled));
+        save();
+        if (!zoomEnabled) {
+            setLastZoomValue(0.0);
+        }
+    }
+
+    public boolean isZoomEnabled() {
+        return Boolean.parseBoolean(props.getProperty(KEY_ZOOM_ENABLED, "true"));
     }
 }

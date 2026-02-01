@@ -1,5 +1,6 @@
 package io.aipanel.app.ui;
 
+import io.aipanel.app.config.AppPreferences;
 import io.aipanel.app.utils.LogSetup;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -31,12 +32,10 @@ import java.util.function.Consumer;
 public class CefWebView extends JPanel {
 
     // Paths
-    private final String BASE_DIR = new File(System.getProperty("user.home"), ".aipanel").getAbsolutePath();
-    private final String LOGS_DIR = LogSetup.LOGS_DIR;
-
-    private final String INSTALL_DIR = new File(BASE_DIR, "jcef-bundle").getAbsolutePath();
-    private final String CACHE_DIR = new File(BASE_DIR, "cache").getAbsolutePath();
-    private final String CEF_LOG_FILE = new File(LOGS_DIR, "cef.log").getAbsolutePath();
+    private static final String BASE_DIR = new File(System.getProperty("user.home"), ".aipanel").getAbsolutePath();
+    private static final String INSTALL_DIR = new File(BASE_DIR, "jcef-bundle").getAbsolutePath();
+    private static final String CACHE_DIR = new File(BASE_DIR, "cache").getAbsolutePath();
+    private static final String CEF_LOG_FILE = new File(LogSetup.LOGS_DIR, "cef.log").getAbsolutePath();
 
     // JS Injection
     private static final String ZOOM_JS = """
@@ -51,21 +50,24 @@ public class CefWebView extends JPanel {
     private CefClient client;
     private CefBrowser browser;
 
-    private double currentZoomLevel = 0.0;
-    private boolean zoomEnabled = true;
-
     @Setter
     private Consumer<Double> zoomCallback;
 
-    public CefWebView(String startUrl) {
+    private final AppPreferences appPreferences;
+
+    public CefWebView(String startUrl, AppPreferences appPreferences) {
+        this.appPreferences = appPreferences;
+
         setLayout(new BorderLayout());
         setBackground(Theme.BG_DEEP);
         initCef(startUrl);
     }
 
     public void setZoomEnabled(boolean enabled) {
-        this.zoomEnabled = enabled;
-        if (!enabled) resetZoom();
+        appPreferences.setZoomEnabled(enabled);
+        if (!appPreferences.isZoomEnabled()) {
+            resetZoom();
+        }
     }
 
     public void resetZoom() {
@@ -88,8 +90,12 @@ public class CefWebView extends JPanel {
     }
 
     public void dispose() {
-        if (browser != null) browser.close(true);
-        if (client != null) client.dispose();
+        if (browser != null) {
+            browser.close(true);
+        }
+        if (client != null) {
+            client.dispose();
+        }
     }
 
     private void initCef(String startUrl) {
@@ -138,11 +144,13 @@ public class CefWebView extends JPanel {
         msgRouter.addHandler(new CefMessageRouterHandlerAdapter() {
             @Override
             public boolean onQuery(CefBrowser browser, CefFrame frame, long queryId, String request, boolean persistent, CefQueryCallback callback) {
-                if (request.startsWith("zoom_scroll:") && zoomEnabled) {
+                if (request.startsWith("zoom_scroll:") && appPreferences.isZoomEnabled()) {
                     try {
                         var delta = Double.parseDouble(request.split(":")[1]);
                         changeZoom(delta < 0);
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) {
+                        log.error("Can't parse request in a zoom handler", e);
+                    }
                     return true;
                 }
                 return false;
@@ -155,7 +163,7 @@ public class CefWebView extends JPanel {
         client.addKeyboardHandler(new CefKeyboardHandlerAdapter() {
             @Override
             public boolean onPreKeyEvent(CefBrowser browser, CefKeyEvent event, BoolRef is_keyboard_shortcut) {
-                if (!zoomEnabled || (event.modifiers & 2) == 0) return false; // Not Ctrl
+                if (!appPreferences.isZoomEnabled() || (event.modifiers & 2) == 0) return false; // Not Ctrl
 
                 boolean isPressed = event.type == CefKeyEvent.EventType.KEYEVENT_RAWKEYDOWN;
                 int code = event.windows_key_code;
@@ -186,7 +194,8 @@ public class CefWebView extends JPanel {
             public void onLoadEnd(CefBrowser browser, CefFrame frame, int httpStatusCode) {
                 if (frame.isMain()) {
                     browser.executeJavaScript(ZOOM_JS, frame.getURL(), 0);
-                    browser.setZoomLevel(currentZoomLevel);
+                    browser.setZoomLevel(appPreferences.getLastZoomValue());
+                    setZoomInternal(appPreferences.getLastZoomValue());
                 }
             }
         });
@@ -206,18 +215,20 @@ public class CefWebView extends JPanel {
         log.info("Shutting down JCEF...");
         try {
             CefApp.getInstance().dispose();
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            log.error("Exception while shutting down JCEF", e);
+        }
     }
 
     private void changeZoom(boolean increase) {
         double step = 0.5;
-        double newLevel = currentZoomLevel + (increase ? step : -step);
+        double newLevel = appPreferences.getLastZoomValue() + (increase ? step : -step);
         newLevel = Math.max(-3.0, Math.min(4.0, newLevel)); // Clamp -3 to 4
         setZoomInternal(newLevel);
     }
 
     private void setZoomInternal(double level) {
-        this.currentZoomLevel = level;
+        appPreferences.setLastZoomValue(level);
         if (browser != null) {
             browser.setZoomLevel(level);
         }

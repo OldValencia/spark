@@ -14,6 +14,7 @@ import java.awt.*;
 class RightTopBarArea {
 
     private final CefWebView cefWebView;
+    private final Runnable onSettingsToggle;
 
     Box buildRightArea() {
         var box = Box.createHorizontalBox();
@@ -35,9 +36,7 @@ class RightTopBarArea {
         // Settings Button
         gbc.gridx++;
         gbc.insets = new Insets(0, 0, 0, 6);
-        wrapper.add(new AnimatedIconButton("⚙", Theme.BTN_HOVER_SETTINGS, () -> {
-            // TODO: Settings action
-        }), gbc);
+        wrapper.add(new AnimatedIconButton("⚙", Theme.BTN_HOVER_SETTINGS, onSettingsToggle), gbc);
 
         // Close Button
         gbc.gridx++;

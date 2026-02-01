@@ -4,6 +4,7 @@ import io.aipanel.app.config.AiConfiguration;
 import io.aipanel.app.config.AppPreferences;
 import io.aipanel.app.ui.CefWebView;
 import io.aipanel.app.ui.Theme;
+import io.aipanel.app.ui.settings.SettingsPanel;
 import io.aipanel.app.ui.topbar.TopBarArea;
 import lombok.RequiredArgsConstructor;
 
@@ -20,6 +21,7 @@ public class MainWindow {
     private final AppPreferences appPreferences;
 
     private CefWebView cefWebView;
+    private SettingsWindow settingsWindow;
 
     private static final int WIDTH = 820;
     private static final int HEIGHT = 700;
@@ -41,12 +43,25 @@ public class MainWindow {
         root.add(cefWebView, BorderLayout.CENTER);
 
         var frame = buildMainFrame();
+        var settingsPanel = new SettingsPanel(appPreferences);
+        settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
+        settingsPanel.setOnClearCookies(cefWebView::clearCookies);
+        settingsPanel.setOnZoomEnabledChanged(cefWebView::setZoomEnabled);
+        settingsWindow = new SettingsWindow(frame, settingsPanel);
 
-        var topBarArea = new TopBarArea(aiConfiguration, cefWebView, frame, appPreferences);
+        var topBarArea = new TopBarArea(aiConfiguration, cefWebView, frame, settingsWindow, appPreferences, this::toggleSettings);
         root.add(topBarArea.createTopBar(), BorderLayout.NORTH);
 
         frame.add(root);
         frame.setVisible(true);
+    }
+
+    private void toggleSettings() {
+        if (settingsWindow.isOpen()) {
+            settingsWindow.close();
+        } else {
+            settingsWindow.open();
+        }
     }
 
     private CefWebView getCefWebView() {
@@ -64,7 +79,7 @@ public class MainWindow {
             startUrl = "https://chatgpt.com";
         }
 
-        return new CefWebView(startUrl);
+        return new CefWebView(startUrl, appPreferences);
     }
 
     private JFrame buildMainFrame() {

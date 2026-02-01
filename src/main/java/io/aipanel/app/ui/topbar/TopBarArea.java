@@ -4,6 +4,7 @@ import io.aipanel.app.config.AiConfiguration;
 import io.aipanel.app.config.AppPreferences;
 import io.aipanel.app.ui.CefWebView;
 import io.aipanel.app.ui.topbar.components.GradientPanel;
+import io.aipanel.app.windows.SettingsWindow;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -18,7 +19,9 @@ public class TopBarArea {
     private final AiConfiguration aiConfiguration;
     private final CefWebView cefWebView;
     private final JFrame frame;
+    private final SettingsWindow settingsWindow;
     private final AppPreferences appPreferences;
+    private final Runnable onSettingsToggle;
 
     private Point initialClick;
 
@@ -33,7 +36,7 @@ public class TopBarArea {
         var leftTopBarArea = new LeftTopBarArea(aiConfiguration, cefWebView, appPreferences);
         topBarPanel.add(leftTopBarArea.buildLeftArea(), BorderLayout.WEST);
 
-        var rightTopBarArea = new RightTopBarArea(cefWebView);
+        var rightTopBarArea = new RightTopBarArea(cefWebView, onSettingsToggle);
         topBarPanel.add(rightTopBarArea.buildRightArea(), BorderLayout.EAST);
 
         setupDragging(topBarPanel);
@@ -57,8 +60,12 @@ public class TopBarArea {
             public void mouseDragged(MouseEvent e) {
                 int dx = e.getX() - initialClick.x;
                 int dy = e.getY() - initialClick.y;
-                var loc = frame.getLocation();
-                frame.setLocation(loc.x + dx, loc.y + dy);
+                var frameLocation = frame.getLocation();
+                frame.setLocation(frameLocation.x + dx, frameLocation.y + dy);
+
+                if (settingsWindow.isOpen()) {
+                    settingsWindow.setPosition(dx, dy);
+                }
             }
         });
     }

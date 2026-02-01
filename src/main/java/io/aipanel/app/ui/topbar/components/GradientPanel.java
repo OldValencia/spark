@@ -1,7 +1,6 @@
 package io.aipanel.app.ui.topbar.components;
 
 import io.aipanel.app.ui.Theme;
-import lombok.Setter;
 
 import javax.swing.*;
 import java.awt.*;
@@ -9,11 +8,24 @@ import java.awt.geom.RoundRectangle2D;
 
 public class GradientPanel extends JPanel {
 
-    @Setter
     private Color accentColor = Theme.ACCENT;
+
+    private Color cachedTransparent;
+    private Color cachedFaded;
 
     public GradientPanel() {
         setOpaque(false);
+        rebuildGradientColors();
+    }
+
+    public void setAccentColor(Color c) {
+        this.accentColor = c;
+        rebuildGradientColors();
+    }
+
+    private void rebuildGradientColors() {
+        cachedTransparent = new Color(accentColor.getRed(), accentColor.getGreen(), accentColor.getBlue(), 0);
+        cachedFaded = new Color(accentColor.getRed(), accentColor.getGreen(), accentColor.getBlue(), 40);
     }
 
     @Override
@@ -37,12 +49,10 @@ public class GradientPanel extends JPanel {
         var oldClip = g.getClip();
         g.setClip(shape);
 
-        var transparent = new Color(accentColor.getRed(), accentColor.getGreen(), accentColor.getBlue(), 0);
-        var faded = new Color(accentColor.getRed(), accentColor.getGreen(), accentColor.getBlue(), 40);
         g.setPaint(new LinearGradientPaint(
                 new Point(0, 0), new Point(50, 0),
                 new float[]{0f, 1f},
-                new Color[]{transparent, faded}
+                new Color[]{cachedTransparent, cachedFaded}
         ));
         g.fillRect(0, 0, 50, h);
 
@@ -50,7 +60,7 @@ public class GradientPanel extends JPanel {
         g.setPaint(new LinearGradientPaint(
                 new Point(50, 0), new Point(50 + fadeWidth, 0),
                 new float[]{0f, 1f},
-                new Color[]{faded, transparent}
+                new Color[]{cachedFaded, cachedTransparent}
         ));
         g.fillRect(50, 0, fadeWidth, h);
 
