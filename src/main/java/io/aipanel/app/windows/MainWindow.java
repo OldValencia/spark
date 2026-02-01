@@ -10,6 +10,8 @@ import org.springframework.stereotype.Controller;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.geom.RoundRectangle2D;
 
 @Controller
@@ -18,6 +20,8 @@ public class MainWindow {
 
     private final AiConfiguration aiConfiguration;
     private final AppPreferences appPreferences;
+
+    private CefWebView cefWebView;
 
     private static final int WIDTH = 820;
     private static final int HEIGHT = 700;
@@ -35,7 +39,7 @@ public class MainWindow {
         };
         root.setBackground(Theme.BG_DEEP);
 
-        var cefWebView = getCefWebView();
+        cefWebView = getCefWebView();
         root.add(cefWebView, BorderLayout.CENTER);
 
         var frame = buildMainFrame();
@@ -73,6 +77,13 @@ public class MainWindow {
         frame.setLocationRelativeTo(null);
         frame.setBackground(new Color(0, 0, 0, 0));
         frame.setShape(new RoundRectangle2D.Double(0, 0, WIDTH, HEIGHT, RADIUS, RADIUS));
+        frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        frame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                cefWebView.shutdown(() -> System.exit(0));
+            }
+        });
         return frame;
     }
 }
