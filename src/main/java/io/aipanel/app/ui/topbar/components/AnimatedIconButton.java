@@ -66,7 +66,6 @@ public class AnimatedIconButton extends JPanel {
             progress += diff * 0.22f;
         }
 
-        // Ищем родительскую панель для чистого репейнта
         var topBar = SwingUtilities.getAncestorOfClass(GradientPanel.class, this);
         if (topBar != null) {
             topBar.repaint();

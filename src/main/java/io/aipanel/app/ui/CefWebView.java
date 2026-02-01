@@ -1,6 +1,8 @@
 package io.aipanel.app.ui;
 
+import io.aipanel.app.utils.LogSetup;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import me.friwi.jcefmaven.CefAppBuilder;
 import me.friwi.jcefmaven.CefInitializationException;
 import me.friwi.jcefmaven.UnsupportedPlatformException;
@@ -25,13 +27,16 @@ import java.io.File;
 import java.io.IOException;
 import java.util.function.Consumer;
 
+@Slf4j
 public class CefWebView extends JPanel {
 
     // Paths
     private final String BASE_DIR = new File(System.getProperty("user.home"), ".aipanel").getAbsolutePath();
+    private final String LOGS_DIR = LogSetup.LOGS_DIR;
+
     private final String INSTALL_DIR = new File(BASE_DIR, "jcef-bundle").getAbsolutePath();
     private final String CACHE_DIR = new File(BASE_DIR, "cache").getAbsolutePath();
-    private final String LOG_FILE = new File(BASE_DIR, "cef.log").getAbsolutePath();
+    private final String CEF_LOG_FILE = new File(LOGS_DIR, "cef.log").getAbsolutePath();
 
     // JS Injection
     private static final String ZOOM_JS = """
@@ -111,9 +116,9 @@ public class CefWebView extends JPanel {
             Runtime.getRuntime().addShutdownHook(new Thread(this::performShutdown));
 
             revalidate();
-
+            log.info("JCEF Initialized successfully. Install dir: {}", INSTALL_DIR);
         } catch (IOException | UnsupportedPlatformException | InterruptedException | CefInitializationException e) {
-            e.printStackTrace(); // В идеале здесь нужен логгер
+            log.error("Failed to initialize JCEF", e);
         }
     }
 
@@ -123,7 +128,8 @@ public class CefWebView extends JPanel {
         settings.cache_path = CACHE_DIR;
         settings.root_cache_path = CACHE_DIR;
         settings.persist_session_cookies = true;
-        settings.log_file = LOG_FILE;
+        settings.log_file = CEF_LOG_FILE;
+        settings.log_severity = org.cef.CefSettings.LogSeverity.LOGSEVERITY_WARNING;
         settings.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     }
 
@@ -197,7 +203,7 @@ public class CefWebView extends JPanel {
     }
 
     private void performShutdown() {
-        System.out.println("Shutting down JCEF...");
+        log.info("Shutting down JCEF...");
         try {
             CefApp.getInstance().dispose();
         } catch (Exception ignored) {}

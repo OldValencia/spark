@@ -56,15 +56,14 @@ jlink {
 }
 
 dependencies {
-//    implementation 'org.apache.commons:commons-lang3:3.20.0'
     implementation 'org.springframework:spring-context:7.0.3'
-//    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
     implementation 'me.friwi:jcefmaven:141.0.10'
     implementation 'org.yaml:snakeyaml:2.2'
-
     implementation 'com.github.weisj:jsvg:2.0.0'
     implementation "com.formdev:flatlaf:$flatLafVersion"
     implementation "com.formdev:flatlaf-extras:$flatLafVersion"
+    implementation 'org.slf4j:slf4j-api:2.0.17'
+    implementation 'ch.qos.logback:logback-classic:1.5.27'
 
     // Lombok
     compileOnly "org.projectlombok:lombok:$lombokVersion"

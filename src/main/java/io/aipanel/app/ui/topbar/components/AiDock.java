@@ -7,6 +7,7 @@ import io.aipanel.app.ui.CefWebView;
 import io.aipanel.app.ui.Theme;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 public class AiDock extends JPanel {
 
     private static final int ICON_SIZE = 24;
@@ -44,9 +46,8 @@ public class AiDock extends JPanel {
         setOpaque(false);
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        // 1. Сначала определяем, какой индекс должен быть активным
-        String lastUrl = appPreferences.getLastUrl();
-        int initialIndex = 0; // По дефолту первый
+        var lastUrl = appPreferences.getLastUrl();
+        int initialIndex = 0;
 
         if (lastUrl != null) {
             for (int i = 0; i < configs.size(); i++) {
@@ -58,7 +59,6 @@ public class AiDock extends JPanel {
         }
         this.selectedIndex = initialIndex;
 
-        // 2. Создаем элементы и сразу выставляем правильный флаг
         for (int i = 0; i < configs.size(); i++) {
             var item = new DockItem(configs.get(i), i);
             if (i == initialIndex) {
@@ -68,20 +68,15 @@ public class AiDock extends JPanel {
             preloadIcon(configs.get(i));
         }
 
-        // 3. Запускаем таймер и слушатели
         animationTimer = new Timer(15, e -> animate());
         setupMouseListeners();
 
-        // 4. И только ТЕПЕРЬ рассчитываем ширину.
-        // Так как selectedIndex уже верный, ширина рассчитается правильно сразу.
         calculateTargets(false);
         for (var item : dockItems) {
             item.currentWidth = item.targetWidth;
         }
         revalidateWidth();
 
-        // 5. Бонус: Обновляем цвет шапки при старте (чтобы не был дефолтным, если выбрана другая ИИ)
-        // Делаем это через invokeLater, чтобы UI успел собраться
         SwingUtilities.invokeLater(() -> {
             var topBarComp = SwingUtilities.getAncestorOfClass(GradientPanel.class, this);
             if (topBarComp instanceof GradientPanel topBar) {
@@ -172,7 +167,6 @@ public class AiDock extends JPanel {
 
         if (needsRepaint) {
             revalidateWidth();
-            // Ищем родителя (TopBarPanel) и просим его перерисоваться
             var topBar = SwingUtilities.getAncestorOfClass(GradientPanel.class, this);
             if (topBar != null) topBar.repaint(); else repaint();
         } else if (allDone && !isDockHovered) {
@@ -295,12 +289,11 @@ public class AiDock extends JPanel {
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
         int y = (getHeight() - ITEM_HEIGHT) / 2;
-        float currentX = 0;
 
         // 1. Draw Selected
         var selectedItem = dockItems.get(selectedIndex);
-        drawDockItem(g, selectedItem, (int) currentX, y);
-        currentX += selectedItem.currentWidth + ITEM_MARGIN;
+        drawDockItem(g, selectedItem, 0, y);
+        float currentX = selectedItem.currentWidth + ITEM_MARGIN;
 
         // 2. Draw Others
         for (int i = 0; i < dockItems.size(); i++) {
@@ -319,7 +312,6 @@ public class AiDock extends JPanel {
 
         Shape shape = new RoundRectangle2D.Float(x, y, w, ITEM_HEIGHT, ITEM_HEIGHT, ITEM_HEIGHT);
 
-        // --- Background ---
         if (item.isSelected()) {
             var bg = Theme.ACCENT;
             try {
@@ -337,16 +329,12 @@ public class AiDock extends JPanel {
             g.draw(shape);
         }
 
-        // --- Icon ---
         var icon = ICON_CACHE.get(item.config.icon());
         if (icon != null) {
             int iconY = y + (ITEM_HEIGHT - ICON_SIZE) / 2;
             g.drawImage(icon, x + PAD, iconY, ICON_SIZE, ICON_SIZE, null);
         }
 
-        // --- Text ---
-        // Only draw text if the width is strictly larger than the collapsed state (Icon + 2*Pad).
-        // This prevents 1-2px bleed when width is exactly PAD+ICON+PAD.
         if (w > PAD + ICON_SIZE + PAD) {
             g.setFont(Theme.FONT_SELECTOR);
             g.setColor(Theme.TEXT_PRIMARY);
@@ -394,20 +382,20 @@ public class AiDock extends JPanel {
 
                 else {
                     var original = ImageIO.read(url);
-                    return resize(original, ICON_SIZE, ICON_SIZE);
+                    return resizeToDefaultIconSize(original);
                 }
             } catch (Exception e) {
-                 e.printStackTrace(); // fixme add logs
+                log.error("Failed to load icon for AiDock", e);
             }
             return null;
         });
     }
 
-    private Image resize(BufferedImage img, int w, int h) {
-        var resized = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+    private Image resizeToDefaultIconSize(BufferedImage img) {
+        var resized = new BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB);
         var g = resized.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g.drawImage(img, 0, 0, w, h, null);
+        g.drawImage(img, 0, 0, ICON_SIZE, ICON_SIZE, null);
         g.dispose();
         return resized;
     }

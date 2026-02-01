@@ -9,4 +9,9 @@ public class AppConfig {
     public AiConfiguration aiConfiguration() {
         return new AiConfiguration();
     }
+
+    @Bean
+    public AppPreferences appPreferences() {
+        return new AppPreferences();
+    }
 }

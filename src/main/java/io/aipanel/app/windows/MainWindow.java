@@ -1,7 +1,7 @@
 package io.aipanel.app.windows;
 
 import io.aipanel.app.config.AiConfiguration;
-import io.aipanel.app.config.AppPreferences; // <-- Импортируем наш новый класс
+import io.aipanel.app.config.AppPreferences;
 import io.aipanel.app.ui.CefWebView;
 import io.aipanel.app.ui.Theme;
 import io.aipanel.app.ui.topbar.TopBarArea;
@@ -17,9 +17,7 @@ import java.awt.geom.RoundRectangle2D;
 public class MainWindow {
 
     private final AiConfiguration aiConfiguration;
-    // Создаем экземпляр настроек. В идеале сделать Bean,
-    // но пока можно просто создать поле final, так как это легковесный класс.
-    private final AppPreferences appPreferences = new AppPreferences();
+    private final AppPreferences appPreferences;
 
     private static final int WIDTH = 820;
     private static final int HEIGHT = 700;
@@ -37,41 +35,34 @@ public class MainWindow {
         };
         root.setBackground(Theme.BG_DEEP);
 
-        // === ЛОГИКА ВЫБОРА URL ПРИ СТАРТЕ ===
-        String startUrl = null;
-
-        // 1. Пытаемся достать сохраненный
-        if (appPreferences.isRememberLastAi()) {
-            startUrl = appPreferences.getLastUrl();
-        }
-
-        // 2. Если сохраненного нет или он пустой - берем первый из конфига
-        if (startUrl == null && !aiConfiguration.getConfigurations().isEmpty()) {
-            startUrl = aiConfiguration.getConfigurations().getFirst().url();
-        }
-
-        // 3. Фолбэк, если вообще ничего нет
-        if (startUrl == null) {
-            startUrl = "https://chatgpt.com";
-        }
-
-        // Создаем WebView
-        var cefWebView = new CefWebView(startUrl);
+        var cefWebView = getCefWebView();
         root.add(cefWebView, BorderLayout.CENTER);
 
         var frame = buildMainFrame();
 
-        // === ВАЖНО: Передаем appPreferences в TopBarArea (или AiDock) ===
-        // Но сейчас TopBarArea принимает только config и webView.
-        // Чтобы AiDock мог сохранять выбор, нам нужно передать ему preferences.
-        // Давай сделаем это аккуратно через модификацию AiDock.
-
-        // Передаем appPreferences в TopBarArea
         var topBarArea = new TopBarArea(aiConfiguration, cefWebView, frame, appPreferences);
         root.add(topBarArea.createTopBar(), BorderLayout.NORTH);
 
         frame.add(root);
         frame.setVisible(true);
+    }
+
+    private CefWebView getCefWebView() {
+        String startUrl = null;
+
+        if (appPreferences.isRememberLastAi()) {
+            startUrl = appPreferences.getLastUrl();
+        }
+
+        if (startUrl == null && !aiConfiguration.getConfigurations().isEmpty()) {
+            startUrl = aiConfiguration.getConfigurations().getFirst().url();
+        }
+
+        if (startUrl == null) {
+            startUrl = "https://chatgpt.com";
+        }
+
+        return new CefWebView(startUrl);
     }
 
     private JFrame buildMainFrame() {

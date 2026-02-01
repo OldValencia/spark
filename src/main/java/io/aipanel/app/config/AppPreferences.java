@@ -1,8 +1,11 @@
 package io.aipanel.app.config;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.*;
 import java.util.Properties;
 
+@Slf4j
 public class AppPreferences {
 
     private static final String FILE_NAME = "settings.properties";
@@ -11,7 +14,6 @@ public class AppPreferences {
 
     private final Properties props = new Properties();
 
-    // Ключи
     private static final String KEY_LAST_URL = "last_url";
     private static final String KEY_REMEMBER_AI = "remember_last_ai";
 
@@ -24,7 +26,7 @@ public class AppPreferences {
         try (var is = new FileInputStream(FILE)) {
             props.load(is);
         } catch (IOException e) {
-            e.printStackTrace(); // fixme add logs
+            log.error("Failed to load application preferences", e);
         }
     }
 
@@ -33,7 +35,7 @@ public class AppPreferences {
         try (var os = new FileOutputStream(FILE)) {
             props.store(os, "AI Panel Settings");
         } catch (IOException e) {
-            e.printStackTrace(); // fixme add logs
+            log.error("Failed to save application preferences", e);
         }
     }
 
@@ -51,7 +53,6 @@ public class AppPreferences {
     public void setRememberLastAi(boolean remember) {
         props.setProperty(KEY_REMEMBER_AI, String.valueOf(remember));
         save();
-        // Если выключили запоминание, стираем последний URL
         if (!remember) {
             props.remove(KEY_LAST_URL);
             save();
@@ -59,7 +60,6 @@ public class AppPreferences {
     }
 
     public boolean isRememberLastAi() {
-        // По умолчанию true
         return Boolean.parseBoolean(props.getProperty(KEY_REMEMBER_AI, "true"));
     }
 }

@@ -1,6 +1,7 @@
 package io.aipanel.app;
 
 import io.aipanel.app.config.AppConfig;
+import io.aipanel.app.utils.LogSetup;
 import io.aipanel.app.windows.MainWindow;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
@@ -14,6 +15,8 @@ public class AIPanelApplication {
     private static AnnotationConfigApplicationContext springContext;
 
     public static void main(String[] args) {
+        LogSetup.init();
+
         System.setProperty("sun.awt.exception.handler", AwtExceptionHandler.class.getName());
 
         springContext = new AnnotationConfigApplicationContext();
