@@ -24,10 +24,10 @@ public class AiConfiguration {
         Map<String, List<Map<String, String>>> obj = yaml.load(inputStream);
 
         this.configurations = obj.get("configurations").stream()
-                .map(m -> new AiConfig(m.get("name"), m.get("url"), m.get("icon")))
+                .map(m -> new AiConfig(m.get("name"), m.get("url"), m.get("icon"), m.get("color")))
                 .toList();
     }
 
-    public record AiConfig(String name, String url, String icon) {
+    public record AiConfig(String name, String url, String icon, String color) {
     }
 }

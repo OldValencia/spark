@@ -13,6 +13,7 @@ repositories {
 
 def junitVersion = '5.10.2'
 def lombokVersion = '1.18.42'
+def flatLafVersion = '3.7'
 
 java {
     toolchain {
@@ -60,6 +61,10 @@ dependencies {
 //    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
     implementation 'me.friwi:jcefmaven:141.0.10'
     implementation 'org.yaml:snakeyaml:2.2'
+
+    implementation 'com.github.weisj:jsvg:2.0.0'
+    implementation "com.formdev:flatlaf:$flatLafVersion"
+    implementation "com.formdev:flatlaf-extras:$flatLafVersion"
 
     // Lombok
     compileOnly "org.projectlombok:lombok:$lombokVersion"
