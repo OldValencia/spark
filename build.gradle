@@ -58,7 +58,7 @@ jlink {
             '--strip-native-commands'
     ]
     launcher {
-        name = 'app'
+        name = 'AI Panel'
     }
     addOptions('--add-modules', 'java.desktop')
 }
