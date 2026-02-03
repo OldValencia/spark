@@ -3,6 +3,7 @@ package io.loom.app.ui;
 import io.loom.app.config.AiConfiguration;
 import io.loom.app.config.AppPreferences;
 import io.loom.app.utils.LogSetup;
+import io.loom.app.windows.SettingsWindow;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import me.friwi.jcefmaven.CefAppBuilder;
@@ -52,19 +53,24 @@ public class CefWebView extends JPanel {
 
     @Setter
     private Consumer<Double> zoomCallback;
+    @Setter
+    private SettingsWindow settingsWindow;
 
     private CefClient client;
     private CefBrowser browser;
     private AiConfiguration.AiConfig currentConfig;
 
-    private final AppPreferences appPreferences;
     private double currentZoomLevel;
 
     private final JLayeredPane layeredPane;
 
-    public CefWebView(String startUrl, AppPreferences appPreferences) {
+    private final AppPreferences appPreferences;
+    private final Runnable onToggleSettings;
+
+    public CefWebView(String startUrl, AppPreferences appPreferences, Runnable onToggleSettings) {
         this.appPreferences = appPreferences;
         this.currentZoomLevel = appPreferences.getLastZoomValue();
+        this.onToggleSettings = onToggleSettings;
 
         setLayout(new BorderLayout());
         setBackground(Theme.BG_DEEP);
@@ -337,6 +343,9 @@ public class CefWebView extends JPanel {
     private void loadUrl(String url) {
         if (browser != null) {
             browser.loadURL(url);
+            if (settingsWindow != null && settingsWindow.isOpen()) {
+                onToggleSettings.run();
+            }
         }
     }
 

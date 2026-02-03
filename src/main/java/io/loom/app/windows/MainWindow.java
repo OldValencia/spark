@@ -52,6 +52,7 @@ public class MainWindow {
         settingsPanel.setOnClearCookies(cefWebView::clearCookies);
         settingsPanel.setOnZoomEnabledChanged(cefWebView::setZoomEnabled);
         settingsWindow = new SettingsWindow(frame, settingsPanel);
+        cefWebView.setSettingsWindow(settingsWindow);
 
         var topBarArea = new TopBarArea(aiConfiguration, cefWebView, frame, settingsWindow, appPreferences, this::toggleSettings, this::closeWindow);
         root.add(topBarArea.createTopBar(), BorderLayout.NORTH);
@@ -72,8 +73,19 @@ public class MainWindow {
         }
         var image = Toolkit.getDefaultToolkit().getImage(iconUrl);
         var popup = new PopupMenu();
-        var exitItem = new MenuItem("Exit Loom");
 
+        var showItem = new MenuItem("Show Application");
+        showItem.addActionListener(e -> {
+            frame.setVisible(true);
+            frame.setExtendedState(JFrame.NORMAL);
+            frame.toFront();
+            frame.requestFocus();
+        });
+        popup.add(showItem);
+
+        popup.addSeparator();
+
+        var exitItem = new MenuItem("Exit Loom");
         exitItem.addActionListener(e -> {
             cefWebView.shutdown(() -> {
                 System.exit(0);
@@ -126,7 +138,7 @@ public class MainWindow {
             startUrl = "https://chatgpt.com";
         }
 
-        return new CefWebView(startUrl, appPreferences);
+        return new CefWebView(startUrl, appPreferences, this::toggleSettings);
     }
 
     private JFrame buildMainFrame() {
