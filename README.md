@@ -1,7 +1,7 @@
 # Loom
 
 <p align="center">
-<img src="docs/icon.png" alt="Loom Icon" width="400px"/>
+<img src="./src/main/resources/app-icons/icon.png" alt="Loom Icon" width="500px"/>
 </p>
 
 A modern, lightweight desktop application that provides unified access to multiple AI chat services through a sleek, always-on-top interface.
