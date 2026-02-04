@@ -68,7 +68,7 @@ tasks.register('createInstaller', Exec) {
     def javaOpts = [
             '-Xms16m',
             '-Xmx256m',
-            '-Xss128k',
+            '-Xss512k',
 
             '-XX:MaxMetaspaceSize=128m',
             '-XX:MetaspaceSize=32m',
