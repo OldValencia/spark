@@ -32,7 +32,7 @@ public class AnimatedToggleSwitch extends JPanel {
         setMaximumSize(new Dimension(WIDTH, HEIGHT));
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        animTimer = new Timer(16, e -> tick());
+        animTimer = new Timer(10, e -> tick());
 
         addMouseListener(new MouseAdapter() {
             @Override
@@ -64,6 +64,7 @@ public class AnimatedToggleSwitch extends JPanel {
         if (Math.abs(diff) < 0.01f) {
             progress = target;
             animTimer.stop();
+            Toolkit.getDefaultToolkit().sync();
         } else {
             progress += diff * ANIM_SPEED;
         }
