@@ -33,12 +33,15 @@ import java.awt.event.ComponentEvent;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.function.Consumer;
 
 @Slf4j
 public class CefWebView extends JPanel {
 
-    private final String BASE_DIR = new File(System.getProperty("user.home"), ".loom").getAbsolutePath();
+    private final File BASE_DIR_FILE = resolveDataDirectory();
+    private final String BASE_DIR = BASE_DIR_FILE.getAbsolutePath();
+
     private final String LOGS_DIR = LogSetup.LOGS_DIR;
     private final String INSTALL_DIR = new File(BASE_DIR, "jcef-bundle").getAbsolutePath();
     private final String CACHE_DIR = new File(BASE_DIR, "cache").getAbsolutePath();
@@ -90,6 +93,21 @@ public class CefWebView extends JPanel {
 
         smartClean();
         initCef(startUrl);
+    }
+
+    private File resolveDataDirectory() {
+        var userHome = System.getProperty("user.home");
+        var os = System.getProperty("os.name", "").toLowerCase();
+
+        File dataDir;
+        if (os.contains("mac")) {
+            // macOS: ~/Library/Application Support/Loom
+            dataDir = Paths.get(userHome, "Library", "Application Support", "Loom").toFile();
+        } else {
+            // Windows/Linux: ~/.loom
+            dataDir = Paths.get(userHome, ".loom").toFile();
+        }
+        return dataDir;
     }
 
     public void setCurrentConfig(AiConfiguration.AiConfig currentConfig) {
@@ -185,6 +203,16 @@ public class CefWebView extends JPanel {
     private void initCef(String startUrl) {
         try {
             var builder = new CefAppBuilder();
+
+            var installDirFile = new File(INSTALL_DIR);
+            if (!installDirFile.exists()) {
+                if (installDirFile.mkdirs()) {
+                    log.info("Created JCEF install dir: {}", INSTALL_DIR);
+                } else {
+                    log.error("Failed to create JCEF install dir: {}", INSTALL_DIR);
+                }
+            }
+            builder.setInstallDir(installDirFile);
 
             memoryMonitor = new MemoryMonitor(browser);
             memoryMonitor.start();
@@ -361,7 +389,7 @@ public class CefWebView extends JPanel {
             onComplete.run();
 
             new Timer(500, e -> {
-                ((Timer)e.getSource()).stop();
+                ((Timer) e.getSource()).stop();
                 onComplete.run();
                 System.exit(0);
             }).start();
