@@ -1,6 +1,7 @@
 package io.loom.app.ui.settings.components;
 
 import io.loom.app.ui.Theme;
+import lombok.Setter;
 
 import javax.swing.*;
 import java.awt.*;
@@ -10,11 +11,16 @@ import java.awt.geom.RoundRectangle2D;
 
 public class AnimatedSettingsButton extends JPanel {
 
-    private final String text;
+    private String text;
     private final Timer animTimer;
 
     private float hoverProgress = 0f;
     private boolean hovered = false;
+
+    public void setText(String text) {
+        this.text = text;
+        this.tick();
+    }
 
     public AnimatedSettingsButton(String text, Runnable action) {
         this.text = text;
@@ -63,7 +69,6 @@ public class AnimatedSettingsButton extends JPanel {
     @Override
     protected void paintComponent(Graphics g0) {
         var g = (Graphics2D) g0;
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
         int w = getWidth();

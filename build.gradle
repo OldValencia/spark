@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'io.loom'
-version = '0.0.4'
+version = '0.0.6'
 
 repositories {
     mavenCentral()
@@ -37,6 +37,10 @@ dependencies {
     implementation "com.formdev:flatlaf-extras:$flatLafVersion"
     implementation 'org.slf4j:slf4j-api:2.0.17'
     implementation 'ch.qos.logback:logback-classic:1.5.27'
+    implementation 'org.apache.commons:commons-collections4:4.5.0'
+
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'com.github.kwhat:jnativehook:2.2.2'
 
     compileOnly "org.projectlombok:lombok:$lombokVersion"
     annotationProcessor "org.projectlombok:lombok:$lombokVersion"
@@ -63,30 +67,42 @@ tasks.register('createInstaller', Exec) {
 
     def javaOpts = [
             '-Xms16m',
-            '-Xmx512m',
-            '-Xss192k',
-            '-XX:MaxMetaspaceSize=256m',
-            '-XX:+UseStringDeduplication',
-            '-XX:CompressedClassSpaceSize=8m',
+            '-Xmx256m',
+            '-Xss128k',
+
+            '-XX:MaxMetaspaceSize=128m',
+            '-XX:MetaspaceSize=32m',
+            '-XX:CompressedClassSpaceSize=16m',
 
             '-XX:+UseSerialGC',
-            '-XX:MinHeapFreeRatio=10',
-            '-XX:MaxHeapFreeRatio=20',
+            '-XX:MinHeapFreeRatio=5',
+            '-XX:MaxHeapFreeRatio=10',
+            '-XX:GCTimeRatio=19',
+
+            '-XX:+UseStringDeduplication',
+            '-XX:StringTableSize=60013',
 
             '-XX:+TieredCompilation',
             '-XX:TieredStopAtLevel=1',
+            '-XX:ReservedCodeCacheSize=32m',
+
+            // experimental
+            '-XX:+UnlockExperimentalVMOptions',
+            '-XX:+UseContainerSupport',
+            '-XX:+OptimizeStringConcat',
+            '-XX:+UseCompressedOops',
+
             '-XX:-UsePerfData',
+            '-XX:+AlwaysPreTouch',
 
             '-Dsun.java2d.d3d=false',
             '-Dsun.java2d.ddoffscreen=false',
             '-Dsun.java2d.noddraw=true',
             '-Dsun.java2d.uiScale=1.0',
-            '-Djogl.disable.openglcore=false',
 
             '--add-exports=java.base/java.lang=ALL-UNNAMED',
             '--add-exports=java.desktop/sun.awt=ALL-UNNAMED',
             '--add-exports=java.desktop/sun.java2d=ALL-UNNAMED',
-
             '--add-opens=java.desktop/sun.awt=ALL-UNNAMED',
             '--add-opens=java.desktop/sun.lwawt=ALL-UNNAMED',
             '--add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED'
@@ -102,7 +118,9 @@ tasks.register('createInstaller', Exec) {
         winOptions = [
                 '--win-dir-chooser',
                 '--win-menu',
-                '--win-shortcut-prompt'
+                '--win-shortcut-prompt',
+                '--win-per-user-install',
+                '--win-upgrade-uuid', 'f3c4e5d6-a7b8-9c0d-1e2f-3a4b5c6d7e8f'
         ]
     } else if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
         installerType = "dmg"

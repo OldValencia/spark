@@ -10,7 +10,6 @@ import java.awt.*;
 public class SettingsWindow {
 
     private static final int TOPBAR_HEIGHT = 48;
-    private static final int PANEL_HEIGHT = 225;
     private static final float LERP_SPEED = 0.22f;
 
     private final JFrame owner;
@@ -20,11 +19,16 @@ public class SettingsWindow {
     private float progress = 0f;
     private float targetProgress = 0f;
     private Timer animTimer;
+    private int currentTargetHeight = 0;
 
     public void open() {
         if (window == null) {
             createWindow();
         }
+        settingsPanel.setSize(owner.getWidth(), Integer.MAX_VALUE);
+        settingsPanel.doLayout();
+        currentTargetHeight = settingsPanel.getPreferredSize().height;
+
         targetProgress = 1f;
         window.setVisible(true);
         animTimer.start();
@@ -81,7 +85,7 @@ public class SettingsWindow {
         int x = owner.getX();
         int y = owner.getY() + TOPBAR_HEIGHT;
         int w = owner.getWidth();
-        int h = (int) (PANEL_HEIGHT * progress);
+        int h = (int) (currentTargetHeight * progress);
 
         window.setBounds(x, y, w, Math.max(h, 1));
     }

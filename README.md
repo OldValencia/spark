@@ -1,7 +1,7 @@
 # Loom
 
 <p align="center">
-<img src="docs/icon.png" alt="Loom Icon" width="400px"/>
+<img src="./src/main/resources/app-icons/icon.png" alt="Loom Icon" width="500px"/>
 </p>
 
 A modern, lightweight desktop application that provides unified access to multiple AI chat services through a sleek, always-on-top interface.
@@ -63,12 +63,12 @@ Also
 ## Installation
 
 ### Windows
-1. Download `Loom-Setup-0.0.4.exe` from [Releases](https://github.com/OldValencia/ai-panel/releases)
+1. Download `Loom-N.N.N.exe` from [Releases](https://github.com/OldValencia/ai-panel/releases)
 2. Run the installer
 3. Launch from Start Menu or Desktop shortcut
 
 ### macOS
-1. Download `Loom-0.0.4.dmg` from [Releases](https://github.com/OldValencia/ai-panel/releases)
+1. Download `Loom-N.N.N.dmg` from [Releases](https://github.com/OldValencia/ai-panel/releases)
 2. Open the DMG file
 3. Drag **Loom** to Applications folder
 4. Launch from Applications
@@ -195,7 +195,7 @@ applicationDefaultJvmArgs = [
 ./gradlew packageWindows
 ```
 
-Output: `build/packages/Loom-0.0.4.exe`
+Output: `build/packages/Loom-N.N.N.exe`
 
 **Features**:
 - Bundled JRE (no Java required)
@@ -209,10 +209,10 @@ Output: `build/packages/Loom-0.0.4.exe`
 jpackage \
   --type exe \
   --name "Loom" \
-  --app-version 0.0.4 \
+  --app-version N.N.N \
   --runtime-image build/image \
   --input build/libs \
-  --main-jar loom-0.0.4.jar \
+  --main-jar loom-N.N.N.jar \
   --main-class io.loom.app.LoomApplication \
   --icon src/main/resources/icon.ico \
   --win-dir-chooser \
@@ -227,7 +227,7 @@ jpackage \
 ./gradlew packageMac
 ```
 
-Output: `build/packages/Loom-0.0.4.dmg`
+Output: `build/packages/Loom-N.N.N.dmg`
 
 **Features**:
 - Native .app bundle
@@ -235,28 +235,14 @@ Output: `build/packages/Loom-0.0.4.dmg`
 - Drag-to-Applications installer
 - macOS native look
 
-**Manual jpackage**:
-```bash
-jpackage \
-  --type dmg \
-  --name "Loom" \
-  --app-version 0.0.4 \
-  --runtime-image build/image \
-  --input build/libs \
-  --main-jar loom-0.0.4.jar \
-  --main-class io.loom.app.LoomApplication \
-  --icon src/main/resources/icon.icns \
-  --mac-package-identifier io.loom.app
-```
-
 ### Quick Start
 ```bash
 # Build for current platform
-./gradlew clean packageAll
+./gradlew clean build createInstaller
 
 # Output
-# Windows: build/packages/Loom-0.0.4.exe
-# macOS: build/packages/Loom-0.0.4.dmg
+# Windows: build/packages/Loom-N.N.N.exe
+# macOS: build/packages/Loom-N.N.N.dmg
 ```
 
 ### Icon Requirements
@@ -293,7 +279,7 @@ iconutil -c icns icon.iconset
 ## Project Structure
 
 ```
-ai-panel/
+loom/
 ├── src/main/
 │   ├── java/io/loom/app/
 │   │   ├── config/           # Configuration management
@@ -327,15 +313,7 @@ The application automatically cleans:
 - CEF log rotation at 2MB
 
 ### Settings Persistence
-All preferences are efficiently stored in a single `settings.properties` file:
-```properties
-# Example settings.properties
-last_url=https://chatgpt.com
-last_zoom_value=0.5
-zoom_enabled=true
-remember_last_ai=true
-ai_order=https://chatgpt.com,https://claude.ai,https://gemini.google.com
-```
+All preferences are efficiently stored in a single `settings.properties` file
 
 ## Troubleshooting
 
@@ -362,12 +340,3 @@ ai_order=https://chatgpt.com,https://claude.ai,https://gemini.google.com
 - Verify "Zoom enabled" is ON in Settings
 - Zoom level only persists when zoom is enabled
 - Check `last_zoom_value` in settings.properties
-
-## Roadmap
-
-- [ ] Linux support
-- [ ] More themes
-- [ ] Auto-update mechanism
-- [ ] More AI services
-- [ ] Workspace profiles
-- [ ] Per-AI custom settings

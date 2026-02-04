@@ -1,5 +1,6 @@
 package io.loom.app.config;
 
+import io.loom.app.utils.AutoStartManager;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
@@ -8,6 +9,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
+
+import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
 @Slf4j
 public class AppPreferences {
@@ -23,9 +26,13 @@ public class AppPreferences {
     private static final String KEY_LAST_ZOOM_VALUE = "last_zoom_value";
     private static final String KEY_ZOOM_ENABLED = "zoom_enabled";
     private static final String KEY_AI_ORDER = "ai_order";
+    private static final String KEY_CHECK_UPDATES_ON_STARTUP = "check_updates_on_startup";
+    private static final String KEY_AUTO_START_ENABLED = "auto_start_enabled";
+    private static final String KEY_HOTKEY_TO_START_APPLICATION = "hotkey_to_start_application";
 
     public AppPreferences() {
         load();
+        initDefaults();
     }
 
     private void load() {
@@ -34,6 +41,43 @@ public class AppPreferences {
             props.load(is);
         } catch (IOException e) {
             log.error("Failed to load application preferences", e);
+        }
+    }
+
+    private void initDefaults() {
+        boolean changed = false;
+
+        if (!props.containsKey(KEY_REMEMBER_AI)) {
+            props.setProperty(KEY_REMEMBER_AI, "true");
+            changed = true;
+        }
+        if (!props.containsKey(KEY_ZOOM_ENABLED)) {
+            props.setProperty(KEY_ZOOM_ENABLED, "true");
+            changed = true;
+        }
+        if (!props.containsKey(KEY_LAST_ZOOM_VALUE)) {
+            props.setProperty(KEY_LAST_ZOOM_VALUE, "0.0");
+            changed = true;
+        }
+        if (!props.containsKey(KEY_CHECK_UPDATES_ON_STARTUP)) {
+            props.setProperty(KEY_CHECK_UPDATES_ON_STARTUP, "true");
+            changed = true;
+        }
+        if (!props.containsKey(KEY_AUTO_START_ENABLED)) {
+            props.setProperty(KEY_AUTO_START_ENABLED, "true");
+            changed = true;
+        }
+        if (!props.containsKey(KEY_AI_ORDER)) {
+            props.setProperty(KEY_AI_ORDER, "");
+            changed = true;
+        }
+        if (!props.containsKey(KEY_HOTKEY_TO_START_APPLICATION)) {
+            props.setProperty(KEY_HOTKEY_TO_START_APPLICATION, "");
+            changed = true;
+        }
+
+        if (changed) {
+            save();
         }
     }
 
@@ -78,7 +122,11 @@ public class AppPreferences {
     }
 
     public Double getLastZoomValue() {
-        return Double.valueOf(props.getProperty(KEY_LAST_ZOOM_VALUE, "0.0"));
+        try {
+            return Double.valueOf(props.getProperty(KEY_LAST_ZOOM_VALUE, "0.0"));
+        } catch (NumberFormatException e) {
+            return 0.0;
+        }
     }
 
     public void setZoomEnabled(boolean zoomEnabled) {
@@ -106,6 +154,49 @@ public class AppPreferences {
         }
         return Arrays.stream(orderStr.split(","))
                 .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    public void setCheckUpdatesOnStartup(boolean checkUpdatesOnStartup) {
+        props.setProperty(KEY_CHECK_UPDATES_ON_STARTUP, String.valueOf(checkUpdatesOnStartup));
+        save();
+    }
+
+    public boolean isCheckUpdatesOnStartupEnabled() {
+        return Boolean.parseBoolean(props.getProperty(KEY_CHECK_UPDATES_ON_STARTUP, "true"));
+    }
+
+    public void setAutoStartEnabled(boolean autoStartEnabled) {
+        props.setProperty(KEY_AUTO_START_ENABLED, String.valueOf(autoStartEnabled));
+        save();
+        AutoStartManager.setAutoStart(autoStartEnabled);
+    }
+
+    public boolean isAutoStartEnabled() {
+        return Boolean.parseBoolean(props.getProperty(KEY_AUTO_START_ENABLED, "true"));
+    }
+
+    public void setHotkeyToStartApplication(List<Integer> keys) {
+        var hotkey = emptyIfNull(keys).stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+        props.setProperty(KEY_HOTKEY_TO_START_APPLICATION, hotkey);
+        save();
+    }
+
+    public List<Integer> getHotkeyToStartApplication() {
+        var hotkeyStr = props.getProperty(KEY_HOTKEY_TO_START_APPLICATION);
+        if (hotkeyStr == null || hotkeyStr.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        var cleanStr = hotkeyStr.replace("[", "")
+                .replace("]", "")
+                .replace(" ", "");
+
+        return Arrays.stream(cleanStr.split(","))
+                .filter(s -> !s.isEmpty())
+                .map(Integer::parseInt)
                 .collect(Collectors.toList());
     }
 }

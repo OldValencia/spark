@@ -30,6 +30,15 @@ public class LogSetup {
         System.setProperty("log.name", logFileName);
     }
 
+    static void rotateCefLog(File dir) {
+        var cefLog = new File(dir, "cef.log");
+        if (cefLog.exists() && cefLog.length() > CEF_LOG_MAX_BYTES) {
+            if (cefLog.delete()) {
+                System.out.println("Rotated cef.log (exceeded " + (CEF_LOG_MAX_BYTES / 1024) + " KB)");
+            }
+        }
+    }
+
     private static void cleanOldLogs(File dir) {
         File[] files = dir.listFiles((d, name) -> name.startsWith("app-") && name.endsWith(".log"));
 
@@ -40,15 +49,6 @@ public class LogSetup {
                 if (files[i].delete()) {
                     System.out.println("Deleted old log: " + files[i].getName());
                 }
-            }
-        }
-    }
-
-    private static void rotateCefLog(File dir) {
-        var cefLog = new File(dir, "cef.log");
-        if (cefLog.exists() && cefLog.length() > CEF_LOG_MAX_BYTES) {
-            if (cefLog.delete()) {
-                System.out.println("Rotated cef.log (exceeded " + (CEF_LOG_MAX_BYTES / 1024) + " KB)");
             }
         }
     }

@@ -15,7 +15,7 @@ class RightTopBarArea {
 
     private final CefWebView cefWebView;
     private final Runnable onSettingsToggle;
-    private final Runnable onHideWindow;
+    private final Runnable onCloseWindow;
 
     Box buildRightArea() {
         var box = Box.createHorizontalBox();
@@ -35,23 +35,14 @@ class RightTopBarArea {
 
         gbc.gridx++;
         gbc.insets = new Insets(0, 0, 0, 6);
-        wrapper.add(new AnimatedIconButton("−", Theme.BTN_HOVER_HIDE, onHideWindow), gbc);
-
-        gbc.gridx++;
-        gbc.insets = new Insets(0, 0, 0, 6);
         wrapper.add(new AnimatedIconButton("⚙", Theme.BTN_HOVER_SETTINGS, onSettingsToggle), gbc);
 
         gbc.gridx++;
         gbc.insets = new Insets(0, 0, 0, 0);
-        wrapper.add(new AnimatedIconButton("✕", Theme.BTN_HOVER_CLOSE, this::handleClose), gbc);
+        wrapper.add(new AnimatedIconButton("✕", Theme.BTN_HOVER_CLOSE, onCloseWindow), gbc);
 
         box.add(wrapper);
         box.add(Box.createHorizontalStrut(10));
         return box;
-    }
-
-    @SneakyThrows
-    private void handleClose() {
-        cefWebView.shutdown(() -> System.exit(0));
     }
 }
