@@ -127,7 +127,7 @@ tasks.register('createInstaller', Exec) {
         installerType = "dmg"
         iconPath = "src/main/resources/app-icons/icon.icns"
         if (version.toString().startsWith("0.")) {
-            appVersion = "1." + version.toString().substring(1)
+            appVersion = "1." + version.toString()
             println "MacOS requires version >= 1. Patching installer version to: $appVersion"
         }
     }
