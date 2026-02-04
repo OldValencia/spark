@@ -12,7 +12,6 @@ public class AnimatedIconButton extends JPanel {
 
     private static final int SIZE = 30;
     private static final int RING_R = 13;
-    private static final int INTERVAL = 16;
 
     private final String icon;
     private final Color hoverColor;
@@ -31,7 +30,7 @@ public class AnimatedIconButton extends JPanel {
         setOpaque(false);
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        animTimer = new Timer(INTERVAL, e -> tick());
+        animTimer = new Timer(10, e -> tick());
 
         addMouseListener(new MouseAdapter() {
             @Override
@@ -67,6 +66,7 @@ public class AnimatedIconButton extends JPanel {
         var topBar = SwingUtilities.getAncestorOfClass(GradientPanel.class, this);
         if (topBar != null) {
             topBar.repaint();
+            Toolkit.getDefaultToolkit().sync();
         } else {
             repaint();
         }

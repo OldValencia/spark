@@ -6,6 +6,7 @@ import io.loom.app.ui.settings.components.AnimatedSettingsButton;
 import io.loom.app.ui.settings.components.AnimatedToggleSwitch;
 import io.loom.app.ui.settings.components.ColorfulButton;
 import io.loom.app.utils.GlobalHotkeyManager;
+import io.loom.app.utils.SystemUtils;
 import io.loom.app.utils.UpdateChecker;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -101,7 +102,7 @@ public class SettingsPanel extends JPanel {
         footerPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         footerPanel.setMaximumSize(new Dimension(Short.MAX_VALUE, 30));
 
-        var label = new JLabel("Loom application on Github");
+        var label = new JLabel("Loom application on Github (v %s)".formatted(SystemUtils.VERSION));
         label.setFont(Theme.FONT_SETTINGS.deriveFont(11f));
         label.setForeground(Theme.TEXT_TERTIARY);
         label.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));

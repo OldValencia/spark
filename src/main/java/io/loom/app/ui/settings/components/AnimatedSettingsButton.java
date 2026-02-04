@@ -32,7 +32,7 @@ public class AnimatedSettingsButton extends JPanel {
         var fontMetrics = new Canvas().getFontMetrics(Theme.FONT_SELECTOR);
         setPreferredSize(new Dimension(fontMetrics.stringWidth(text) + 28, 30));
 
-        animTimer = new Timer(16, e -> tick());
+        animTimer = new Timer(10, e -> tick());
 
         addMouseListener(new MouseAdapter() {
             @Override
@@ -60,6 +60,7 @@ public class AnimatedSettingsButton extends JPanel {
         if (Math.abs(diff) < 0.04f) {
             hoverProgress = target;
             animTimer.stop();
+            Toolkit.getDefaultToolkit().sync();
         } else {
             hoverProgress += diff * 0.22f;
         }
