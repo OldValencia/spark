@@ -57,7 +57,7 @@ public class SettingsWindow {
         window.setBackground(new Color(0, 0, 0, 0));
         window.setContentPane(settingsPanel);
 
-        animTimer = new Timer(16, e -> tick());
+        animTimer = new Timer(10, e -> tick());
     }
 
     private void tick() {

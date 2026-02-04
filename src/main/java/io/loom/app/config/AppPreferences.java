@@ -69,7 +69,7 @@ public class AppPreferences {
             changed = true;
         }
         if (!props.containsKey(KEY_START_APPLICATION_HIDDEN_ENABLED)) {
-            props.setProperty(KEY_START_APPLICATION_HIDDEN_ENABLED, "true");
+            props.setProperty(KEY_START_APPLICATION_HIDDEN_ENABLED, "false");
             changed = true;
         }
         if (!props.containsKey(KEY_AI_ORDER)) {
@@ -187,7 +187,7 @@ public class AppPreferences {
     }
 
     public boolean isStartApplicationHiddenEnabled() {
-        return Boolean.parseBoolean(props.getProperty(KEY_START_APPLICATION_HIDDEN_ENABLED, "true"));
+        return Boolean.parseBoolean(props.getProperty(KEY_START_APPLICATION_HIDDEN_ENABLED, "false"));
     }
 
     public void setHotkeyToStartApplication(List<Integer> keys) {

@@ -4,10 +4,16 @@ plugins {
 }
 
 group = 'io.loom'
-version = '0.0.7'
+version = project.findProperty('app.version')
 
 repositories {
     mavenCentral()
+}
+
+processResources {
+    filesMatching('app.properties') {
+        expand(version: project.findProperty('app.version'))
+    }
 }
 
 def junitVersion = '5.10.2'

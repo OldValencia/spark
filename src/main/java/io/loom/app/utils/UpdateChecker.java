@@ -13,7 +13,6 @@ import java.net.http.HttpResponse;
 @Slf4j
 public class UpdateChecker {
 
-    private static final String CURRENT_VERSION = "0.0.6";
     private static final String REPO_URL = "https://api.github.com/repos/oldvalencia/loom/releases/latest";
 
     public static void check(Component parentComponent) {
@@ -27,8 +26,7 @@ public class UpdateChecker {
                 if (response.statusCode() == 200) {
                     var json = JsonParser.parseString(response.body()).getAsJsonObject();
                     var latestTag = json.get("tag_name").getAsString();
-
-                    if (!latestTag.equals(CURRENT_VERSION)) {
+                    if (!latestTag.equals(SystemUtils.VERSION)) {
                         SwingUtilities.invokeLater(() -> showUpdateDialog(parentComponent, latestTag, json.get("html_url").getAsString()));
                     }
                 }
@@ -39,11 +37,16 @@ public class UpdateChecker {
     }
 
     private static void showUpdateDialog(Component parent, String version, String url) {
-        var choice = JOptionPane.showConfirmDialog(parent,
-                "New version " + version + " is available! Download now?",
-                "Update Available", JOptionPane.YES_NO_OPTION);
+        var message = "New version " + version + " is available! Download now?";
+        var title = "Update Available";
+        var pane = new JOptionPane(message, JOptionPane.QUESTION_MESSAGE, JOptionPane.YES_NO_OPTION);
+        var dialog = pane.createDialog(parent, title);
+        dialog.setAlwaysOnTop(true);
+        dialog.setModal(true);
+        dialog.setVisible(true);
+        var selectedValue = pane.getValue();
 
-        if (choice == JOptionPane.YES_OPTION) {
+        if (selectedValue instanceof Integer && (int) selectedValue == JOptionPane.YES_OPTION) {
             try {
                 Desktop.getDesktop().browse(new URI(url));
             } catch (Exception ex) {

@@ -300,6 +300,7 @@ public class AiDock extends JPanel {
         var topBar = SwingUtilities.getAncestorOfClass(GradientPanel.class, this);
         if (topBar != null) {
             topBar.repaint();
+            Toolkit.getDefaultToolkit().sync();
         }
     }
 

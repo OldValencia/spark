@@ -1,12 +1,14 @@
 package io.loom.app.ui.settings.components;
 
 import io.loom.app.ui.Theme;
+import io.loom.app.utils.SystemUtils;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferedImage;
 
 public class ColorfulButton extends JPanel {
 
@@ -26,18 +28,18 @@ public class ColorfulButton extends JPanel {
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         setLayout(null);
 
-        var font = new Font("Segoe UI Emoji", Font.PLAIN, 13);
-        if (font.getFamily().equals("Dialog")) {
-            font = Theme.FONT_SELECTOR;
-        }
-        setFont(font);
+        setFont(getFontForSystem());
+        var img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+        var g2d = img.createGraphics();
+        g2d.setFont(getFont());
+        var fontMetrics = g2d.getFontMetrics();
+        g2d.dispose();
 
         Dimension dim;
         if (isIconMode) {
             dim = new Dimension(30, 30);
         } else {
-            var fm = new Canvas().getFontMetrics(font);
-            dim = new Dimension(fm.stringWidth(text) + 36, 34);
+            dim = new Dimension(fontMetrics.stringWidth(text) + 36, 34);
         }
         setPreferredSize(dim);
         setMaximumSize(dim);
@@ -60,6 +62,19 @@ public class ColorfulButton extends JPanel {
                 action.run();
             }
         });
+    }
+
+    private static Font getFontForSystem() {
+        Font font;
+        if (SystemUtils.isWindows()) {
+            font = new Font("Segoe UI Emoji", Font.PLAIN, 13);
+            if (font.getFamily().equalsIgnoreCase("Dialog")) {
+                font = Theme.FONT_SELECTOR.deriveFont(13f);
+            }
+        } else {
+            font = Theme.FONT_SELECTOR.deriveFont(13f);
+        }
+        return font;
     }
 
     private void tick() {
@@ -104,8 +119,8 @@ public class ColorfulButton extends JPanel {
         g.setColor(Theme.TEXT_PRIMARY);
 
         var fm = g.getFontMetrics();
-        int textX = (w - fm.stringWidth(text)) / 2;
-        int textY = (h + fm.getAscent() - fm.getDescent()) / 2 + 1;
+        var textX = (w - fm.stringWidth(text)) / 2f;
+        var textY = (h - fm.getHeight()) / 2f + fm.getAscent();
         g.drawString(text, textX, textY);
     }
 }

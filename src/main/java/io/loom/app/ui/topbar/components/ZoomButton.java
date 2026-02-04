@@ -19,7 +19,7 @@ public class ZoomButton extends JPanel {
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         setVisible(false);
 
-        animTimer = new Timer(16, e -> tick());
+        animTimer = new Timer(10, e -> tick());
 
         addMouseListener(new MouseAdapter() {
             @Override
@@ -56,6 +56,7 @@ public class ZoomButton extends JPanel {
         if (Math.abs(diff) < 0.035f) {
             progress = target;
             animTimer.stop();
+            Toolkit.getDefaultToolkit().sync();
         } else {
             progress += diff * 0.22f;
         }

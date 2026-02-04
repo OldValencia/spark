@@ -359,6 +359,12 @@ public class CefWebView extends JPanel {
         CefCookieManager.getGlobalManager().flushStore(() -> {
             dispose();
             onComplete.run();
+
+            new Timer(500, e -> {
+                ((Timer)e.getSource()).stop();
+                onComplete.run();
+                System.exit(0);
+            }).start();
         });
     }
 
