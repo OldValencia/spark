@@ -74,7 +74,7 @@ public class AiDock extends JPanel {
             preloadIcon(orderedConfigs.get(i));
         }
 
-        animationTimer = new Timer(15, e -> animate());
+        animationTimer = new Timer(10, e -> animate());
         setupMouseListeners();
 
         calculateTargets(false);
@@ -278,6 +278,7 @@ public class AiDock extends JPanel {
         if (needsRepaint) {
             revalidateWidth();
             repaintParents();
+            Toolkit.getDefaultToolkit().sync();
         } else if (!isDockHovered) {
             animationTimer.stop();
         }
