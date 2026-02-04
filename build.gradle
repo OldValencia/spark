@@ -87,8 +87,6 @@ tasks.register('createInstaller', Exec) {
             '-XX:ReservedCodeCacheSize=32m',
 
             // experimental
-            '-XX:+UnlockExperimentalVMOptions',
-            '-XX:+UseContainerSupport',
             '-XX:+OptimizeStringConcat',
             '-XX:+UseCompressedOops',
 
