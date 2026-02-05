@@ -19,6 +19,37 @@ processResources {
 def junitVersion = '5.10.2'
 def lombokVersion = '1.18.42'
 def flatLafVersion = '3.7'
+def javaOpts = [
+        '-Xms64m',
+        '-Xmx512m',
+        '-Xss2m',
+
+        '-XX:MaxMetaspaceSize=128m',
+        '-XX:MetaspaceSize=32m',
+        '-XX:CompressedClassSpaceSize=16m',
+
+        '-XX:+UseG1GC',
+        '-XX:MinHeapFreeRatio=10',
+        '-XX:MaxHeapFreeRatio=40',
+        '-XX:GCTimeRatio=19',
+
+        '-XX:+UseStringDeduplication',
+        '-XX:StringTableSize=60013',
+        '-XX:+TieredCompilation',
+
+        // experimental
+        '-XX:+OptimizeStringConcat',
+        '-XX:+UseCompressedOops',
+
+        '-Dsun.java2d.noddraw=true',
+
+        '--add-exports=java.base/java.lang=ALL-UNNAMED',
+        '--add-exports=java.desktop/sun.awt=ALL-UNNAMED',
+        '--add-exports=java.desktop/sun.java2d=ALL-UNNAMED',
+        '--add-opens=java.desktop/sun.awt=ALL-UNNAMED',
+        '--add-opens=java.desktop/sun.lwawt=ALL-UNNAMED',
+        '--add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED'
+]
 
 java {
     toolchain {
@@ -33,6 +64,7 @@ tasks.withType(JavaCompile).configureEach {
 application {
     mainClass = 'io.loom.app.LoomApplication'
     applicationName = 'Loom'
+    applicationDefaultJvmArgs = javaOpts
 }
 
 dependencies {
@@ -71,44 +103,6 @@ tasks.register('createInstaller', Exec) {
         jpackage += ".exe"
     }
 
-    def javaOpts = [
-            '-Xms64m',
-            '-Xmx512m',
-            '-Xss1m',
-
-            '-XX:MaxMetaspaceSize=128m',
-            '-XX:MetaspaceSize=32m',
-            '-XX:CompressedClassSpaceSize=16m',
-
-            '-XX:+UseG1GC',
-            '-XX:MinHeapFreeRatio=10',
-            '-XX:MaxHeapFreeRatio=40',
-            '-XX:GCTimeRatio=19',
-
-            '-XX:+UseStringDeduplication',
-            '-XX:StringTableSize=60013',
-
-            '-XX:+TieredCompilation',
-
-            // experimental
-            '-XX:+OptimizeStringConcat',
-            '-XX:+UseCompressedOops',
-
-            '-XX:-UsePerfData',
-            '-XX:+AlwaysPreTouch',
-
-            '-Dsun.java2d.d3d=false',
-            '-Dsun.java2d.ddoffscreen=false',
-            '-Dsun.java2d.noddraw=true',
-
-            '--add-exports=java.base/java.lang=ALL-UNNAMED',
-            '--add-exports=java.desktop/sun.awt=ALL-UNNAMED',
-            '--add-exports=java.desktop/sun.java2d=ALL-UNNAMED',
-            '--add-opens=java.desktop/sun.awt=ALL-UNNAMED',
-            '--add-opens=java.desktop/sun.lwawt=ALL-UNNAMED',
-            '--add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED'
-    ]
-
     def installerType = "deb"
     def iconPath = "src/main/resources/app-icons/icon.png"
     def winOptions = []
@@ -129,7 +123,10 @@ tasks.register('createInstaller', Exec) {
         installerType = "dmg"
         iconPath = "src/main/resources/app-icons/icon.icns"
 
-        javaOpts += ['-Dsun.java2d.opengl=true']
+        javaOpts += [
+                '-Dsun.java2d.opengl=true',
+                '-Dsun.java2d.renderer=sun.java2d.marlin.MarlinRenderingEngine'
+        ]
         
         macOptions = [
             '--mac-package-identifier', 'io.loom.app',

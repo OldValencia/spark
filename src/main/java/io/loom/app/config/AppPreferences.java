@@ -30,6 +30,7 @@ public class AppPreferences {
     private static final String KEY_AUTO_START_ENABLED = "auto_start_enabled";
     private static final String KEY_START_APPLICATION_HIDDEN_ENABLED = "start_application_hidden_enabled";
     private static final String KEY_HOTKEY_TO_START_APPLICATION = "hotkey_to_start_application";
+    private static final String KEY_DARK_MODE_ENABLED = "dark_mode_enabled";
 
     public AppPreferences() {
         load();
@@ -78,6 +79,10 @@ public class AppPreferences {
         }
         if (!props.containsKey(KEY_HOTKEY_TO_START_APPLICATION)) {
             props.setProperty(KEY_HOTKEY_TO_START_APPLICATION, "");
+            changed = true;
+        }
+        if (!props.containsKey(KEY_DARK_MODE_ENABLED)) {
+            props.setProperty(KEY_DARK_MODE_ENABLED, "true");
             changed = true;
         }
 
@@ -212,5 +217,14 @@ public class AppPreferences {
                 .filter(s -> !s.isEmpty())
                 .map(Integer::parseInt)
                 .collect(Collectors.toList());
+    }
+
+    public void setDarkModeEnabled(boolean darkModeEnabled) {
+        props.setProperty(KEY_DARK_MODE_ENABLED, String.valueOf(darkModeEnabled));
+        save();
+    }
+
+    public boolean isDarkModeEnabled() {
+        return Boolean.parseBoolean(props.getProperty(KEY_DARK_MODE_ENABLED, "true"));
     }
 }

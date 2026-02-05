@@ -244,6 +244,12 @@ public class CefWebView extends JPanel {
             builder.addJcefArgs("--disable-skia-runtime-opts");
             builder.addJcefArgs("--disable-lcd-text");
             builder.addJcefArgs("--disable-image-animation-resync");
+            if (appPreferences.isDarkModeEnabled()) {
+                builder.addJcefArgs("--force-dark-mode");
+                builder.addJcefArgs("--enable-features=WebUIDarkMode");
+                builder.addJcefArgs("--ui-disable-partial-swap");
+                builder.addJcefArgs("--blink-settings=darkModeEnabled=true,forceDarkModeEnabled=true");
+            }
 
             configureSettings(builder);
 

@@ -73,6 +73,9 @@ public class SettingsPanel extends JPanel {
         }
 
         buildSection("Browser", appPreferences.isZoomEnabled(), onZoomEnabledChanged, "Zoom enabled");
+        var darkModeEnabledToggle = new AnimatedToggleSwitch(appPreferences.isDarkModeEnabled());
+        darkModeEnabledToggle.setOnChange(appPreferences::setDarkModeEnabled);
+        addSettingRow("Try to request dark mode from websites (restart required)", darkModeEnabledToggle);
         add(Box.createVerticalStrut(12));
 
         var buttonsRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));

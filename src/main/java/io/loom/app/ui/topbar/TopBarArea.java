@@ -56,14 +56,23 @@ public class TopBarArea {
                 initialClick = e.getPoint();
             }
         });
+
         panel.addMouseMotionListener(new MouseAdapter() {
             @Override
             public void mouseDragged(MouseEvent e) {
-                int dx = e.getX() - initialClick.x;
-                int dy = e.getY() - initialClick.y;
-                var frameLocation = frame.getLocation();
-                frame.setLocation(frameLocation.x + dx, frameLocation.y + dy);
+                if (initialClick == null) {
+                    return;
+                }
 
+                int xOnScreen = e.getLocationOnScreen().x;
+                int yOnScreen = e.getLocationOnScreen().y;
+                int newX = xOnScreen - initialClick.x;
+                int newY = yOnScreen - initialClick.y;
+
+                frame.setLocation(newX, newY);
+
+                int dx = newX - frame.getX();
+                int dy = newY - frame.getY();
                 if (settingsWindow.isOpen()) {
                     settingsWindow.dragWindow(dx, dy);
                 }

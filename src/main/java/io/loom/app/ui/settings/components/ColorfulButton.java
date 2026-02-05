@@ -32,6 +32,7 @@ public class ColorfulButton extends JPanel {
         var img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
         var g2d = img.createGraphics();
         g2d.setFont(getFont());
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         var fontMetrics = g2d.getFontMetrics();
         g2d.dispose();
 
@@ -65,16 +66,15 @@ public class ColorfulButton extends JPanel {
     }
 
     private static Font getFontForSystem() {
-        Font font;
         if (SystemUtils.isWindows()) {
-            font = new Font("Segoe UI Emoji", Font.PLAIN, 13);
+            var font = new Font("Segoe UI Emoji", Font.PLAIN, 13);
             if (font.getFamily().equalsIgnoreCase("Dialog")) {
-                font = Theme.FONT_SELECTOR.deriveFont(13f);
+                return Theme.FONT_SELECTOR.deriveFont(13f);
             }
         } else {
-            font = Theme.FONT_SELECTOR.deriveFont(13f);
+            return new Font(Font.SANS_SERIF, Font.PLAIN, 13);
         }
-        return font;
+        return null;
     }
 
     private void tick() {
@@ -94,6 +94,7 @@ public class ColorfulButton extends JPanel {
         var g = (Graphics2D) g0;
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
         int w = getWidth();
         int h = getHeight();
