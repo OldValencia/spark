@@ -3,10 +3,14 @@ package io.loom.app.config;
 import io.loom.app.utils.AutoStartManager;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -20,17 +24,6 @@ public class AppPreferences {
     private static final File FILE = new File(DIR, FILE_NAME);
 
     private final Properties props = new Properties();
-
-    private static final String KEY_LAST_URL = "last_url";
-    private static final String KEY_REMEMBER_AI = "remember_last_ai";
-    private static final String KEY_LAST_ZOOM_VALUE = "last_zoom_value";
-    private static final String KEY_ZOOM_ENABLED = "zoom_enabled";
-    private static final String KEY_AI_ORDER = "ai_order";
-    private static final String KEY_CHECK_UPDATES_ON_STARTUP = "check_updates_on_startup";
-    private static final String KEY_AUTO_START_ENABLED = "auto_start_enabled";
-    private static final String KEY_START_APPLICATION_HIDDEN_ENABLED = "start_application_hidden_enabled";
-    private static final String KEY_HOTKEY_TO_START_APPLICATION = "hotkey_to_start_application";
-    private static final String KEY_DARK_MODE_ENABLED = "dark_mode_enabled";
 
     public AppPreferences() {
         load();
@@ -49,41 +42,14 @@ public class AppPreferences {
     private void initDefaults() {
         boolean changed = false;
 
-        if (!props.containsKey(KEY_REMEMBER_AI)) {
-            props.setProperty(KEY_REMEMBER_AI, "true");
-            changed = true;
-        }
-        if (!props.containsKey(KEY_ZOOM_ENABLED)) {
-            props.setProperty(KEY_ZOOM_ENABLED, "true");
-            changed = true;
-        }
-        if (!props.containsKey(KEY_LAST_ZOOM_VALUE)) {
-            props.setProperty(KEY_LAST_ZOOM_VALUE, "0.0");
-            changed = true;
-        }
-        if (!props.containsKey(KEY_CHECK_UPDATES_ON_STARTUP)) {
-            props.setProperty(KEY_CHECK_UPDATES_ON_STARTUP, "true");
-            changed = true;
-        }
-        if (!props.containsKey(KEY_AUTO_START_ENABLED)) {
-            props.setProperty(KEY_AUTO_START_ENABLED, "true");
-            changed = true;
-        }
-        if (!props.containsKey(KEY_START_APPLICATION_HIDDEN_ENABLED)) {
-            props.setProperty(KEY_START_APPLICATION_HIDDEN_ENABLED, "false");
-            changed = true;
-        }
-        if (!props.containsKey(KEY_AI_ORDER)) {
-            props.setProperty(KEY_AI_ORDER, "");
-            changed = true;
-        }
-        if (!props.containsKey(KEY_HOTKEY_TO_START_APPLICATION)) {
-            props.setProperty(KEY_HOTKEY_TO_START_APPLICATION, "");
-            changed = true;
-        }
-        if (!props.containsKey(KEY_DARK_MODE_ENABLED)) {
-            props.setProperty(KEY_DARK_MODE_ENABLED, "true");
-            changed = true;
+        for (var key : AppPreferencesKeys.values()) {
+            if (Objects.equals(key.getDefaultValue(), "<skip_default>")) {
+                continue;
+            }
+            if (!props.containsKey(key.getKey())) {
+                props.setProperty(key.getKey(), key.getDefaultValue());
+                changed = true;
+            }
         }
 
         if (changed) {
@@ -102,63 +68,63 @@ public class AppPreferences {
 
     public void setLastUrl(String url) {
         if (isRememberLastAi()) {
-            props.setProperty(KEY_LAST_URL, url);
+            props.setProperty(AppPreferencesKeys.LAST_URL.getKey(), url);
             save();
         }
     }
 
     public String getLastUrl() {
-        return props.getProperty(KEY_LAST_URL);
+        return props.getProperty(AppPreferencesKeys.LAST_URL.getKey());
     }
 
     public void setRememberLastAi(boolean remember) {
-        props.setProperty(KEY_REMEMBER_AI, String.valueOf(remember));
+        props.setProperty(AppPreferencesKeys.REMEMBER_LAST_AI.getKey(), String.valueOf(remember));
         save();
         if (!remember) {
-            props.remove(KEY_LAST_URL);
+            props.remove(AppPreferencesKeys.LAST_URL.getKey());
             save();
         }
     }
 
     public boolean isRememberLastAi() {
-        return Boolean.parseBoolean(props.getProperty(KEY_REMEMBER_AI, "true"));
+        return Boolean.parseBoolean(props.getProperty(AppPreferencesKeys.REMEMBER_LAST_AI.getKey(), AppPreferencesKeys.REMEMBER_LAST_AI.getDefaultValue()));
     }
 
     public void setLastZoomValue(Double zoomValue) {
         if (isZoomEnabled()) {
-            props.setProperty(KEY_LAST_ZOOM_VALUE, String.valueOf(zoomValue));
+            props.setProperty(AppPreferencesKeys.LAST_ZOOM_VALUE.getKey(), String.valueOf(zoomValue));
             save();
         }
     }
 
     public Double getLastZoomValue() {
         try {
-            return Double.valueOf(props.getProperty(KEY_LAST_ZOOM_VALUE, "0.0"));
+            return Double.valueOf(props.getProperty(AppPreferencesKeys.LAST_ZOOM_VALUE.getKey(), AppPreferencesKeys.LAST_ZOOM_VALUE.getDefaultValue()));
         } catch (NumberFormatException e) {
-            return 0.0;
+            return Double.valueOf(AppPreferencesKeys.LAST_ZOOM_VALUE.getDefaultValue());
         }
     }
 
     public void setZoomEnabled(boolean zoomEnabled) {
-        props.setProperty(KEY_ZOOM_ENABLED, String.valueOf(zoomEnabled));
+        props.setProperty(AppPreferencesKeys.ZOOM_ENABLED.getKey(), String.valueOf(zoomEnabled));
         save();
         if (!zoomEnabled) {
-            setLastZoomValue(0.0);
+            setLastZoomValue(Double.valueOf(AppPreferencesKeys.LAST_ZOOM_VALUE.getDefaultValue()));
         }
     }
 
     public boolean isZoomEnabled() {
-        return Boolean.parseBoolean(props.getProperty(KEY_ZOOM_ENABLED, "true"));
+        return Boolean.parseBoolean(props.getProperty(AppPreferencesKeys.ZOOM_ENABLED.getKey(), AppPreferencesKeys.ZOOM_ENABLED.getDefaultValue()));
     }
 
     public void setAiOrder(List<String> urls) {
         var order = String.join(",", urls);
-        props.setProperty(KEY_AI_ORDER, order);
+        props.setProperty(AppPreferencesKeys.AI_ORDER.getKey(), order);
         save();
     }
 
     public List<String> getAiOrder() {
-        var orderStr = props.getProperty(KEY_AI_ORDER);
+        var orderStr = props.getProperty(AppPreferencesKeys.AI_ORDER.getKey());
         if (orderStr == null || orderStr.isEmpty()) {
             return new ArrayList<>();
         }
@@ -168,43 +134,43 @@ public class AppPreferences {
     }
 
     public void setCheckUpdatesOnStartup(boolean checkUpdatesOnStartup) {
-        props.setProperty(KEY_CHECK_UPDATES_ON_STARTUP, String.valueOf(checkUpdatesOnStartup));
+        props.setProperty(AppPreferencesKeys.CHECK_UPDATES_ON_STARTUP.getKey(), String.valueOf(checkUpdatesOnStartup));
         save();
     }
 
     public boolean isCheckUpdatesOnStartupEnabled() {
-        return Boolean.parseBoolean(props.getProperty(KEY_CHECK_UPDATES_ON_STARTUP, "true"));
+        return Boolean.parseBoolean(props.getProperty(AppPreferencesKeys.CHECK_UPDATES_ON_STARTUP.getKey(), AppPreferencesKeys.CHECK_UPDATES_ON_STARTUP.getDefaultValue()));
     }
 
     public void setAutoStartEnabled(boolean autoStartEnabled) {
-        props.setProperty(KEY_AUTO_START_ENABLED, String.valueOf(autoStartEnabled));
+        props.setProperty(AppPreferencesKeys.AUTO_START_ENABLED.getKey(), String.valueOf(autoStartEnabled));
         save();
         AutoStartManager.setAutoStart(autoStartEnabled);
     }
 
     public boolean isAutoStartEnabled() {
-        return Boolean.parseBoolean(props.getProperty(KEY_AUTO_START_ENABLED, "true"));
+        return Boolean.parseBoolean(props.getProperty(AppPreferencesKeys.AUTO_START_ENABLED.getKey(), AppPreferencesKeys.AUTO_START_ENABLED.getDefaultValue()));
     }
 
     public void setStartApplicationHiddenEnabled(boolean autoStartEnabled) {
-        props.setProperty(KEY_START_APPLICATION_HIDDEN_ENABLED, String.valueOf(autoStartEnabled));
+        props.setProperty(AppPreferencesKeys.START_APPLICATION_HIDDEN_ENABLED.getKey(), String.valueOf(autoStartEnabled));
         save();
     }
 
     public boolean isStartApplicationHiddenEnabled() {
-        return Boolean.parseBoolean(props.getProperty(KEY_START_APPLICATION_HIDDEN_ENABLED, "false"));
+        return Boolean.parseBoolean(props.getProperty(AppPreferencesKeys.START_APPLICATION_HIDDEN_ENABLED.getKey(), AppPreferencesKeys.START_APPLICATION_HIDDEN_ENABLED.getDefaultValue()));
     }
 
     public void setHotkeyToStartApplication(List<Integer> keys) {
         var hotkey = emptyIfNull(keys).stream()
                 .map(String::valueOf)
                 .collect(Collectors.joining(","));
-        props.setProperty(KEY_HOTKEY_TO_START_APPLICATION, hotkey);
+        props.setProperty(AppPreferencesKeys.HOTKEY_TO_START_APPLICATION.getKey(), hotkey);
         save();
     }
 
     public List<Integer> getHotkeyToStartApplication() {
-        var hotkeyStr = props.getProperty(KEY_HOTKEY_TO_START_APPLICATION);
+        var hotkeyStr = props.getProperty(AppPreferencesKeys.HOTKEY_TO_START_APPLICATION.getKey());
         if (hotkeyStr == null || hotkeyStr.isEmpty()) {
             return new ArrayList<>();
         }
@@ -220,11 +186,11 @@ public class AppPreferences {
     }
 
     public void setDarkModeEnabled(boolean darkModeEnabled) {
-        props.setProperty(KEY_DARK_MODE_ENABLED, String.valueOf(darkModeEnabled));
+        props.setProperty(AppPreferencesKeys.DARK_MODE_ENABLED.getKey(), String.valueOf(darkModeEnabled));
         save();
     }
 
     public boolean isDarkModeEnabled() {
-        return Boolean.parseBoolean(props.getProperty(KEY_DARK_MODE_ENABLED, "true"));
+        return Boolean.parseBoolean(props.getProperty(AppPreferencesKeys.DARK_MODE_ENABLED.getKey(), AppPreferencesKeys.DARK_MODE_ENABLED.getDefaultValue()));
     }
 }

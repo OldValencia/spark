@@ -5,12 +5,13 @@ import io.loom.app.utils.SystemUtils;
 import lombok.RequiredArgsConstructor;
 
 import javax.swing.*;
+import java.awt.*;
 
 @RequiredArgsConstructor
 public class SettingsWindow {
 
     private static final int TOPBAR_HEIGHT = 48;
-    private static final float LERP_SPEED = 0.25f;
+    private static final float LERP_SPEED = 0.3f;
 
     private final JFrame owner;
     private final SettingsPanel settingsPanel;
@@ -20,6 +21,8 @@ public class SettingsWindow {
     private float targetProgress = 0f;
     private Timer animTimer;
 
+    private int targetHeight = 0;
+
     public void open() {
         if (window == null) {
             createWindow();
@@ -27,23 +30,40 @@ public class SettingsWindow {
 
         settingsPanel.setSize(owner.getWidth(), Integer.MAX_VALUE);
         settingsPanel.doLayout();
-        int targetHeight = settingsPanel.getPreferredSize().height;
-        targetProgress = 1f;
+
+        int contentHeight = settingsPanel.getPreferredSize().height;
+        int maxHeight = owner.getHeight() - TOPBAR_HEIGHT;
+        this.targetHeight = Math.min(contentHeight, maxHeight);
 
         int x = owner.getX();
         int y = owner.getY() + TOPBAR_HEIGHT;
         int w = owner.getWidth();
-        window.setBounds(x, y, w, targetHeight);
-        window.setVisible(true);
 
         if (SystemUtils.isMac()) {
+            if (animTimer.isRunning()) animTimer.stop();
+
+            window.setBounds(x, y, w, targetHeight);
+            settingsPanel.setOpaque(true);
+            window.setVisible(true);
+
             SwingUtilities.invokeLater(() -> {
                 window.toFront();
                 window.repaint();
             });
-        }
 
-        animTimer.start();
+            progress = 1f;
+            targetProgress = 1f;
+        } else {
+            if (!window.isVisible()) {
+                window.setBounds(x, y, w, 0);
+                window.setVisible(true);
+            } else {
+                window.setBounds(x, y, w, window.getHeight());
+            }
+
+            targetProgress = 1f;
+            animTimer.start();
+        }
     }
 
     public void close() {
@@ -51,9 +71,15 @@ public class SettingsWindow {
             return;
         }
 
-        targetProgress = 0f;
-        tick();
-        animTimer.start();
+        if (SystemUtils.isMac()) {
+            if (animTimer.isRunning()) animTimer.stop();
+            window.setVisible(false);
+            progress = 0f;
+            targetProgress = 0f;
+        } else {
+            targetProgress = 0f;
+            animTimer.start();
+        }
     }
 
     public boolean isOpen() {
@@ -63,22 +89,30 @@ public class SettingsWindow {
     private void createWindow() {
         window = new JWindow(owner);
         window.setAlwaysOnTop(true);
-        window.setFocusableWindowState(false);
-        window.setBackground(settingsPanel.getBackground());
-        window.setContentPane(settingsPanel);
+        window.setFocusableWindowState(true);
+        window.setBackground(new Color(0, 0, 0, 0));
+
+        var scrollPane = new JScrollPane(settingsPanel);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+        scrollPane.setBorder(null);
+
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(10);
+        scrollPane.getVerticalScrollBar().setPreferredSize(new Dimension(8, 0));
+
+        window.setContentPane(scrollPane);
 
         animTimer = new Timer(10, e -> tick());
-        progress = 0f;
-        targetProgress = 0f;
     }
 
     private void tick() {
         float diff = targetProgress - progress;
 
-        if (Math.abs(diff) < 0.02f) {
+        if (Math.abs(diff) < 0.01f) {
             progress = targetProgress;
             animTimer.stop();
-
             if (progress <= 0f) {
                 window.setVisible(false);
             }
@@ -86,12 +120,12 @@ public class SettingsWindow {
             progress += diff * LERP_SPEED;
         }
 
-        settingsPanel.setOpaque(progress > 0.01f);
+        int currentH = Math.round(targetHeight * progress);
 
-        if (SystemUtils.isMac()) {
-            window.repaint();
-        } else {
-            settingsPanel.repaint();
+        if (window.isVisible()) {
+            window.setSize(window.getWidth(), currentH);
         }
+
+        settingsPanel.setOpaque(progress > 0.8f);
     }
 }

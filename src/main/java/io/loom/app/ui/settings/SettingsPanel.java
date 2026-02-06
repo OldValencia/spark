@@ -1,10 +1,12 @@
 package io.loom.app.ui.settings;
 
+import io.loom.app.config.AiConfiguration;
 import io.loom.app.config.AppPreferences;
 import io.loom.app.ui.Theme;
 import io.loom.app.ui.settings.components.AnimatedSettingsButton;
 import io.loom.app.ui.settings.components.AnimatedToggleSwitch;
 import io.loom.app.ui.settings.components.ColorfulButton;
+import io.loom.app.ui.settings.components.ProvidersManagementPanel;
 import io.loom.app.utils.GlobalHotkeyManager;
 import io.loom.app.utils.SystemUtils;
 import io.loom.app.utils.UpdateChecker;
@@ -26,17 +28,22 @@ public class SettingsPanel extends JPanel {
     @Setter
     private Runnable onClearCookies;
     @Setter
+    private Runnable onProvidersChanged;
+    @Setter
     private Consumer<Boolean> onZoomEnabledChanged;
     @Setter
     private Consumer<Boolean> onAutoUpdateChanged;
 
     private final AppPreferences appPreferences;
     private final GlobalHotkeyManager hotkeyManager;
+    private final AiConfiguration aiConfiguration;
+
     private AnimatedSettingsButton hotkeyRecordBtn;
 
-    public SettingsPanel(AppPreferences appPreferences, GlobalHotkeyManager hotkeyManager) {
+    public SettingsPanel(AppPreferences appPreferences, GlobalHotkeyManager hotkeyManager, AiConfiguration aiConfiguration) {
         this.appPreferences = appPreferences;
         this.hotkeyManager = hotkeyManager;
+        this.aiConfiguration = aiConfiguration;
 
         setOpaque(true);
         setBackground(Theme.BG_BAR);
@@ -45,6 +52,8 @@ public class SettingsPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
 
         addDonationSection();
+        add(Box.createVerticalStrut(20));
+        addProvidersSection();
         add(Box.createVerticalStrut(20));
 
         buildSection("General", appPreferences.isRememberLastAi(), onRememberLastAiChanged, "Remember last used AI");
@@ -97,6 +106,24 @@ public class SettingsPanel extends JPanel {
         if (appPreferences.isCheckUpdatesOnStartupEnabled()) {
             UpdateChecker.check(this);
         }
+    }
+
+    private void addProvidersSection() {
+        addSection("Custom AI Providers");
+
+        var providersPanel = new ProvidersManagementPanel(
+                aiConfiguration.getCustomProvidersManager(),
+                v -> {
+                    aiConfiguration.reload();
+                    if (onProvidersChanged != null) {
+                        onProvidersChanged.run();
+                    }
+                }
+        );
+
+        providersPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        providersPanel.setMaximumSize(new Dimension(Short.MAX_VALUE, 300));
+        add(providersPanel);
     }
 
     private void addGithubLink() {

@@ -30,8 +30,8 @@ public class MainWindow {
     private JFrame frame;
     private GlobalHotkeyManager globalHotkeyManager;
 
+    public static final int HEIGHT = 700;
     private static final int WIDTH = 820;
-    private static final int HEIGHT = 700;
     private static final int RADIUS = 14;
 
     public void showWindow() {
@@ -59,10 +59,11 @@ public class MainWindow {
             log.error("Failed to initialize global hotkey manager, hotkey feature will be disabled", e);
         }
 
-        var settingsPanel = new SettingsPanel(appPreferences, globalHotkeyManager);
+        var settingsPanel = new SettingsPanel(appPreferences, globalHotkeyManager, aiConfiguration);
         settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
         settingsPanel.setOnClearCookies(cefWebView::clearCookies);
         settingsPanel.setOnZoomEnabledChanged(cefWebView::setZoomEnabled);
+        settingsPanel.setOnProvidersChanged(this::handleProvidersChanged);
         settingsWindow = new SettingsWindow(frame, settingsPanel);
         cefWebView.setSettingsWindow(settingsWindow);
 
@@ -75,6 +76,13 @@ public class MainWindow {
 
         frame.add(root);
         frame.setVisible(!appPreferences.isStartApplicationHiddenEnabled());
+    }
+
+    private void handleProvidersChanged() {
+        // Перезагружаем TopBarArea с новыми провайдерами
+        SwingUtilities.invokeLater(() -> {
+            // TODO: обновить AiDock
+        });
     }
 
     private void setupTray() {

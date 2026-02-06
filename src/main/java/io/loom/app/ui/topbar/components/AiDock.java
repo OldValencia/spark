@@ -16,6 +16,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -427,21 +428,31 @@ public class AiDock extends JPanel {
         }
         ICON_CACHE.computeIfAbsent(cfg.icon(), key -> {
             try {
-                var url = AiDock.class.getResource("/icons/" + key);
-                if (url == null) {
-                    return null;
-                }
-                if (key.toLowerCase().endsWith(".svg")) {
-                    var icon = new FlatSVGIcon(url);
-                    var scaledIcon = icon.derive(ICON_SIZE, ICON_SIZE);
-                    var img = new BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB);
-                    var g = img.createGraphics();
-                    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    scaledIcon.paintIcon(null, g, 0, 0);
-                    g.dispose();
-                    return img;
+                if (cfg.isCustom()) {
+                    var iconFile = new File(cfg.getIconPath());
+                    if (!iconFile.exists()) {
+                        log.warn("Custom icon not found: {}", cfg.getIconPath());
+                        return null;
+                    }
+                    return resize(ImageIO.read(iconFile));
+
                 } else {
-                    return resize(ImageIO.read(url));
+                    var url = AiDock.class.getResource("/icons/" + key);
+                    if (url == null) {
+                        return null;
+                    }
+                    if (key.toLowerCase().endsWith(".svg")) {
+                        var icon = new FlatSVGIcon(url);
+                        var scaledIcon = icon.derive(ICON_SIZE, ICON_SIZE);
+                        var img = new BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB);
+                        var g = img.createGraphics();
+                        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        scaledIcon.paintIcon(null, g, 0, 0);
+                        g.dispose();
+                        return img;
+                    } else {
+                        return resize(ImageIO.read(url));
+                    }
                 }
             } catch (Exception e) {
                 log.error("Error while trying to preload icons", e);
