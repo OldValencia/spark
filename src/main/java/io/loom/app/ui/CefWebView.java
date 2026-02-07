@@ -4,6 +4,7 @@ import io.loom.app.config.AiConfiguration;
 import io.loom.app.config.AppPreferences;
 import io.loom.app.utils.LogSetup;
 import io.loom.app.utils.MemoryMonitor;
+import io.loom.app.windows.MainWindow;
 import io.loom.app.windows.SettingsWindow;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -19,10 +20,7 @@ import org.cef.browser.CefMessageRouter;
 import org.cef.callback.CefContextMenuParams;
 import org.cef.callback.CefMenuModel;
 import org.cef.callback.CefQueryCallback;
-import org.cef.handler.CefContextMenuHandlerAdapter;
-import org.cef.handler.CefKeyboardHandlerAdapter;
-import org.cef.handler.CefLoadHandlerAdapter;
-import org.cef.handler.CefMessageRouterHandlerAdapter;
+import org.cef.handler.*;
 import org.cef.misc.BoolRef;
 import org.cef.network.CefCookieManager;
 
@@ -275,11 +273,9 @@ public class CefWebView extends JPanel {
             setupLoadHandler();
             setupContextMenuHandler();
 
-            if (onProgressUpdate != null) {
-                onProgressUpdate.accept("Creating browser window...");
-            }
+            setupDisplayHandler();
 
-            browser = client.createBrowser(startUrl, false, false);
+            browser = client.createBrowser(startUrl, true, false);
 
             var browserUI = browser.getUIComponent();
             layeredPane.add(browserUI, JLayeredPane.DEFAULT_LAYER);
@@ -305,7 +301,7 @@ public class CefWebView extends JPanel {
                 }
             });
 
-            log.info("JCEF Initialized with memory optimizations");
+            log.info("JCEF Initialized");
 
         } catch (IOException | UnsupportedPlatformException | InterruptedException | CefInitializationException e) {
             log.error("Failed to init JCEF", e);
@@ -314,7 +310,7 @@ public class CefWebView extends JPanel {
 
     private void configureSettings(CefAppBuilder builder) {
         var settings = builder.getCefSettings();
-        settings.windowless_rendering_enabled = false;
+        settings.windowless_rendering_enabled = true;
         settings.cache_path = CACHE_DIR;
         settings.root_cache_path = CACHE_DIR;
         settings.persist_session_cookies = true;
@@ -322,6 +318,33 @@ public class CefWebView extends JPanel {
         settings.log_file = CEF_LOG_FILE;
         settings.log_severity = CefSettings.LogSeverity.LOGSEVERITY_WARNING;
         settings.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    }
+
+    private void setupDisplayHandler() {
+        client.addDisplayHandler(new CefDisplayHandlerAdapter() {
+            @Override
+            public void onAddressChange(CefBrowser browser, CefFrame frame, String url) {
+                checkIfAuthPage(url);
+            }
+        });
+    }
+
+    private void checkIfAuthPage(String url) {
+        if (url == null) {
+            return;
+        }
+        var lowerUrl = url.toLowerCase();
+        var isAuth = lowerUrl.contains("accounts.google.com") ||
+                         lowerUrl.contains("appleid.apple.com") ||
+                         lowerUrl.contains("github.com/login") ||
+                         lowerUrl.contains("oauth") ||
+                         lowerUrl.contains("signin") ||
+                         lowerUrl.contains("login");
+
+        var parent = SwingUtilities.getWindowAncestor(this);
+        if (parent instanceof MainWindow mainWindow) {
+            mainWindow.setAuthMode(isAuth);
+        }
     }
 
     private void setupZoomHandler() {

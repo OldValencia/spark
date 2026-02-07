@@ -82,7 +82,13 @@ public class SettingsPanel extends JPanel {
         buildBrowserSection();
         this.add(Box.createVerticalStrut(SUB_SECTION_GAP));
 
-        this.add(new ClearCookiesButton(onClearCookies));
+        var clearCookiesBtn = new ClearCookiesButton();
+        clearCookiesBtn.setOnClearCookies(() -> {
+            if (onClearCookies != null) {
+                onClearCookies.run();
+            }
+        });
+        this.add(clearCookiesBtn);
         this.add(Box.createVerticalGlue());
         this.add(Box.createVerticalStrut(SECTION_GAP));
 

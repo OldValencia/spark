@@ -117,14 +117,13 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
     }
 
     private void toggleWindow() {
-        var frame = mainWindow.getFrame();
-        if (frame.isVisible() && frame.isActive()) {
-            frame.setVisible(false);
+        if (mainWindow.isVisible() && mainWindow.isActive()) {
+            mainWindow.setVisible(false);
         } else {
-            frame.setVisible(true);
-            frame.setExtendedState(JFrame.NORMAL);
-            frame.toFront();
-            frame.requestFocus();
+            mainWindow.setVisible(true);
+            mainWindow.setExtendedState(JFrame.NORMAL);
+            mainWindow.toFront();
+            mainWindow.requestFocus();
         }
     }
 

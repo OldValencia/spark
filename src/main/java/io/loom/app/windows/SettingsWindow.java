@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 
 @RequiredArgsConstructor
 public class SettingsWindow {
@@ -60,6 +62,7 @@ public class SettingsWindow {
             } else {
                 window.setBounds(x, y, w, window.getHeight());
             }
+            window.toFront();
 
             targetProgress = 1f;
             animTimer.start();
@@ -83,7 +86,7 @@ public class SettingsWindow {
     }
 
     public boolean isOpen() {
-        return window != null && window.isVisible() && targetProgress > 0.5f;
+        return window != null && targetProgress > 0.5f;
     }
 
     public boolean isVisible() {
@@ -95,6 +98,20 @@ public class SettingsWindow {
         window.setAlwaysOnTop(true);
         window.setFocusableWindowState(true);
         window.setBackground(new Color(0, 0, 0, 0));
+
+        owner.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentHidden(ComponentEvent e) {
+                if (window != null) {
+                    window.setVisible(false);
+                }
+                progress = 0f;
+                targetProgress = 0f;
+                if (animTimer != null && animTimer.isRunning()) {
+                    animTimer.stop();
+                }
+            }
+        });
 
         var scrollPane = new JScrollPane(settingsPanel);
         scrollPane.setOpaque(false);

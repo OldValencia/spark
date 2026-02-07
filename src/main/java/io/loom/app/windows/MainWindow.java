@@ -8,8 +8,6 @@ import io.loom.app.ui.settings.SettingsPanel;
 import io.loom.app.ui.topbar.TopBarArea;
 import io.loom.app.ui.topbar.components.AiDock;
 import io.loom.app.utils.GlobalHotkeyManager;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
@@ -21,23 +19,61 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @Slf4j
-@RequiredArgsConstructor
-public class MainWindow {
+public class MainWindow extends JFrame {
 
     private final AiConfiguration aiConfiguration;
     private final AppPreferences appPreferences;
 
     private CefWebView cefWebView;
     private SettingsWindow settingsWindow;
-    @Getter
-    private JFrame frame;
     private JPanel rootPanel;
     private GlobalHotkeyManager globalHotkeyManager;
     private SplashScreen splashScreen;
 
+    private boolean authMode = false;
+
     public static final int HEIGHT = 700;
     private static final int WIDTH = 820;
     private static final int RADIUS = 14;
+
+    public MainWindow(AiConfiguration aiConfiguration, AppPreferences appPreferences) {
+        super("Loom");
+        this.aiConfiguration = aiConfiguration;
+        this.appPreferences = appPreferences;
+
+        this.setUndecorated(true);
+        this.setAlwaysOnTop(true);
+        this.setSize(WIDTH, HEIGHT);
+        this.setLocationRelativeTo(null);
+        this.setBackground(new Color(0, 0, 0, 0));
+        this.setShape(new RoundRectangle2D.Double(0, 0, WIDTH, HEIGHT, RADIUS, RADIUS));
+        this.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+
+        this.addWindowFocusListener(new WindowAdapter() {
+            @Override
+            public void windowLostFocus(WindowEvent e) {
+                if (authMode && isAlwaysOnTop()) {
+                    setAlwaysOnTop(false);
+                }
+            }
+
+            @Override
+            public void windowGainedFocus(WindowEvent e) {
+                if (!isAlwaysOnTop()) {
+                    setAlwaysOnTop(true);
+                }
+            }
+        });
+
+        this.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                if (settingsWindow != null && settingsWindow.isOpen()) {
+                    settingsWindow.close();
+                }
+            }
+        });
+    }
 
     public void showWindow() {
         splashScreen = new SplashScreen();
@@ -72,8 +108,6 @@ public class MainWindow {
                 }
             };
             rootPanel.setBackground(Theme.BG_DEEP);
-
-            frame = buildMainFrame();
         });
 
         // CEF initialization happens here with progress updates
@@ -95,26 +129,32 @@ public class MainWindow {
             settingsPanel.setOnClearCookies(cefWebView::clearCookies);
             settingsPanel.setOnZoomEnabledChanged(cefWebView::setZoomEnabled);
             settingsPanel.setOnProvidersChanged(this::handleProvidersChanged);
-            settingsWindow = new SettingsWindow(frame, settingsPanel);
+            settingsWindow = new SettingsWindow(this, settingsPanel);
             cefWebView.setSettingsWindow(settingsWindow);
 
-            var topBarArea = new TopBarArea(aiConfiguration, cefWebView, frame, settingsWindow, appPreferences, this::toggleSettings, this::closeWindow);
+            var topBarArea = new TopBarArea(aiConfiguration, cefWebView, this, settingsWindow, appPreferences, this::toggleSettings, this::closeWindow);
             rootPanel.add(topBarArea, BorderLayout.NORTH);
 
             if (SystemTray.isSupported()) {
                 setupTray();
             }
 
-            frame.add(rootPanel);
+            this.add(rootPanel);
 
-            // Small delay before showing window and hiding splash
-            Timer showTimer = new Timer(500, e -> {
+            var showTimer = new Timer(500, e -> {
                 ((Timer) e.getSource()).stop();
                 splashScreen.hideSplash();
-                frame.setVisible(!appPreferences.isStartApplicationHiddenEnabled());
+                this.setVisible(!appPreferences.isStartApplicationHiddenEnabled());
             });
             showTimer.start();
         });
+    }
+
+    public void setAuthMode(boolean isAuth) {
+        this.authMode = isAuth;
+        if (!isAuth && !this.isAlwaysOnTop()) {
+            this.setAlwaysOnTop(true);
+        }
     }
 
     private void handleProvidersChanged() {
@@ -152,7 +192,7 @@ public class MainWindow {
             var newTopBarArea = new TopBarArea(
                     aiConfiguration,
                     cefWebView,
-                    frame,
+                    this,
                     settingsWindow,
                     appPreferences,
                     this::toggleSettings,
@@ -160,7 +200,6 @@ public class MainWindow {
             );
 
             rootPanel.add(newTopBarArea, BorderLayout.NORTH);
-
             rootPanel.revalidate();
             rootPanel.repaint();
 
@@ -199,10 +238,10 @@ public class MainWindow {
     }
 
     private void showMainWindow() {
-        frame.setVisible(true);
-        frame.setExtendedState(JFrame.NORMAL);
-        frame.toFront();
-        frame.requestFocus();
+        this.setVisible(true);
+        this.setExtendedState(JFrame.NORMAL);
+        this.toFront();
+        this.requestFocus();
     }
 
     private void toggleSettings() {
@@ -222,10 +261,7 @@ public class MainWindow {
         if (settingsWindow != null && settingsWindow.isOpen()) {
             settingsWindow.close();
         }
-
-        if (frame != null) {
-            frame.setVisible(false);
-        }
+        this.setVisible(false);
     }
 
     private void performShutdown() {
@@ -244,9 +280,7 @@ public class MainWindow {
             settingsWindow.close();
         }
 
-        if (frame != null) {
-            frame.setVisible(false);
-        }
+        this.setVisible(false);
 
         // Clear caches before shutdown
         AiDock.clearIconCache();
@@ -282,27 +316,5 @@ public class MainWindow {
             }
         };
         return new CefWebView(startUrl, appPreferences, this::toggleSettings, onStatusUpdate);
-    }
-
-    private JFrame buildMainFrame() {
-        var frame = new JFrame("Loom");
-        frame.setUndecorated(true);
-        frame.setAlwaysOnTop(true);
-        frame.setSize(WIDTH, HEIGHT);
-        frame.setLocationRelativeTo(null);
-        frame.setBackground(new Color(0, 0, 0, 0));
-        frame.setShape(new RoundRectangle2D.Double(0, 0, WIDTH, HEIGHT, RADIUS, RADIUS));
-        frame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-
-        frame.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                if (settingsWindow != null && settingsWindow.isOpen()) {
-                    settingsWindow.close();
-                }
-            }
-        });
-
-        return frame;
     }
 }

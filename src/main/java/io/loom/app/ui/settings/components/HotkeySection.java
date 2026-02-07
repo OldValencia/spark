@@ -57,7 +57,7 @@ public class HotkeySection extends JPanel {
         warningPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
         warningPanel.setMaximumSize(new Dimension(Short.MAX_VALUE, 30));
 
-        var warningLabel = new JLabel("<html><i>Give Accessibility permissions in System Settings and restart app</i></html>");
+        var warningLabel = new JLabel("<html><i>Grant Accessibility permissions in System Settings and restart the application</i></html>");
         warningLabel.setFont(Theme.FONT_SETTINGS.deriveFont(11f));
         warningLabel.setForeground(new Color(255, 180, 0));
         warningPanel.add(warningLabel);
