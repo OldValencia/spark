@@ -17,6 +17,7 @@ import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.geom.RoundRectangle2D;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -32,57 +33,93 @@ public class MainWindow {
     private JFrame frame;
     private JPanel rootPanel;
     private GlobalHotkeyManager globalHotkeyManager;
+    private SplashScreen splashScreen;
 
     public static final int HEIGHT = 700;
     private static final int WIDTH = 820;
     private static final int RADIUS = 14;
 
     public void showWindow() {
-        rootPanel = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                var g2 = (Graphics2D) g;
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Theme.BG_DEEP);
-                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), RADIUS, RADIUS));
+        splashScreen = new SplashScreen();
+        splashScreen.showSplash();
+
+        new Thread(() -> {
+            try {
+                initializeApplication();
+            } catch (Exception e) {
+                log.error("Failed to initialize application", e);
+                SwingUtilities.invokeLater(() -> {
+                    splashScreen.hideSplash();
+                    JOptionPane.showMessageDialog(null,
+                            "Failed to initialize application: " + e.getMessage(),
+                            "Initialization Error",
+                            JOptionPane.ERROR_MESSAGE);
+                    System.exit(1);
+                });
             }
-        };
-        rootPanel.setBackground(Theme.BG_DEEP);
+        }).start();
+    }
 
+    private void initializeApplication() {
+        SwingUtilities.invokeLater(() -> {
+            rootPanel = new JPanel(new BorderLayout()) {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    var g2 = (Graphics2D) g;
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(Theme.BG_DEEP);
+                    g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), RADIUS, RADIUS));
+                }
+            };
+            rootPanel.setBackground(Theme.BG_DEEP);
+
+            frame = buildMainFrame();
+        });
+
+        // CEF initialization happens here with progress updates
         cefWebView = getCefWebView();
-        rootPanel.add(cefWebView, BorderLayout.CENTER);
 
-        frame = buildMainFrame();
+        SwingUtilities.invokeLater(() -> {
+            rootPanel.add(cefWebView, BorderLayout.CENTER);
 
-        try {
-            globalHotkeyManager = new GlobalHotkeyManager(this, appPreferences);
-            globalHotkeyManager.start();
-            log.info("Global hotkey manager initialized successfully");
-        } catch (Exception | UnsatisfiedLinkError e) {
-            log.error("Failed to initialize global hotkey manager, hotkey feature will be disabled", e);
-        }
+            try {
+                globalHotkeyManager = new GlobalHotkeyManager(this, appPreferences);
+                globalHotkeyManager.start();
+                log.info("Global hotkey manager initialized successfully");
+            } catch (Exception | UnsatisfiedLinkError e) {
+                log.error("Failed to initialize global hotkey manager, hotkey feature will be disabled", e);
+            }
 
-        var settingsPanel = new SettingsPanel(appPreferences, globalHotkeyManager, aiConfiguration);
-        settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
-        settingsPanel.setOnClearCookies(cefWebView::clearCookies);
-        settingsPanel.setOnZoomEnabledChanged(cefWebView::setZoomEnabled);
-        settingsPanel.setOnProvidersChanged(this::handleProvidersChanged);
-        settingsWindow = new SettingsWindow(frame, settingsPanel);
-        cefWebView.setSettingsWindow(settingsWindow);
+            var settingsPanel = new SettingsPanel(appPreferences, globalHotkeyManager, aiConfiguration);
+            settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
+            settingsPanel.setOnClearCookies(cefWebView::clearCookies);
+            settingsPanel.setOnZoomEnabledChanged(cefWebView::setZoomEnabled);
+            settingsPanel.setOnProvidersChanged(this::handleProvidersChanged);
+            settingsWindow = new SettingsWindow(frame, settingsPanel);
+            cefWebView.setSettingsWindow(settingsWindow);
 
-        var topBarArea = new TopBarArea(aiConfiguration, cefWebView, frame, settingsWindow, appPreferences, this::toggleSettings, this::closeWindow);
-        rootPanel.add(topBarArea, BorderLayout.NORTH);
+            var topBarArea = new TopBarArea(aiConfiguration, cefWebView, frame, settingsWindow, appPreferences, this::toggleSettings, this::closeWindow);
+            rootPanel.add(topBarArea, BorderLayout.NORTH);
 
-        if (SystemTray.isSupported()) {
-            setupTray();
-        }
+            if (SystemTray.isSupported()) {
+                setupTray();
+            }
 
-        frame.add(rootPanel);
-        frame.setVisible(!appPreferences.isStartApplicationHiddenEnabled());
+            frame.add(rootPanel);
+
+            // Small delay before showing window and hiding splash
+            Timer showTimer = new Timer(500, e -> {
+                ((Timer) e.getSource()).stop();
+                splashScreen.hideSplash();
+                frame.setVisible(!appPreferences.isStartApplicationHiddenEnabled());
+            });
+            showTimer.start();
+        });
     }
 
     private void handleProvidersChanged() {
         SwingUtilities.invokeLater(() -> {
+            // Prune unused icons before reload
             var activeIcons = aiConfiguration.getConfigurations().stream()
                     .map(AiConfiguration.AiConfig::icon)
                     .filter(icon -> icon != null && !icon.isEmpty())
@@ -211,6 +248,7 @@ public class MainWindow {
             frame.setVisible(false);
         }
 
+        // Clear caches before shutdown
         AiDock.clearIconCache();
 
         if (cefWebView != null) {
@@ -238,7 +276,12 @@ public class MainWindow {
             startUrl = "https://chatgpt.com";
         }
 
-        return new CefWebView(startUrl, appPreferences, this::toggleSettings);
+        Consumer<String> onStatusUpdate = status -> {
+            if (splashScreen != null) {
+                splashScreen.updateStatus(status);
+            }
+        };
+        return new CefWebView(startUrl, appPreferences, this::toggleSettings, onStatusUpdate);
     }
 
     private JFrame buildMainFrame() {

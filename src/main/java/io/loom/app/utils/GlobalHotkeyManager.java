@@ -8,6 +8,7 @@ import com.github.kwhat.jnativehook.mouse.NativeMouseEvent;
 import com.github.kwhat.jnativehook.mouse.NativeMouseInputListener;
 import io.loom.app.config.AppPreferences;
 import io.loom.app.windows.MainWindow;
+import lombok.Getter;
 
 import javax.swing.*;
 import java.util.ArrayList;
@@ -35,6 +36,9 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
 
     private final Timer watchdogTimer;
 
+    @Getter
+    private boolean initialized = false;
+
     public GlobalHotkeyManager(MainWindow mainWindow, AppPreferences appPreferences) {
         this.mainWindow = mainWindow;
         this.appPreferences = appPreferences;
@@ -53,27 +57,49 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
 
     public void start() {
         try {
+            if (SystemUtils.isMac() && !checkAccessibilityPermissions()) {
+                return;
+            }
+
             GlobalScreen.registerNativeHook();
             GlobalScreen.addNativeKeyListener(this);
             GlobalScreen.addNativeMouseListener(this);
             watchdogTimer.start();
+            initialized = true;
         } catch (NativeHookException e) {
-            e.printStackTrace();
+            initialized = false;
         }
     }
 
     public void stop() {
+        if (!initialized) {
+            return;
+        }
+
         try {
             watchdogTimer.stop();
             GlobalScreen.removeNativeKeyListener(this);
             GlobalScreen.removeNativeMouseListener(this);
             GlobalScreen.unregisterNativeHook();
+        } catch (NativeHookException ignored) {
+        }
+    }
+
+    private boolean checkAccessibilityPermissions() {
+        try {
+            GlobalScreen.registerNativeHook();
+            GlobalScreen.unregisterNativeHook();
+            return true;
         } catch (NativeHookException e) {
-            e.printStackTrace();
+            return false;
         }
     }
 
     public void startRecording(Runnable onRecordComplete) {
+        if (!initialized) {
+            return;
+        }
+
         this.onRecordComplete = onRecordComplete;
         recording = false;
         pressedKeys.clear();
@@ -169,9 +195,8 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
 
         if (recording) {
             boolean simpleClick =
-                    pressedKeys.size() == 1 &&
-                            (pressedKeys.contains(MOUSE_OFFSET + 1)
-                                    || pressedKeys.contains(MOUSE_OFFSET + 2));
+                    pressedKeys.size() == 1 && (pressedKeys.contains(MOUSE_OFFSET + 1)
+                                                || pressedKeys.contains(MOUSE_OFFSET + 2));
 
             if (!pressedKeys.isEmpty() && !simpleClick) {
                 finishRecording(true, false);

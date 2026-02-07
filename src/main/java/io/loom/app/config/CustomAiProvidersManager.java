@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -167,10 +167,12 @@ public class CustomAiProvidersManager {
 
     private String downloadFavicon(String urlString, String id) {
         try {
-            URL url = new URL("https://www.google.com/s2/favicons?domain=" + new URL(urlString).getHost() + "&sz=64");
-            File iconFile = new File(iconsDir, id + ".png");
+            var mainUri = URI.create(urlString);
+            var host = mainUri.getHost();
+            var faviconUri = URI.create("https://www.google.com/s2/favicons?domain=" + host + "&sz=64");
+            var iconFile = new File(iconsDir, id + ".png");
 
-            try (InputStream in = url.openStream()) {
+            try (InputStream in = faviconUri.toURL().openStream()) {
                 Files.copy(in, iconFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
 

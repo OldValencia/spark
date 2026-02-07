@@ -58,6 +58,7 @@ public class CefWebView extends JPanel {
 
     private final AppPreferences appPreferences;
     private final Runnable onToggleSettings;
+    private final Consumer<String> onProgressUpdate;
 
     @Setter
     private Consumer<Double> zoomCallback;
@@ -70,10 +71,11 @@ public class CefWebView extends JPanel {
     private MemoryMonitor memoryMonitor;
     private double currentZoomLevel;
 
-    public CefWebView(String startUrl, AppPreferences appPreferences, Runnable onToggleSettings) {
+    public CefWebView(String startUrl, AppPreferences appPreferences, Runnable onToggleSettings, Consumer<String> onProgressUpdate) {
         this.appPreferences = appPreferences;
         this.currentZoomLevel = appPreferences.getLastZoomValue();
         this.onToggleSettings = onToggleSettings;
+        this.onProgressUpdate = onProgressUpdate;
 
         setLayout(new BorderLayout());
         setBackground(Theme.BG_DEEP);
@@ -202,9 +204,26 @@ public class CefWebView extends JPanel {
                 }
             }
             builder.setInstallDir(installDirFile);
+
+            builder.setProgressHandler((state, percent) -> {
+                var statusText = switch (state) {
+                    case LOCATING -> "Locating browser engine...";
+                    case DOWNLOADING -> "Downloading browser engine... " + Math.round(percent) + "%";
+                    case EXTRACTING -> "Extracting browser engine... " + Math.round(percent * -100) + "%";
+                    case INSTALL -> "Installing browser engine...";
+                    default -> "Initializing...";
+                };
+
+                if (onProgressUpdate != null) {
+                    SwingUtilities.invokeLater(() -> onProgressUpdate.accept(statusText));
+                }
+                log.info("CEF Init Progress: {} - {}%", state, Math.round(percent * 100));
+            });
+
+            // Reduced renderer processes and memory limits
             builder.addJcefArgs("--renderer-process-limit=1");
             builder.addJcefArgs("--process-per-site");
-            builder.addJcefArgs("--disk-cache-size=3145728");
+            builder.addJcefArgs("--disk-cache-size=3145728");  // 3MB
             builder.addJcefArgs("--disable-gpu-shader-disk-cache");
             builder.addJcefArgs("--enable-low-end-device-mode");
             builder.addJcefArgs("--aggressive-cache-discard");
@@ -217,10 +236,13 @@ public class CefWebView extends JPanel {
             builder.addJcefArgs("--disable-accelerated-video-decode");
             builder.addJcefArgs("--disable-software-rasterizer");
             builder.addJcefArgs("--disable-dev-shm-usage");
+
+            // Reduced JS heap size
             builder.addJcefArgs("--js-flags=--max-old-space-size=64");
             builder.addJcefArgs("--js-flags=--initial-heap-size=8");
             builder.addJcefArgs("--js-flags=--optimize-for-size");
             builder.addJcefArgs("--js-flags=--expose-gc");
+
             builder.addJcefArgs("--disable-http-cache");
             builder.addJcefArgs("--disable-features=AutofillServerCommunication");
             builder.addJcefArgs("--disable-features=TranslateUI");
@@ -241,6 +263,10 @@ public class CefWebView extends JPanel {
 
             configureSettings(builder);
 
+            if (onProgressUpdate != null) {
+                onProgressUpdate.accept("Building browser engine...");
+            }
+
             var app = builder.build();
             client = app.createClient();
 
@@ -248,6 +274,10 @@ public class CefWebView extends JPanel {
             setupKeyboardHandler();
             setupLoadHandler();
             setupContextMenuHandler();
+
+            if (onProgressUpdate != null) {
+                onProgressUpdate.accept("Creating browser window...");
+            }
 
             browser = client.createBrowser(startUrl, false, false);
 
