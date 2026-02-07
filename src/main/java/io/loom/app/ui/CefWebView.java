@@ -288,7 +288,7 @@ public class CefWebView extends JPanel {
             setupContextMenuHandler();
             setupDisplayHandler();
 
-            browser = client.createBrowser(startUrl, true, false);
+            browser = client.createBrowser(startUrl, false, false);
 
             var browserUI = browser.getUIComponent();
             layeredPane.add(browserUI, JLayeredPane.DEFAULT_LAYER);
@@ -324,7 +324,7 @@ public class CefWebView extends JPanel {
 
     private void configureSettings(CefAppBuilder builder) {
         var settings = builder.getCefSettings();
-        settings.windowless_rendering_enabled = true;
+        settings.windowless_rendering_enabled = false;
         settings.cache_path = CACHE_DIR;
         settings.root_cache_path = CACHE_DIR;
         settings.persist_session_cookies = true;
