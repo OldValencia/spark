@@ -20,7 +20,11 @@ import org.cef.browser.CefMessageRouter;
 import org.cef.callback.CefContextMenuParams;
 import org.cef.callback.CefMenuModel;
 import org.cef.callback.CefQueryCallback;
-import org.cef.handler.*;
+import org.cef.handler.CefContextMenuHandlerAdapter;
+import org.cef.handler.CefDisplayHandlerAdapter;
+import org.cef.handler.CefKeyboardHandlerAdapter;
+import org.cef.handler.CefLoadHandlerAdapter;
+import org.cef.handler.CefMessageRouterHandlerAdapter;
 import org.cef.misc.BoolRef;
 import org.cef.network.CefCookieManager;
 
@@ -99,6 +103,11 @@ public class CefWebView extends JPanel {
     }
 
     public void restart() {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(this::restart);
+            return;
+        }
+
         if (browser == null || client == null) {
             return;
         }
@@ -114,7 +123,8 @@ public class CefWebView extends JPanel {
         System.gc();
 
         // Small delay to ensure cleanup
-        SwingUtilities.invokeLater(() -> {
+        var restartTimer = new Timer(100, e -> {
+            ((Timer) e.getSource()).stop();
             browser = client.createBrowser(urlToRestore, false, false);
 
             var newBrowserUI = browser.getUIComponent();
@@ -127,6 +137,7 @@ public class CefWebView extends JPanel {
 
             log.info("Browser engine restarted.");
         });
+        restartTimer.start();
     }
 
     private void updateLayerBounds() {
@@ -191,6 +202,10 @@ public class CefWebView extends JPanel {
 
     private void initCef(String startUrl) {
         try {
+            if (!SwingUtilities.isEventDispatchThread()) {
+                throw new IllegalStateException("CEF must be initialized on EDT for macOS compatibility");
+            }
+
             var builder = new CefAppBuilder();
 
             var installDirFile = new File(INSTALL_DIR);
@@ -272,7 +287,6 @@ public class CefWebView extends JPanel {
             setupKeyboardHandler();
             setupLoadHandler();
             setupContextMenuHandler();
-
             setupDisplayHandler();
 
             browser = client.createBrowser(startUrl, true, false);
@@ -305,6 +319,7 @@ public class CefWebView extends JPanel {
 
         } catch (IOException | UnsupportedPlatformException | InterruptedException | CefInitializationException e) {
             log.error("Failed to init JCEF", e);
+            throw new RuntimeException("Failed to initialize browser engine", e);
         }
     }
 
@@ -335,11 +350,11 @@ public class CefWebView extends JPanel {
         }
         var lowerUrl = url.toLowerCase();
         var isAuth = lowerUrl.contains("accounts.google.com") ||
-                         lowerUrl.contains("appleid.apple.com") ||
-                         lowerUrl.contains("github.com/login") ||
-                         lowerUrl.contains("oauth") ||
-                         lowerUrl.contains("signin") ||
-                         lowerUrl.contains("login");
+                     lowerUrl.contains("appleid.apple.com") ||
+                     lowerUrl.contains("github.com/login") ||
+                     lowerUrl.contains("oauth") ||
+                     lowerUrl.contains("signin") ||
+                     lowerUrl.contains("login");
 
         var parent = SwingUtilities.getWindowAncestor(this);
         if (parent instanceof MainWindow mainWindow) {
@@ -437,6 +452,12 @@ public class CefWebView extends JPanel {
     }
 
     public void shutdown(Runnable onComplete) {
+        // Ensure shutdown happens on EDT
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(() -> shutdown(onComplete));
+            return;
+        }
+
         CefCookieManager.getGlobalManager().flushStore(() -> {
             dispose();
             onComplete.run();
@@ -450,6 +471,12 @@ public class CefWebView extends JPanel {
     }
 
     public void dispose() {
+        // Ensure disposal happens on EDT for macOS
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(this::dispose);
+            return;
+        }
+
         if (memoryMonitor != null) {
             memoryMonitor.stop();
             memoryMonitor = null;
