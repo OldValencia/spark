@@ -143,7 +143,8 @@ tasks.register('createInstaller', Exec) {
         macOptions = [
                 '--mac-package-identifier', 'io.loom.app',
                 '--mac-package-name', 'Loom',
-                '--mac-entitlements', 'src/main/resources/mac/entitlements.plist'
+                '--mac-entitlements', 'src/main/resources/mac/entitlements.plist',
+                '--resource-dir', 'src/main/resources/mac'
         ]
 
         if (version.toString().startsWith("0.")) {
