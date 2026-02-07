@@ -4,6 +4,7 @@ import io.loom.app.config.AiConfiguration;
 import io.loom.app.config.AppPreferences;
 import io.loom.app.utils.LogSetup;
 import io.loom.app.utils.MemoryMonitor;
+import io.loom.app.utils.SystemUtils;
 import io.loom.app.windows.MainWindow;
 import io.loom.app.windows.SettingsWindow;
 import lombok.Setter;
@@ -41,7 +42,6 @@ import java.util.function.Consumer;
 public class CefWebView extends JPanel {
 
     private final String BASE_DIR = AppPreferences.DATA_DIR.getAbsolutePath();
-
     private final String LOGS_DIR = LogSetup.LOGS_DIR;
     private final String INSTALL_DIR = new File(BASE_DIR, "jcef-bundle").getAbsolutePath();
     private final String CACHE_DIR = new File(BASE_DIR, "cache").getAbsolutePath();
@@ -57,7 +57,6 @@ public class CefWebView extends JPanel {
             """;
 
     private final JLayeredPane layeredPane;
-
     private final AppPreferences appPreferences;
     private final Runnable onToggleSettings;
     private final Consumer<String> onProgressUpdate;
@@ -103,41 +102,37 @@ public class CefWebView extends JPanel {
     }
 
     public void restart() {
-        if (!SwingUtilities.isEventDispatchThread()) {
-            SwingUtilities.invokeLater(this::restart);
-            return;
-        }
-
         if (browser == null || client == null) {
             return;
         }
 
         var urlToRestore = (currentConfig != null) ? currentConfig.url() : browser.getURL();
 
-        if (browser.getUIComponent() != null) {
-            layeredPane.remove(browser.getUIComponent());
-        }
+        SwingUtilities.invokeLater(() -> {
+            if (browser.getUIComponent() != null) {
+                layeredPane.remove(browser.getUIComponent());
+            }
 
-        browser.close(true);
-        browser = null;
-        System.gc();
+            browser.close(true);
+            browser = null;
+            System.gc();
 
-        // Small delay to ensure cleanup
-        var restartTimer = new Timer(100, e -> {
-            ((Timer) e.getSource()).stop();
-            browser = client.createBrowser(urlToRestore, false, false);
+            Timer restartTimer = new Timer(100, e -> {
+                ((Timer) e.getSource()).stop();
+                browser = client.createBrowser(urlToRestore, false, false);
 
-            var newBrowserUI = browser.getUIComponent();
-            newBrowserUI.setBounds(0, 0, getWidth(), getHeight());
-            layeredPane.add(newBrowserUI, JLayeredPane.DEFAULT_LAYER);
+                var newBrowserUI = browser.getUIComponent();
+                newBrowserUI.setBounds(0, 0, getWidth(), getHeight());
+                layeredPane.add(newBrowserUI, JLayeredPane.DEFAULT_LAYER);
 
-            updateLayerBounds();
-            layeredPane.revalidate();
-            layeredPane.repaint();
+                updateLayerBounds();
+                layeredPane.revalidate();
+                layeredPane.repaint();
 
-            log.info("Browser engine restarted.");
+                log.info("Browser engine restarted.");
+            });
+            restartTimer.start();
         });
-        restartTimer.start();
     }
 
     private void updateLayerBounds() {
@@ -202,8 +197,12 @@ public class CefWebView extends JPanel {
 
     private void initCef(String startUrl) {
         try {
-            if (!SwingUtilities.isEventDispatchThread()) {
-                throw new IllegalStateException("CEF must be initialized on EDT for macOS compatibility");
+            var currentThread = Thread.currentThread().getName();
+            log.info("Initializing CEF on thread: {}", currentThread);
+
+            if (SystemUtils.isMac() && SwingUtilities.isEventDispatchThread()) {
+                log.warn("WARNING: CEF is being initialized on EDT on macOS - this may cause crashes!");
+                log.warn("CEF should be initialized on main thread for macOS compatibility");
             }
 
             var builder = new CefAppBuilder();
@@ -236,7 +235,7 @@ public class CefWebView extends JPanel {
             // Reduced renderer processes and memory limits
             builder.addJcefArgs("--renderer-process-limit=1");
             builder.addJcefArgs("--process-per-site");
-            builder.addJcefArgs("--disk-cache-size=3145728");  // 3MB
+            builder.addJcefArgs("--disk-cache-size=3145728");
             builder.addJcefArgs("--disable-gpu-shader-disk-cache");
             builder.addJcefArgs("--enable-low-end-device-mode");
             builder.addJcefArgs("--aggressive-cache-discard");
@@ -315,7 +314,7 @@ public class CefWebView extends JPanel {
                 }
             });
 
-            log.info("JCEF Initialized");
+            log.info("JCEF Initialized successfully on thread: {}", currentThread);
 
         } catch (IOException | UnsupportedPlatformException | InterruptedException | CefInitializationException e) {
             log.error("Failed to init JCEF", e);
@@ -452,12 +451,6 @@ public class CefWebView extends JPanel {
     }
 
     public void shutdown(Runnable onComplete) {
-        // Ensure shutdown happens on EDT
-        if (!SwingUtilities.isEventDispatchThread()) {
-            SwingUtilities.invokeLater(() -> shutdown(onComplete));
-            return;
-        }
-
         CefCookieManager.getGlobalManager().flushStore(() -> {
             dispose();
             onComplete.run();
@@ -471,12 +464,6 @@ public class CefWebView extends JPanel {
     }
 
     public void dispose() {
-        // Ensure disposal happens on EDT for macOS
-        if (!SwingUtilities.isEventDispatchThread()) {
-            SwingUtilities.invokeLater(this::dispose);
-            return;
-        }
-
         if (memoryMonitor != null) {
             memoryMonitor.stop();
             memoryMonitor = null;

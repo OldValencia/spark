@@ -135,9 +135,27 @@ tasks.register('createInstaller', Exec) {
         installerType = "dmg"
         iconPath = "src/main/resources/app-icons/icon.icns"
 
+        // CRITICAL macOS-specific JVM flags for CEF/JOGL native libraries
         javaOpts += [
+                // macOS rendering
                 '-Dsun.java2d.opengl=true',
-                '-Dsun.java2d.renderer=sun.java2d.marlin.MarlinRenderingEngine'
+                '-Dsun.java2d.renderer=sun.java2d.marlin.MarlinRenderingEngine',
+
+                // macOS application identity
+                '-Dapple.awt.application.name=Loom',
+                '-Dapple.laf.useScreenMenuBar=false',
+                '-Djava.awt.headless=false',
+
+                // JOGL macOS fixes - CRITICAL for NSWindow threading
+                '-Djogl.disable.openglarbcontext=1',
+                '-Dnativewindow.awt.nohidpi=false',
+                '-Dnewt.window.icons=null',
+
+                // JNA settings
+                '-Djna.nosys=false',
+
+                // macOS main thread for AWT (helps with native interop)
+                '-Dapple.awt.application.appearance=system'
         ]
 
         macOptions = [

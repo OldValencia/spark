@@ -12,24 +12,35 @@
     <string>APPL</string>
     <key>CFBundleExecutable</key>
     <string>Loom</string>
-
     <key>CFBundleIconFile</key>
     <string>Loom.icns</string>
 
+    <!-- Permissions -->
     <key>NSBluetoothAlwaysUsageDescription</key>
     <string>Bluetooth access is required for security keys (Passkeys) authentication.</string>
 
     <key>NSAccessibilityUsageDescription</key>
     <string>The application needs accessibility permissions to handle global keyboard shortcuts.</string>
+
     <key>NSInputMonitoringUsageDescription</key>
     <string>The application needs input monitoring permissions to respond to global mouse and keyboard events.</string>
 
+    <!-- Display settings -->
     <key>NSHighResolutionCapable</key>
     <true/>
+
     <key>LSMinimumSystemVersion</key>
     <string>10.11</string>
 
     <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
+
+    <!-- Prevent App Nap for background operation -->
+    <key>NSAppSleepDisabled</key>
+    <true/>
+
+    <!-- Allow JNI/native code execution -->
+    <key>JVMRuntime</key>
+    <string>Oracle Java 21</string>
 </dict>
 </plist>

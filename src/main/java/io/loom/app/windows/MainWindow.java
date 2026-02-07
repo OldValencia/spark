@@ -8,6 +8,7 @@ import io.loom.app.ui.settings.SettingsPanel;
 import io.loom.app.ui.topbar.TopBarArea;
 import io.loom.app.ui.topbar.components.AiDock;
 import io.loom.app.utils.GlobalHotkeyManager;
+import io.loom.app.utils.SystemUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
@@ -76,11 +77,12 @@ public class MainWindow extends JFrame {
     }
 
     public void showWindow() {
-        SwingUtilities.invokeLater(() -> {
-            splashScreen = new SplashScreen();
-            splashScreen.showSplash();
-            initializeApplication();
-        });
+        if (SystemUtils.isMac()) {
+            log.info("macOS detected - initializing on main thread");
+            initializeOnMainThread();
+        } else {
+            SwingUtilities.invokeLater(this::initializeOnEDT);
+        }
     }
 
     public void setAuthMode(boolean isAuth) {
@@ -92,13 +94,11 @@ public class MainWindow extends JFrame {
 
     private void handleProvidersChanged() {
         SwingUtilities.invokeLater(() -> {
-            // Prune unused icons before reload
             var activeIcons = aiConfiguration.getConfigurations().stream()
                     .map(AiConfiguration.AiConfig::icon)
                     .filter(icon -> icon != null && !icon.isEmpty())
                     .collect(Collectors.toList());
             AiDock.pruneIconCache(activeIcons);
-
             reloadTopBar();
         });
     }
@@ -122,15 +122,8 @@ public class MainWindow extends JFrame {
                 rootPanel.remove(topBarToRemove);
             }
 
-            var newTopBarArea = new TopBarArea(
-                    aiConfiguration,
-                    cefWebView,
-                    this,
-                    settingsWindow,
-                    appPreferences,
-                    this::toggleSettings,
-                    this::closeWindow
-            );
+            var newTopBarArea = new TopBarArea(aiConfiguration, cefWebView, this, settingsWindow, appPreferences,
+                    this::toggleSettings, this::closeWindow);
 
             rootPanel.add(newTopBarArea, BorderLayout.NORTH);
             rootPanel.revalidate();
@@ -214,8 +207,6 @@ public class MainWindow extends JFrame {
         }
 
         this.setVisible(false);
-
-        // Clear caches before shutdown
         AiDock.clearIconCache();
 
         if (cefWebView != null) {
@@ -228,29 +219,17 @@ public class MainWindow extends JFrame {
         }
     }
 
-    private void initializeApplication() {
+    private void initializeOnMainThread() {
         try {
-            if (!SwingUtilities.isEventDispatchThread()) {
-                throw new IllegalStateException("initializeApplication must be called on EDT");
-            }
+            log.info("Thread: {} (should be main)", Thread.currentThread().getName());
 
-            rootPanel = new JPanel(new BorderLayout()) {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    var g2 = (Graphics2D) g;
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    g2.setColor(Theme.BG_DEEP);
-                    g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), RADIUS, RADIUS));
-                }
-            };
-            rootPanel.setBackground(Theme.BG_DEEP);
+            splashScreen = new SplashScreen();
+            splashScreen.showSplash();
 
-            // Update splash screen
-            if (splashScreen != null) {
-                splashScreen.updateStatus("Initializing browser engine...");
-            }
+            rootPanel = createRootPanel();
 
-            // CEF initialization must happen on EDT for macOS compatibility
+            splashScreen.updateStatus("Initializing browser engine on main thread...");
+
             cefWebView = getCefWebView();
 
             rootPanel.add(cefWebView, BorderLayout.CENTER);
@@ -258,9 +237,9 @@ public class MainWindow extends JFrame {
             try {
                 globalHotkeyManager = new GlobalHotkeyManager(this, appPreferences);
                 globalHotkeyManager.start();
-                log.info("Global hotkey manager initialized successfully");
+                log.info("Global hotkey manager initialized");
             } catch (Exception | UnsatisfiedLinkError e) {
-                log.error("Failed to initialize global hotkey manager, hotkey feature will be disabled", e);
+                log.warn("Failed to initialize global hotkey manager", e);
             }
 
             var settingsPanel = new SettingsPanel(appPreferences, globalHotkeyManager, aiConfiguration);
@@ -271,7 +250,72 @@ public class MainWindow extends JFrame {
             settingsWindow = new SettingsWindow(this, settingsPanel);
             cefWebView.setSettingsWindow(settingsWindow);
 
-            var topBarArea = new TopBarArea(aiConfiguration, cefWebView, this, settingsWindow, appPreferences, this::toggleSettings, this::closeWindow);
+            var topBarArea = new TopBarArea(aiConfiguration, cefWebView, this, settingsWindow, appPreferences,
+                    this::toggleSettings, this::closeWindow);
+            rootPanel.add(topBarArea, BorderLayout.NORTH);
+
+            if (SystemTray.isSupported()) {
+                setupTray();
+            }
+
+            this.add(rootPanel);
+
+            Timer showTimer = new Timer(500, e -> {
+                ((Timer) e.getSource()).stop();
+                if (splashScreen != null) {
+                    splashScreen.hideSplash();
+                }
+                this.setVisible(!appPreferences.isStartApplicationHiddenEnabled());
+            });
+            showTimer.start();
+
+            log.info("Initialization complete on main thread");
+
+        } catch (Exception e) {
+            log.error("Failed to initialize application", e);
+            if (splashScreen != null) {
+                splashScreen.hideSplash();
+            }
+            JOptionPane.showMessageDialog(null,
+                    "Failed to initialize: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            System.exit(1);
+        }
+    }
+
+    private void initializeOnEDT() {
+        try {
+            splashScreen = new SplashScreen();
+            splashScreen.showSplash();
+
+            rootPanel = createRootPanel();
+
+            if (splashScreen != null) {
+                splashScreen.updateStatus("Initializing browser engine...");
+            }
+
+            cefWebView = getCefWebView();
+            rootPanel.add(cefWebView, BorderLayout.CENTER);
+
+            try {
+                globalHotkeyManager = new GlobalHotkeyManager(this, appPreferences);
+                globalHotkeyManager.start();
+                log.info("Global hotkey manager initialized");
+            } catch (Exception | UnsatisfiedLinkError e) {
+                log.warn("Failed to initialize global hotkey manager", e);
+            }
+
+            var settingsPanel = new SettingsPanel(appPreferences, globalHotkeyManager, aiConfiguration);
+            settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
+            settingsPanel.setOnClearCookies(cefWebView::clearCookies);
+            settingsPanel.setOnZoomEnabledChanged(cefWebView::setZoomEnabled);
+            settingsPanel.setOnProvidersChanged(this::handleProvidersChanged);
+            settingsWindow = new SettingsWindow(this, settingsPanel);
+            cefWebView.setSettingsWindow(settingsWindow);
+
+            var topBarArea = new TopBarArea(aiConfiguration, cefWebView, this, settingsWindow, appPreferences,
+                    this::toggleSettings, this::closeWindow);
             rootPanel.add(topBarArea, BorderLayout.NORTH);
 
             if (SystemTray.isSupported()) {
@@ -295,11 +339,25 @@ public class MainWindow extends JFrame {
                 splashScreen.hideSplash();
             }
             JOptionPane.showMessageDialog(null,
-                    "Failed to initialize application: " + e.getMessage(),
-                    "Initialization Error",
+                    "Failed to initialize: " + e.getMessage(),
+                    "Error",
                     JOptionPane.ERROR_MESSAGE);
             System.exit(1);
         }
+    }
+
+    private JPanel createRootPanel() {
+        JPanel panel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                var g2 = (Graphics2D) g;
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Theme.BG_DEEP);
+                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), RADIUS, RADIUS));
+            }
+        };
+        panel.setBackground(Theme.BG_DEEP);
+        return panel;
     }
 
     private CefWebView getCefWebView() {
