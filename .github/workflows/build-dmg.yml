@@ -51,6 +51,20 @@ jobs:
       - name: Build DMG
         run: ./gradlew createInstaller
 
+      - name: Patch macOS Info.plist (Bluetooth permissions)
+        run: |
+          APP_PLIST="build/installer/Loom.app/Contents/Info.plist"
+
+          echo "Patching Info.plist at $APP_PLIST"
+
+          plutil -insert NSBluetoothAlwaysUsageDescription -string \
+          "Bluetooth access is required for security keys (Passkeys) authentication." \
+          "$APP_PLIST"
+
+          plutil -insert NSHighResolutionCapable -bool true "$APP_PLIST"
+
+          touch build/installer/Loom.app
+
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
