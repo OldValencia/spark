@@ -18,7 +18,6 @@ public class HotkeySection extends JPanel {
         this.setAlignmentX(Component.LEFT_ALIGNMENT);
         this.setMaximumSize(new Dimension(Short.MAX_VALUE, 40));
 
-        // Main row
         var mainRow = new JPanel();
         mainRow.setLayout(new BoxLayout(mainRow, BoxLayout.X_AXIS));
         mainRow.setOpaque(false);
@@ -88,7 +87,8 @@ public class HotkeySection extends JPanel {
 
     private ColorfulButton buildResetHotkeyButton(GlobalHotkeyManager hotkeyManager, AnimatedSettingsButton hotkeyRecordButton) {
         var resetColor = new Color(255, 94, 91);
-        return new ColorfulButton("✖", resetColor, () -> {
+        var buttonText = SystemUtils.isWindows() ? "X" : "✖";
+        return new ColorfulButton(buttonText, resetColor, () -> {
             if (hotkeyManager != null) {
                 hotkeyManager.clearHotkey();
                 hotkeyRecordButton.setText("None");

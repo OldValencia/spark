@@ -102,13 +102,22 @@ public class SettingsWindow {
         owner.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentHidden(ComponentEvent e) {
-                if (window != null) {
-                    window.setVisible(false);
+                forceClose();
+            }
+
+            @Override
+            public void componentMoved(ComponentEvent e) {
+                if (window != null && window.isVisible() && isOpen()) {
+                    int x = owner.getX();
+                    int y = owner.getY() + TOPBAR_HEIGHT;
+                    window.setLocation(x, y);
                 }
-                progress = 0f;
-                targetProgress = 0f;
-                if (animTimer != null && animTimer.isRunning()) {
-                    animTimer.stop();
+            }
+
+            @Override
+            public void componentResized(ComponentEvent e) {
+                if (window != null && window.isVisible() && isOpen()) {
+                    window.setSize(owner.getWidth(), window.getHeight());
                 }
             }
         });
@@ -125,6 +134,17 @@ public class SettingsWindow {
         window.setContentPane(scrollPane);
 
         animTimer = new Timer(10, e -> tick());
+    }
+
+    private void forceClose() {
+        if (window != null) {
+            if (animTimer != null && animTimer.isRunning()) {
+                animTimer.stop();
+            }
+            window.setVisible(false);
+            progress = 0f;
+            targetProgress = 0f;
+        }
     }
 
     private void tick() {

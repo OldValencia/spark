@@ -286,6 +286,13 @@ public class AiDock extends JPanel {
             if (SystemUtils.isMac()) {
                 Toolkit.getDefaultToolkit().sync();
             }
+
+            var topBar = SwingUtilities.getAncestorOfClass(GradientPanel.class, this);
+            if (topBar != null) {
+                topBar.repaint();
+                Toolkit.getDefaultToolkit().sync();
+            }
+
         } else if (!isDockHovered && !isMouseInside) {
             animationTimer.stop();
         }

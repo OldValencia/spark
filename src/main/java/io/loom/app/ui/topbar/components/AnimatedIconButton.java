@@ -75,24 +75,31 @@ public class AnimatedIconButton extends JPanel {
     @Override
     protected void paintComponent(Graphics g0) {
         var g = (Graphics2D) g0;
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        var oldClip = g.getClip();
+        g.clipRect(0, 0, getWidth(), getHeight());
 
-        var cx = getWidth() / 2;
-        var cy = getHeight() / 2;
+        try {
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        if (progress > 0.02f) {
-            var alpha = progress * 0.6f;
-            g.setColor(Theme.withAlpha(Theme.BTN_RING, alpha));
-            g.setStroke(new BasicStroke(1.3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            g.draw(new Ellipse2D.Float(cx - RING_R, cy - RING_R, RING_R * 2, RING_R * 2));
+            var cx = getWidth() / 2;
+            var cy = getHeight() / 2;
+
+            if (progress > 0.02f) {
+                var alpha = progress * 0.6f;
+                g.setColor(Theme.withAlpha(Theme.BTN_RING, alpha));
+                g.setStroke(new BasicStroke(1.3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g.draw(new Ellipse2D.Float(cx - RING_R, cy - RING_R, RING_R * 2, RING_R * 2));
+            }
+
+            g.setColor(Theme.lerp(Theme.TEXT_SECONDARY, hoverColor, progress));
+            g.setFont(Theme.FONT_RIGHT_TOP_BAR_AREA);
+
+            var fm = g.getFontMetrics();
+            var textX = cx - fm.stringWidth(icon) / 2;
+            var textY = cy + (fm.getAscent() - fm.getDescent()) / 2;
+            g.drawString(icon, textX, textY);
+        } finally {
+            g.setClip(oldClip);
         }
-
-        g.setColor(Theme.lerp(Theme.TEXT_SECONDARY, hoverColor, progress));
-        g.setFont(Theme.FONT_RIGHT_TOP_BAR_AREA);
-
-        var fm = g.getFontMetrics();
-        var textX = cx - fm.stringWidth(icon) / 2;
-        var textY = cy + (fm.getAscent() - fm.getDescent()) / 2;
-        g.drawString(icon, textX, textY);
     }
 }

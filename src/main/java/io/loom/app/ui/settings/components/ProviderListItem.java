@@ -2,6 +2,7 @@ package io.loom.app.ui.settings.components;
 
 import io.loom.app.config.AiConfiguration;
 import io.loom.app.ui.Theme;
+import io.loom.app.utils.SystemUtils;
 
 import javax.swing.*;
 import java.awt.*;
@@ -15,7 +16,9 @@ class ProviderListItem extends JPanel {
                 BorderFactory.createLineBorder(Theme.BORDER, 1),
                 BorderFactory.createEmptyBorder(8, 12, 8, 12)
         ));
-        this.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+
+        int itemHeight = SystemUtils.isWindows() ? 40 : 50;
+        this.setMaximumSize(new Dimension(Integer.MAX_VALUE, itemHeight));
 
         this.add(createColorStrip(provider.color()), BorderLayout.WEST);
         this.add(createInfoPanel(provider), BorderLayout.CENTER);
@@ -44,21 +47,38 @@ class ProviderListItem extends JPanel {
     private JPanel createInfoPanel(AiConfiguration.AiConfig provider) {
         var infoPanel = new JPanel();
         infoPanel.setOpaque(false);
-        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
 
-        var nameLabel = new JLabel(provider.name());
-        nameLabel.setFont(Theme.FONT_SETTINGS.deriveFont(Font.BOLD));
-        nameLabel.setForeground(Theme.TEXT_PRIMARY);
-        nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        if (SystemUtils.isWindows()) {
+            infoPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 0));
 
-        var urlLabel = new JLabel(provider.url());
-        urlLabel.setFont(Theme.FONT_SETTINGS.deriveFont(11f));
-        urlLabel.setForeground(Theme.TEXT_TERTIARY);
-        urlLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            var nameLabel = new JLabel(provider.name());
+            nameLabel.setFont(Theme.FONT_SETTINGS.deriveFont(Font.BOLD));
+            nameLabel.setForeground(Theme.TEXT_PRIMARY);
 
-        infoPanel.add(nameLabel);
-        infoPanel.add(Box.createVerticalStrut(2));
-        infoPanel.add(urlLabel);
+            var urlLabel = new JLabel(" (" + provider.url() + ")");
+            urlLabel.setFont(Theme.FONT_SETTINGS.deriveFont(11f));
+            urlLabel.setForeground(Theme.TEXT_TERTIARY);
+
+            infoPanel.add(nameLabel);
+            infoPanel.add(urlLabel);
+        } else {
+            infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+
+            var nameLabel = new JLabel(provider.name());
+            nameLabel.setFont(Theme.FONT_SETTINGS.deriveFont(Font.BOLD));
+            nameLabel.setForeground(Theme.TEXT_PRIMARY);
+            nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            var urlLabel = new JLabel(provider.url());
+            urlLabel.setFont(Theme.FONT_SETTINGS.deriveFont(11f));
+            urlLabel.setForeground(Theme.TEXT_TERTIARY);
+            urlLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            infoPanel.add(nameLabel);
+            infoPanel.add(Box.createVerticalStrut(2));
+            infoPanel.add(urlLabel);
+        }
+
         return infoPanel;
     }
 

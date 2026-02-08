@@ -120,7 +120,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
     }
 
     private void toggleWindow() {
-        if (settingsWindow != null && settingsWindow.isOpen()) {
+        if (settingsWindow != null) {
             settingsWindow.close();
         }
 

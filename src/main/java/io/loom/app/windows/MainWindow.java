@@ -8,11 +8,12 @@ import io.loom.app.ui.settings.SettingsPanel;
 import io.loom.app.ui.topbar.TopBarArea;
 import io.loom.app.ui.topbar.components.AiDock;
 import io.loom.app.utils.GlobalHotkeyManager;
-import io.loom.app.utils.SystemUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.geom.RoundRectangle2D;
@@ -69,20 +70,37 @@ public class MainWindow extends JFrame {
         this.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                if (settingsWindow != null && settingsWindow.isOpen()) {
-                    settingsWindow.close();
-                }
+                settingsWindow.close();
+            }
+
+            @Override
+            public void windowIconified(WindowEvent e) {
+                settingsWindow.close();
+            }
+
+            @Override
+            public void windowDeiconified(WindowEvent e) {
+                // do nothing here
+            }
+        });
+
+        this.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentHidden(ComponentEvent e) {
+                settingsWindow.close();
+            }
+        });
+
+        this.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentMoved(ComponentEvent e) {
+                settingsWindow.close();
             }
         });
     }
 
     public void showWindow() {
-        if (SystemUtils.isMac()) {
-            log.info("macOS detected - initializing on main thread");
-            initializeOnMainThread();
-        } else {
-            SwingUtilities.invokeLater(this::initializeOnEDT);
-        }
+        SwingUtilities.invokeLater(this::initializeOnEDT);
     }
 
     public void setAuthMode(boolean isAuth) {
@@ -216,71 +234,6 @@ public class MainWindow extends JFrame {
             });
         } else {
             System.exit(0);
-        }
-    }
-
-    private void initializeOnMainThread() {
-        try {
-            log.info("Thread: {} (should be main)", Thread.currentThread().getName());
-
-            splashScreen = new SplashScreen();
-            splashScreen.showSplash();
-
-            rootPanel = createRootPanel();
-
-            splashScreen.updateStatus("Initializing browser engine on main thread...");
-
-            cefWebView = getCefWebView();
-
-            rootPanel.add(cefWebView, BorderLayout.CENTER);
-
-            try {
-                globalHotkeyManager = new GlobalHotkeyManager(this, settingsWindow, appPreferences);
-                globalHotkeyManager.start();
-                log.info("Global hotkey manager initialized");
-            } catch (Exception | UnsatisfiedLinkError e) {
-                log.warn("Failed to initialize global hotkey manager", e);
-            }
-
-            var settingsPanel = new SettingsPanel(appPreferences, globalHotkeyManager, aiConfiguration);
-            settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
-            settingsPanel.setOnClearCookies(cefWebView::clearCookies);
-            settingsPanel.setOnZoomEnabledChanged(cefWebView::setZoomEnabled);
-            settingsPanel.setOnProvidersChanged(this::handleProvidersChanged);
-            settingsWindow = new SettingsWindow(this, settingsPanel);
-            cefWebView.setSettingsWindow(settingsWindow);
-
-            var topBarArea = new TopBarArea(aiConfiguration, cefWebView, this, settingsWindow, appPreferences,
-                    this::toggleSettings, this::closeWindow);
-            rootPanel.add(topBarArea, BorderLayout.NORTH);
-
-            if (SystemTray.isSupported()) {
-                setupTray();
-            }
-
-            this.add(rootPanel);
-
-            Timer showTimer = new Timer(500, e -> {
-                ((Timer) e.getSource()).stop();
-                if (splashScreen != null) {
-                    splashScreen.hideSplash();
-                }
-                this.setVisible(!appPreferences.isStartApplicationHiddenEnabled());
-            });
-            showTimer.start();
-
-            log.info("Initialization complete on main thread");
-
-        } catch (Exception e) {
-            log.error("Failed to initialize application", e);
-            if (splashScreen != null) {
-                splashScreen.hideSplash();
-            }
-            JOptionPane.showMessageDialog(null,
-                    "Failed to initialize: " + e.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
-            System.exit(1);
         }
     }
 

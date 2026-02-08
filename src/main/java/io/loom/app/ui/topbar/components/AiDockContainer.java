@@ -25,18 +25,26 @@ class AiDockContainer extends JPanel {
     @Override
     protected void paintComponent(Graphics g0) {
         var g = (Graphics2D) g0;
+        Shape oldClip = g.getClip();
+        Rectangle visibleRect = getVisibleRect();
+        g.clipRect(visibleRect.x, visibleRect.y, visibleRect.width, visibleRect.height);
+
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
-        int y = (getHeight() - AiDock.ITEM_HEIGHT) / 2;
-        float currentX = 0;
+        try {
+            int y = (getHeight() - AiDock.ITEM_HEIGHT) / 2;
+            float currentX = 0;
 
-        for (var item : dockItems) {
-            if (item.getCurrentWidth() > 1.0f) {
-                drawDockItem(g, item, (int) currentX, y);
-                currentX += item.getCurrentWidth() + AiDock.ITEM_MARGIN;
+            for (var item : dockItems) {
+                if (item.getCurrentWidth() > 1.0f) {
+                    drawDockItem(g, item, (int) currentX, y);
+                    currentX += item.getCurrentWidth() + AiDock.ITEM_MARGIN;
+                }
             }
+        } finally {
+            g.setClip(oldClip);
         }
     }
 

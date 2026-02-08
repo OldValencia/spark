@@ -5,6 +5,7 @@ import io.loom.app.ui.dialogs.components.ProviderFormPanel;
 import io.loom.app.ui.dialogs.components.ProviderMainPanel;
 import io.loom.app.ui.dialogs.components.ProviderTitleLabel;
 import io.loom.app.ui.dialogs.components.ProvidersFormButtonsPanel;
+import io.loom.app.utils.SystemUtils;
 import lombok.Getter;
 
 import javax.swing.*;
@@ -35,9 +36,13 @@ public class ProviderEditDialog extends JDialog {
         this.add(mainPanel);
 
         this.pack();
-        this.setSize(420, 290);
+
+        int width = 420;
+        int height = SystemUtils.isWindows() ? 330 : 290;
+
+        this.setSize(width, height);
         this.setLocationRelativeTo(owner);
-        this.setShape(new RoundRectangle2D.Double(0, 0, 420, 280, 14, 14));
+        this.setShape(new RoundRectangle2D.Double(0, 0, width, height, 14, 14));
     }
 
     private ProvidersFormButtonsPanel buildButtonsPanel(AiConfiguration.AiConfig provider) {

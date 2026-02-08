@@ -29,16 +29,7 @@ class ColorfulButton extends JPanel {
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         setLayout(null);
 
-        Font displayFont;
-        if (SystemUtils.isMac()) {
-            var size = isIconMode ? 18 : 14;
-            displayFont = new Font(".AppleSystemUIFont", Font.PLAIN, size);
-        } else if (SystemUtils.isWindows()) {
-            displayFont = new Font("Segoe UI", Font.PLAIN, 13);
-        } else {
-            displayFont = new Font(Font.SANS_SERIF, Font.PLAIN, 13);
-        }
-
+        Font displayFont = getOptimalFont(text, isIconMode);
         setFont(displayFont);
 
         var tempImg = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
@@ -81,6 +72,57 @@ class ColorfulButton extends JPanel {
                 action.run();
             }
         });
+    }
+
+    private Font getOptimalFont(String text, boolean isIconMode) {
+        if (SystemUtils.isMac()) {
+            var size = isIconMode ? 18 : 14;
+            return new Font(".AppleSystemUIFont", Font.PLAIN, size);
+        }
+
+        if (SystemUtils.isWindows()) {
+            if (containsEmoji(text)) {
+                String[] emojiCandidates = {
+                        "Segoe UI Emoji",
+                        "Segoe UI Symbol",
+                        "Arial Unicode MS",
+                        "MS Gothic"
+                };
+
+                var availableFonts = GraphicsEnvironment
+                        .getLocalGraphicsEnvironment()
+                        .getAvailableFontFamilyNames();
+
+                for (String fontName : emojiCandidates) {
+                    for (String available : availableFonts) {
+                        if (available.equalsIgnoreCase(fontName)) {
+                            var font = new Font(fontName, Font.PLAIN, 14);
+
+                            if (font.canDisplayUpTo(text) == -1 || font.canDisplayUpTo(text) > 0) {
+                                return font;
+                            }
+                        }
+                    }
+                }
+
+                return new Font("Segoe UI Emoji", Font.PLAIN, 14);
+            } else {
+                return new Font("Segoe UI", Font.PLAIN, 13);
+            }
+        }
+
+        return new Font(Font.SANS_SERIF, Font.PLAIN, 13);
+    }
+
+    private boolean containsEmoji(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+
+        return text.codePoints().anyMatch(codePoint -> codePoint > 0x1F000 ||
+                (codePoint >= 0x2600 && codePoint <= 0x27BF) ||
+                (codePoint >= 0x2300 && codePoint <= 0x23FF) ||
+                Character.getType(codePoint) == Character.OTHER_SYMBOL);
     }
 
     private void tick() {
