@@ -80,7 +80,13 @@ public class NativeWebViewBridge {
         this.currentZoom = appPreferences.getLastZoomValue();
     }
 
-    public void init(String startUrl, int x, int y, int width, int height) {
+    /**
+     * @param parentHandle native HWND of the Swing JFrame (Windows) or 0 (macOS).
+     *                     On Windows the webview is embedded as a child window so
+     *                     z-order and clipping are handled by the OS.
+     *                     x/y must then be relative to the JFrame client area.
+     */
+    public void init(String startUrl, long parentHandle, int x, int y, int width, int height) {
         if (disposed.get()) {
             return;
         }
@@ -111,6 +117,7 @@ public class NativeWebViewBridge {
                 webview.dispatch(() -> {
                     long handle = webview.getNativeWindowPointer();
                     if (handle != 0) {
+                        NativeWindowUtils.setParent(handle, parentHandle);
                         NativeWindowUtils.setBounds(handle, x, y, width, height);
                         log.debug("Native window handle=0x{}, positioned at ({},{}) {}x{}",
                                 Long.toHexString(handle), x, y, width, height);

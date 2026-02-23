@@ -3,6 +3,8 @@ package io.loom.app.ui;
 import io.loom.app.browser.NativeWebViewBridge;
 import io.loom.app.config.AiConfiguration;
 import io.loom.app.config.AppPreferences;
+import io.loom.app.utils.NativeWindowUtils;
+import io.loom.app.utils.SystemUtils;
 import io.loom.app.windows.MainWindow;
 import io.loom.app.windows.SettingsWindow;
 import lombok.Setter;
@@ -22,10 +24,8 @@ public class CefWebView extends JPanel {
     private final AppPreferences appPreferences;
     private final Runnable onToggleSettings;
 
-    @Setter
-    private SettingsWindow settingsWindow;
-    @Setter
-    private Consumer<Double> zoomCallback;
+    @Setter private SettingsWindow settingsWindow;
+    @Setter private Consumer<Double> zoomCallback;
 
     private boolean bridgeStarted = false;
     private final String startUrl;
@@ -93,13 +93,18 @@ public class CefWebView extends JPanel {
         }
         bridgeStarted = true;
 
-        Point screenPt = getLocationOnScreen();
+        // On Windows we embed the webview as a child of the JFrame — parent handle is needed at init.
+        Window ancestor = SwingUtilities.getWindowAncestor(this);
+        long parentHandle = ancestor != null ? NativeWindowUtils.getSwingWindowHandle(ancestor) : 0L;
+
+        // Compute initial bounds. On Windows (child mode) coords are relative to JFrame.
+        // On macOS they remain screen coords.
+        Point origin = boundsOrigin();
         int w = Math.max(getWidth(), 400);
         int h = Math.max(getHeight(), 300);
 
-        bridge.init(startUrl, screenPt.x, screenPt.y, w, h);
+        bridge.init(startUrl, parentHandle, origin.x, origin.y, w, h);
 
-        Window ancestor = SwingUtilities.getWindowAncestor(this);
         if (ancestor != null) {
             ancestor.addComponentListener(new ComponentAdapter() {
                 @Override
@@ -128,15 +133,39 @@ public class CefWebView extends JPanel {
         log.info("NativeWebViewBridge started — url={}", startUrl);
     }
 
+    /**
+     * Returns the top-left corner of this panel in coordinates appropriate for the
+     * current platform:
+     * <ul>
+     *   <li>Windows: relative to the JFrame (child window mode after SetParent)
+     *   <li>macOS: screen coordinates
+     * </ul>
+     */
+    private Point boundsOrigin() {
+        if (!isShowing()) {
+            return new Point(0, 0);
+        }
+        try {
+            if (SystemUtils.isWindows()) {
+                Window frame = SwingUtilities.getWindowAncestor(this);
+                if (frame != null) {
+                    return SwingUtilities.convertPoint(this, new Point(0, 0), frame);
+                }
+                return new Point(0, 0);
+            } else {
+                return getLocationOnScreen();
+            }
+        } catch (IllegalComponentStateException e) {
+            return new Point(0, 0);
+        }
+    }
+
     private void syncBounds() {
         if (!bridgeStarted || !isShowing()) {
             return;
         }
-        try {
-            Point pt = getLocationOnScreen();
-            bridge.updateBounds(pt.x, pt.y, getWidth(), getHeight());
-        } catch (IllegalComponentStateException ignored) {
-        }
+        var pt = boundsOrigin();
+        bridge.updateBounds(pt.x, pt.y, getWidth(), getHeight());
     }
 
     public void setCurrentConfig(AiConfiguration.AiConfig config) {
@@ -146,6 +175,7 @@ public class CefWebView extends JPanel {
         }
     }
 
+    @Override
     public void setVisible(boolean visible) {
         super.setVisible(visible);
         bridge.setVisible(visible);

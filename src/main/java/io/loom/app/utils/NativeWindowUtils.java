@@ -1,6 +1,7 @@
 package io.loom.app.utils;
 
 import com.sun.jna.Function;
+import com.sun.jna.Native;
 import com.sun.jna.NativeLibrary;
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.User32;
@@ -24,6 +25,10 @@ public final class NativeWindowUtils {
     private static Pointer selMakeKeyAndOrderFront;
     private static boolean macInitialized = false;
 
+    private static final int GWL_STYLE = -16;
+    private static final int WS_POPUP = 0x80000000;
+    private static final int WS_CHILD = 0x40000000;
+
     static {
         if (SystemUtils.isMac()) {
             try {
@@ -40,6 +45,50 @@ public final class NativeWindowUtils {
             } catch (Exception e) {
                 log.warn("Could not initialise macOS ObjC bridge — window positioning disabled", e);
             }
+        }
+    }
+
+    /**
+     * Returns the native HWND of any AWT/Swing component (Windows only).
+     * The component must already be displayable (peer created).
+     */
+    public static long getSwingWindowHandle(Component component) {
+        if (!SystemUtils.isWindows() || component == null) {
+            return 0L;
+        }
+        try {
+            return Native.getComponentID(component);
+        } catch (Exception e) {
+            log.warn("Could not get native HWND for Swing component", e);
+            return 0L;
+        }
+    }
+
+    /**
+     * Make the webview window a child of the Swing JFrame (Windows only).
+     * After this:
+     * - setBounds() coordinates become relative to the parent client area
+     * - z-order is owned by the OS — child is always in front of parent
+     * - the webview moves/resizes with the JFrame automatically when parented
+     */
+    public static void setParent(long childHandle, long parentHandle) {
+        if (!SystemUtils.isWindows() || childHandle == 0 || parentHandle == 0) {
+            return;
+        }
+        try {
+            var child = new WinDef.HWND(Pointer.createConstant(childHandle));
+            var parent = new WinDef.HWND(Pointer.createConstant(parentHandle));
+
+            // Must restyle before SetParent: swap WS_POPUP → WS_CHILD
+            int style = User32.INSTANCE.GetWindowLong(child, GWL_STYLE);
+            style = (style & ~WS_POPUP) | WS_CHILD;
+            User32.INSTANCE.SetWindowLong(child, GWL_STYLE, style);
+
+            User32.INSTANCE.SetParent(child, parent);
+            log.debug("Webview 0x{} parented to Swing 0x{}",
+                    Long.toHexString(childHandle), Long.toHexString(parentHandle));
+        } catch (Exception e) {
+            log.warn("SetParent failed", e);
         }
     }
 
@@ -98,9 +147,7 @@ public final class NativeWindowUtils {
                     .getBounds()
                     .getHeight();
 
-            // macOS Y-axis is flipped: origin is bottom-left of screen
             var macY = screenH - javaY - cachedWebviewHeight;
-
             msgSend.invoke(Void.class, new Object[]{nsWindow, selSetFrameOrigin, (double) javaX, macY});
         } catch (Exception e) {
             log.warn("NSWindow setFrameOrigin: failed", e);
