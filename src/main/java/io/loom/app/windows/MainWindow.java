@@ -77,21 +77,24 @@ public class MainWindow extends JFrame {
             public void windowIconified(WindowEvent e) {
                 settingsWindow.close();
             }
-
-            @Override
-            public void windowDeiconified(WindowEvent e) {
-                // do nothing here
-            }
         });
 
         this.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentHidden(ComponentEvent e) {
+                if (cefWebView != null) {
+                    cefWebView.setVisible(false);
+                }
                 settingsWindow.close();
             }
-        });
 
-        this.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentShown(ComponentEvent e) {
+                if (cefWebView != null) {
+                    cefWebView.setVisible(true);
+                }
+            }
+
             @Override
             public void componentMoved(ComponentEvent e) {
                 settingsWindow.close();
@@ -127,12 +130,10 @@ public class MainWindow extends JFrame {
 
             Component topBarToRemove = null;
             for (Component comp : rootPanel.getComponents()) {
-                if (comp.getClass().getSimpleName().contains("Panel")) {
-                    var constraints = ((BorderLayout) rootPanel.getLayout()).getConstraints(comp);
-                    if (constraints != null && constraints.equals(BorderLayout.NORTH)) {
-                        topBarToRemove = comp;
-                        break;
-                    }
+                var constraints = ((BorderLayout) rootPanel.getLayout()).getConstraints(comp);
+                if (constraints != null && constraints.equals(BorderLayout.NORTH)) {
+                    topBarToRemove = comp;
+                    break;
                 }
             }
 
@@ -228,10 +229,7 @@ public class MainWindow extends JFrame {
         AiDock.clearIconCache();
 
         if (cefWebView != null) {
-            cefWebView.shutdown(() -> {
-                log.info("CEF shutdown complete, exiting...");
-                System.exit(0);
-            });
+            cefWebView.shutdown(() -> log.info("Webview shutdown complete"));
         } else {
             System.exit(0);
         }
