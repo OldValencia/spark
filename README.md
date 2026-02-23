@@ -1,6 +1,3 @@
-## This is a public archive. The application was developed up to version 0.1.1, and further development in this repository is not planned. The application will be rewritten in Go to ensure minimal possible RAM consumption.
-Link to the repository with the stable version in Go: https://github.com/OldValencia/loom (in development)
-
 # Loom
 
 <p align="center">
