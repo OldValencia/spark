@@ -1,7 +1,7 @@
-# Loom
+# Spark
 
 <p align="center">
-<img src="./src/main/resources/app-icons/icon.png" alt="Loom Icon" width="500px"/>
+<img src="./src/main/resources/app-icons/icon.png" alt="Spark Icon" width="500px"/>
 </p>
 
 A modern, lightweight desktop application that provides unified access to multiple AI chat services through a sleek, always-on-top interface.
@@ -21,7 +21,7 @@ Access your favorite AI services in one place. Pre-configured with:
 ### ✨ Key Features
 - **Custom Providers Support** — Add any web-based AI service directly via Settings.
 - **Global Hotkey** — Toggle the application visibility instantly (configurable).
-- **Auto-Start** — Option to launch Loom automatically on system startup.
+- **Auto-Start** — Option to launch Spark automatically on system startup.
 - **Always On Top** — Keep your AI assistant visible while working in other apps.
 - **Session Persistence** — Remembers your last visited AI, zoom level, and window position.
 - **Privacy Focused** — Easy "Clear Cookies" button to reset sessions.
@@ -38,22 +38,22 @@ Access your favorite AI services in one place. Pre-configured with:
 ## Screenshots
 
 ### Application Interface
-![Loom Interface](docs/application_interface.png)
+![Spark Interface](docs/application_interface.png)
 
 ### Settings & Provider Management
-![Loom Settings](docs/application_settings.png)
+![Spark Settings](docs/application_settings.png)
 
 ### Settings & Hotkeys
-![Loom Settings 2](docs/application_settings_2.png)
+![Spark Settings 2](docs/application_settings_2.png)
 
 ## Installation
 
 ### Windows
-1. Download `Loom-Windows-Installer.exe` from [Releases](https://github.com/OldValencia/ai-panel/releases).
+1. Download `Spark-Windows-Installer.exe` from [Releases](https://github.com/OldValencia/ai-panel/releases).
 2. Run the installer.
 
 ### macOS
-1. Download `Loom-macOS-Installer.dmg` from [Releases](https://github.com/OldValencia/ai-panel/releases).
+1. Download `Spark-macOS-Installer.dmg` from [Releases](https://github.com/OldValencia/ai-panel/releases).
 2. Drag to Applications.
 
 ## Configuration
@@ -72,8 +72,8 @@ You no longer need to edit configuration files manually.
 
 ### Data Location
 Application data is stored in your user directory:
-- **Windows**: `C:\Users\<User>\.loom\`
-- **macOS/Linux**: `~/Library/Application Support/Loom/`
+- **Windows**: `C:\Users\<User>\Documents\OldValencia\Spark\`
+- **macOS/Linux**: `~/Library/Application Support/OldValencia/Spark/`
 
 Contains:
 - `app-config.json` — General preferences.
@@ -89,8 +89,8 @@ Contains:
 ### Build Steps
 ```bash
 # Clone repository
-git clone [https://github.com/OldValencia/loom.git](https://github.com/OldValencia/loom.git)
-cd loom
+git clone [https://github.com/OldValencia/spark.git](https://github.com/OldValencia/spark.git)
+cd spark
 
 # Run locally
 ./gradlew run

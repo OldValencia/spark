@@ -54,5 +54,5 @@ jobs:
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Loom-macOS-Installer
+          name: Spark-macOS-Installer
           path: build/installer/*.dmg
