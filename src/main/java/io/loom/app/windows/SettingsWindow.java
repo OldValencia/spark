@@ -2,69 +2,83 @@ package io.loom.app.windows;
 
 import io.loom.app.ui.settings.SettingsPanel;
 import io.loom.app.utils.SystemUtils;
-import lombok.RequiredArgsConstructor;
+import javafx.animation.AnimationTimer;
+import javafx.scene.Scene;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.paint.Color;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
+import javafx.stage.Window;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
-
-@RequiredArgsConstructor
 public class SettingsWindow {
 
     private static final int TOPBAR_HEIGHT = 48;
-    private static final float LERP_SPEED = 0.3f;
+    private static final double LERP_SPEED = 0.3;
 
-    private final JFrame owner;
+    private final Window owner;
     private final SettingsPanel settingsPanel;
-    private JWindow window;
+    private Stage window;
 
-    private float progress = 0f;
-    private float targetProgress = 0f;
-    private Timer animTimer;
+    private double progress = 0.0;
+    private double targetProgress = 0.0;
+    private AnimationTimer animTimer;
 
-    private int targetHeight = 0;
+    private double targetHeight = 0;
+
+    public SettingsWindow(Window owner, SettingsPanel settingsPanel) {
+        this.owner = owner;
+        this.settingsPanel = settingsPanel;
+    }
 
     public void open() {
         if (window == null) {
             createWindow();
         }
 
-        settingsPanel.setSize(owner.getWidth(), Integer.MAX_VALUE);
-        settingsPanel.doLayout();
+        // Add protection against NaN during layout initialization
+        var w = Double.isNaN(owner.getWidth()) ? 820.0 : owner.getWidth();
 
-        int contentHeight = settingsPanel.getPreferredSize().height;
-        int maxHeight = owner.getHeight() - TOPBAR_HEIGHT;
+        settingsPanel.setPrefWidth(w);
+        settingsPanel.setMinWidth(w);
+        settingsPanel.setMaxWidth(w);
+        settingsPanel.applyCss();
+        settingsPanel.layout();
+
+        var contentHeight = settingsPanel.prefHeight(w);
+        var maxHeight = (Double.isNaN(owner.getHeight()) ? 700.0 : owner.getHeight()) - TOPBAR_HEIGHT;
         this.targetHeight = Math.min(contentHeight, maxHeight);
 
-        int x = owner.getX();
-        int y = owner.getY() + TOPBAR_HEIGHT;
-        int w = owner.getWidth();
+        var x = Double.isNaN(owner.getX()) ? 0.0 : owner.getX();
+        var y = (Double.isNaN(owner.getY()) ? 0.0 : owner.getY()) + TOPBAR_HEIGHT;
 
         if (SystemUtils.isMac()) {
-            if (animTimer.isRunning()) animTimer.stop();
+            if (animTimer != null) {
+                animTimer.stop();
+            }
 
-            window.setBounds(x, y, w, targetHeight);
-            settingsPanel.setOpaque(true);
-            window.setVisible(true);
+            window.setX(x);
+            window.setY(y);
+            window.setWidth(w);
+            window.setHeight(targetHeight);
+            settingsPanel.setOpacity(1.0);
+            window.show();
+            window.toFront();
 
-            SwingUtilities.invokeLater(() -> {
-                window.toFront();
-                window.repaint();
-            });
-
-            progress = 1f;
-            targetProgress = 1f;
+            progress = 1.0;
+            targetProgress = 1.0;
         } else {
-            if (!window.isVisible()) {
-                window.setBounds(x, y, w, 0);
-                window.setVisible(true);
+            if (!window.isShowing()) {
+                window.setX(x);
+                window.setY(y);
+                window.setWidth(w);
+                window.setHeight(0);
+                window.show();
             } else {
-                window.setBounds(x, y, w, window.getHeight());
+                window.setWidth(w);
             }
             window.toFront();
 
-            targetProgress = 1f;
+            targetProgress = 1.0;
             animTimer.start();
         }
     }
@@ -75,97 +89,83 @@ public class SettingsWindow {
         }
 
         if (SystemUtils.isMac()) {
-            if (animTimer.isRunning()) animTimer.stop();
-            window.setVisible(false);
-            progress = 0f;
-            targetProgress = 0f;
+            if (animTimer != null) {
+                animTimer.stop();
+            }
+            window.hide();
+            progress = 0.0;
+            targetProgress = 0.0;
         } else {
-            targetProgress = 0f;
+            targetProgress = 0.0;
             animTimer.start();
         }
     }
 
     public boolean isOpen() {
-        return window != null && targetProgress > 0.5f;
+        return window != null && targetProgress > 0.5;
     }
 
-    public boolean isVisible() {
-        return window != null && window.isVisible();
+    public boolean isShowing() {
+        return window != null && window.isShowing();
     }
 
     private void createWindow() {
-        window = new JWindow(owner);
+        window = new Stage();
+        window.initOwner(owner);
+        window.initStyle(StageStyle.TRANSPARENT);
         window.setAlwaysOnTop(true);
-        window.setFocusableWindowState(true);
-        window.setBackground(new Color(0, 0, 0, 0));
 
-        owner.addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentHidden(ComponentEvent e) {
-                forceClose();
-            }
-
-            @Override
-            public void componentMoved(ComponentEvent e) {
-                if (window != null && window.isVisible() && isOpen()) {
-                    int x = owner.getX();
-                    int y = owner.getY() + TOPBAR_HEIGHT;
-                    window.setLocation(x, y);
-                }
-            }
-
-            @Override
-            public void componentResized(ComponentEvent e) {
-                if (window != null && window.isVisible() && isOpen()) {
-                    window.setSize(owner.getWidth(), window.getHeight());
-                }
+        owner.xProperty().addListener((obs, oldVal, newVal) -> syncPosition());
+        owner.yProperty().addListener((obs, oldVal, newVal) -> syncPosition());
+        owner.widthProperty().addListener((obs, oldVal, newVal) -> {
+            if (window != null && window.isShowing() && isOpen()) {
+                window.setWidth(newVal.doubleValue());
             }
         });
 
-        var scrollPane = new JScrollPane(settingsPanel);
-        scrollPane.setOpaque(false);
-        scrollPane.getViewport().setOpaque(false);
-        scrollPane.setBorder(null);
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(10);
-        scrollPane.getVerticalScrollBar().setPreferredSize(new Dimension(8, 0));
+        ScrollPane scrollPane = new ScrollPane(settingsPanel);
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+        scrollPane.setFitToWidth(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
 
-        window.setContentPane(scrollPane);
+        Scene scene = new Scene(scrollPane, Color.TRANSPARENT);
+        window.setScene(scene);
 
-        animTimer = new Timer(10, e -> tick());
+        animTimer = new AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                tick();
+            }
+        };
     }
 
-    private void forceClose() {
-        if (window != null) {
-            if (animTimer != null && animTimer.isRunning()) {
-                animTimer.stop();
-            }
-            window.setVisible(false);
-            progress = 0f;
-            targetProgress = 0f;
+    private void syncPosition() {
+        if (window != null && window.isShowing() && isOpen()) {
+            window.setX(owner.getX());
+            window.setY(owner.getY() + TOPBAR_HEIGHT);
         }
     }
 
     private void tick() {
-        float diff = targetProgress - progress;
+        double diff = targetProgress - progress;
 
-        if (Math.abs(diff) < 0.01f) {
+        if (Math.abs(diff) < 0.01) {
             progress = targetProgress;
             animTimer.stop();
-            if (progress <= 0f) {
-                window.setVisible(false);
+            if (progress <= 0) {
+                window.hide();
             }
         } else {
             progress += diff * LERP_SPEED;
         }
 
-        int currentH = Math.round(targetHeight * progress);
+        double currentH = targetHeight * progress;
 
-        if (window.isVisible()) {
-            window.setSize(window.getWidth(), currentH);
+        if (window.isShowing()) {
+            window.setHeight(currentH);
         }
 
-        settingsPanel.setOpaque(progress > 0.8f);
+        settingsPanel.setOpacity(progress > 0.8 ? 1.0 : 0.0);
     }
 }

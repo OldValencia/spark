@@ -1,92 +1,46 @@
 package io.loom.app.ui.settings.components;
 
 import io.loom.app.ui.Theme;
+import javafx.geometry.Insets;
+import javafx.scene.Cursor;
+import javafx.scene.control.Button;
+import javafx.scene.layout.Region;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.geom.RoundRectangle2D;
+public class AnimatedSettingsButton extends Button {
 
-class AnimatedSettingsButton extends JPanel {
+    public AnimatedSettingsButton(String text, Runnable action) {
+        super(text);
+        this.setCursor(Cursor.HAND);
 
-    private String text;
-    private final Timer animTimer;
+        this.setPrefHeight(30);
+        this.setMinHeight(30);
+        this.setMaxHeight(30);
+        this.setPadding(new Insets(0, 14, 0, 14));
 
-    private float hoverProgress = 0f;
-    private boolean hovered = false;
+        this.setMaxWidth(Region.USE_PREF_SIZE);
 
-    void setText(String text) {
-        this.text = text;
-        this.tick();
-    }
+        var normalStyle = String.format(
+                "-fx-background-color: %s; -fx-border-color: %s; -fx-border-width: 1px; " +
+                        "-fx-text-fill: %s; -fx-background-radius: 8px; -fx-border-radius: 8px; -fx-font-family: '%s';",
+                Theme.toHex(Theme.BG_POPUP), Theme.toHex(Theme.BORDER), Theme.toHex(Theme.TEXT_PRIMARY), Theme.FONT_SELECTOR.getFamily()
+        );
 
-    AnimatedSettingsButton(String text, Runnable action) {
-        this.text = text;
+        var hoverStyle = String.format(
+                "-fx-background-color: %s; -fx-border-color: %s; -fx-border-width: 1px; " +
+                        "-fx-text-fill: %s; -fx-background-radius: 8px; -fx-border-radius: 8px; -fx-font-family: '%s';",
+                Theme.toHex(Theme.BG_HOVER), Theme.toHex(Theme.BORDER), Theme.toHex(Theme.TEXT_PRIMARY), Theme.FONT_SELECTOR.getFamily()
+        );
 
-        setOpaque(false);
-        setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        setLayout(null);
+        this.setStyle(normalStyle);
 
-        var fontMetrics = new Canvas().getFontMetrics(Theme.FONT_SELECTOR);
-        setPreferredSize(new Dimension(fontMetrics.stringWidth(text) + 28, 30));
+        this.setOnMouseEntered(e -> this.setStyle(hoverStyle));
+        this.setOnMouseExited(e -> this.setStyle(normalStyle));
 
-        animTimer = new Timer(10, e -> tick());
-
-        addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                hovered = true;
-                animTimer.start();
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                hovered = false;
-                animTimer.start();
-            }
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
+        this.setOnAction(e -> {
+            e.consume();
+            if (action != null) {
                 action.run();
             }
         });
-    }
-
-    private void tick() {
-        var target = hovered ? 1f : 0f;
-        var diff = target - hoverProgress;
-        if (Math.abs(diff) < 0.04f) {
-            hoverProgress = target;
-            animTimer.stop();
-            Toolkit.getDefaultToolkit().sync();
-        } else {
-            hoverProgress += diff * 0.22f;
-        }
-        repaint();
-    }
-
-    @Override
-    protected void paintComponent(Graphics g0) {
-        var g = (Graphics2D) g0;
-        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-
-        int w = getWidth();
-        int h = getHeight();
-
-        var bg = Theme.lerp(Theme.BG_POPUP, Theme.BG_HOVER, hoverProgress);
-        g.setColor(bg);
-        g.fill(new RoundRectangle2D.Float(0, 0, w, h, 8, 8));
-
-        g.setColor(Theme.BORDER);
-        g.setStroke(new BasicStroke(1f));
-        g.draw(new RoundRectangle2D.Float(0, 0, w, h, 8, 8));
-
-        g.setFont(Theme.FONT_SELECTOR);
-        g.setColor(Theme.TEXT_PRIMARY);
-        var fm = g.getFontMetrics();
-        int textX = (w - fm.stringWidth(text)) / 2;
-        int textY = (h + fm.getAscent() - fm.getDescent()) / 2;
-        g.drawString(text, textX, textY);
     }
 }

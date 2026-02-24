@@ -1,54 +1,47 @@
 package io.loom.app.ui.settings.components;
 
 import io.loom.app.config.AiConfiguration;
+import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.layout.HBox;
+import javafx.scene.paint.Color;
 
-import javax.swing.*;
-import java.awt.*;
+public class ResetProvidersPanel extends HBox {
 
-public class ResetProvidersPanel extends JPanel {
-
-    private static final Color RESET_BUTTON_COLOR = new Color(255, 94, 91);
+    private static final Color RESET_BUTTON_COLOR = Color.rgb(255, 94, 91);
     private final AiConfiguration aiConfiguration;
     private final Runnable onProvidersChanged;
 
     public ResetProvidersPanel(AiConfiguration aiConfiguration, Runnable onProvidersChanged) {
-        super(new FlowLayout(FlowLayout.LEFT, 0, 0));
-
         this.aiConfiguration = aiConfiguration;
         this.onProvidersChanged = onProvidersChanged;
 
-        initUi();
-    }
+        this.setAlignment(Pos.CENTER_LEFT);
+        this.setMaxWidth(Double.MAX_VALUE);
 
-    private void initUi() {
-        this.setOpaque(false);
-        this.setAlignmentX(Component.LEFT_ALIGNMENT);
-        this.setMaximumSize(new Dimension(Short.MAX_VALUE, 40));
-
-        var resetButton = createResetButton();
-        this.add(resetButton);
-    }
-
-    private ColorfulButton createResetButton() {
-        return new ColorfulButton(
+        var resetButton = new ColorfulButton(
                 "Reset Providers to Default",
                 RESET_BUTTON_COLOR,
                 this::handleResetAction
         );
+
+        this.getChildren().add(resetButton);
     }
 
     private void handleResetAction() {
-        int choice = JOptionPane.showConfirmDialog(
-                this,
-                "Are you sure? This will delete all custom providers and icons.",
-                "Reset Configuration",
-                JOptionPane.YES_NO_OPTION
-        );
+        var alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Reset Configuration");
+        alert.setHeaderText(null);
+        alert.setContentText("Are you sure? This will delete all custom providers and icons.");
 
-        if (choice == JOptionPane.YES_OPTION) {
-            aiConfiguration.resetToDefaults();
-            if (onProvidersChanged != null) {
-                onProvidersChanged.run();
+        var result = alert.showAndWait();
+        if (result.isPresent()) {
+            if (result.get() == ButtonType.OK) {
+                aiConfiguration.resetToDefaults();
+                if (onProvidersChanged != null) {
+                    onProvidersChanged.run();
+                }
             }
         }
     }

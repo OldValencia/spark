@@ -3,91 +3,94 @@ package io.loom.app.ui.settings.components;
 import io.loom.app.config.AiConfiguration;
 import io.loom.app.ui.Theme;
 import io.loom.app.utils.SystemUtils;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.control.Label;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 
-import javax.swing.*;
-import java.awt.*;
+class ProviderListItem extends BorderPane {
 
-class ProviderListItem extends JPanel {
+    public ProviderListItem(AiConfiguration.AiConfig provider, Runnable onEdit, Runnable onDelete) {
+        this.setStyle("""
+                    -fx-border-color: %s;
+                    -fx-border-width: 1;
+                    -fx-background-color: transparent;
+                """.formatted(Theme.toHex(Theme.BORDER)));
+        this.setPadding(new Insets(8, 12, 8, 12));
 
-    ProviderListItem(AiConfiguration.AiConfig provider, Runnable onEdit, Runnable onDelete) {
-        this.setOpaque(false);
-        this.setLayout(new BorderLayout(12, 0));
-        this.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Theme.BORDER, 1),
-                BorderFactory.createEmptyBorder(8, 12, 8, 12)
-        ));
+        double itemHeight = SystemUtils.isWindows() ? 40 : 50;
+        this.setMaxHeight(itemHeight);
+        this.setMinHeight(itemHeight);
 
-        int itemHeight = SystemUtils.isWindows() ? 40 : 50;
-        this.setMaximumSize(new Dimension(Integer.MAX_VALUE, itemHeight));
+        this.setLeft(createColorStrip(provider.color()));
 
-        this.add(createColorStrip(provider.color()), BorderLayout.WEST);
-        this.add(createInfoPanel(provider), BorderLayout.CENTER);
-        this.add(createActionButtons(onEdit, onDelete), BorderLayout.EAST);
+        var infoPanel = createInfoPanel(provider);
+        BorderPane.setMargin(infoPanel, new Insets(0, 0, 0, 12));
+        this.setCenter(infoPanel);
+
+        this.setRight(createActionButtons(onEdit, onDelete));
     }
 
-    private JComponent createColorStrip(String colorHex) {
-        var panel = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                var g2 = (Graphics2D) g;
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                try {
-                    g2.setColor(Color.decode(colorHex));
-                } catch (Exception e) {
-                    g2.setColor(Theme.ACCENT);
-                }
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 4, 4);
-            }
-        };
-        panel.setOpaque(false);
-        panel.setPreferredSize(new Dimension(4, 32));
-        return panel;
-    }
+    private Node createColorStrip(String colorHex) {
+        var rect = new Rectangle(4, 32);
+        rect.setArcWidth(4);
+        rect.setArcHeight(4);
 
-    private JPanel createInfoPanel(AiConfiguration.AiConfig provider) {
-        var infoPanel = new JPanel();
-        infoPanel.setOpaque(false);
-
-        if (SystemUtils.isWindows()) {
-            infoPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 0));
-
-            var nameLabel = new JLabel(provider.name());
-            nameLabel.setFont(Theme.FONT_SETTINGS.deriveFont(Font.BOLD));
-            nameLabel.setForeground(Theme.TEXT_PRIMARY);
-
-            var urlLabel = new JLabel(" (" + provider.url() + ")");
-            urlLabel.setFont(Theme.FONT_SETTINGS.deriveFont(11f));
-            urlLabel.setForeground(Theme.TEXT_TERTIARY);
-
-            infoPanel.add(nameLabel);
-            infoPanel.add(urlLabel);
-        } else {
-            infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
-
-            var nameLabel = new JLabel(provider.name());
-            nameLabel.setFont(Theme.FONT_SETTINGS.deriveFont(Font.BOLD));
-            nameLabel.setForeground(Theme.TEXT_PRIMARY);
-            nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-            var urlLabel = new JLabel(provider.url());
-            urlLabel.setFont(Theme.FONT_SETTINGS.deriveFont(11f));
-            urlLabel.setForeground(Theme.TEXT_TERTIARY);
-            urlLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-            infoPanel.add(nameLabel);
-            infoPanel.add(Box.createVerticalStrut(2));
-            infoPanel.add(urlLabel);
+        try {
+            rect.setFill(Color.web(colorHex));
+        } catch (Exception e) {
+            rect.setFill(Theme.ACCENT);
         }
 
-        return infoPanel;
+        // Wrap in a VBox to center it vertically
+        var container = new VBox(rect);
+        container.setAlignment(Pos.CENTER);
+        return container;
     }
 
-    private JPanel createActionButtons(Runnable onEdit, Runnable onDelete) {
-        var actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        actionsPanel.setOpaque(false);
+    private Node createInfoPanel(AiConfiguration.AiConfig provider) {
+        var nameLabel = new Label(provider.name());
+        nameLabel.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), FontWeight.BOLD, Theme.FONT_SETTINGS.getSize()));
+        nameLabel.setTextFill(Theme.TEXT_PRIMARY);
 
-        actionsPanel.add(new ProvidersListTextButton("Edit", Theme.TEXT_SECONDARY, e -> onEdit.run()));
-        actionsPanel.add(new ProvidersListTextButton("Delete", Theme.TEXT_SECONDARY, e -> onDelete.run()));
+        if (SystemUtils.isWindows()) {
+            var infoPanel = new HBox();
+            infoPanel.setAlignment(Pos.CENTER_LEFT);
+
+            var urlLabel = new Label(" (" + provider.url() + ")");
+            urlLabel.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), 11));
+            urlLabel.setTextFill(Theme.TEXT_TERTIARY);
+
+            infoPanel.getChildren().addAll(nameLabel, urlLabel);
+            return infoPanel;
+        } else {
+            var infoPanel = new VBox(2);
+            infoPanel.setAlignment(Pos.CENTER_LEFT);
+
+            var urlLabel = new Label(provider.url());
+            urlLabel.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), 11));
+            urlLabel.setTextFill(Theme.TEXT_TERTIARY);
+
+            infoPanel.getChildren().addAll(nameLabel, urlLabel);
+            return infoPanel;
+        }
+    }
+
+    private Node createActionButtons(Runnable onEdit, Runnable onDelete) {
+        var actionsPanel = new HBox(8);
+        actionsPanel.setAlignment(Pos.CENTER_RIGHT);
+
+        actionsPanel.getChildren().addAll(
+                new ProvidersListTextButton("Edit", Theme.TEXT_SECONDARY, onEdit),
+                new ProvidersListTextButton("Delete", Theme.TEXT_SECONDARY, onDelete)
+        );
 
         return actionsPanel;
     }

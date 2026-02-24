@@ -1,91 +1,92 @@
 package io.loom.app.windows;
 
 import io.loom.app.ui.Theme;
+import javafx.application.Platform;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.geom.RoundRectangle2D;
+public class SplashScreen extends Stage {
 
-public class SplashScreen extends JWindow {
-
-    private static final int WIDTH = 400;
-    private static final int HEIGHT = 250;
+    private static final double WIDTH = 400;
+    private static final double HEIGHT = 250;
     private static final int RADIUS = 20;
 
-    private final JLabel statusLabel;
+    private final Label statusLabel;
 
     public SplashScreen() {
-        setSize(WIDTH, HEIGHT);
-        setLocationRelativeTo(null);
-        setAlwaysOnTop(true);
+        this.initStyle(StageStyle.TRANSPARENT);
+        this.setAlwaysOnTop(true);
+        this.setWidth(WIDTH);
+        this.setHeight(HEIGHT);
+        this.centerOnScreen();
 
-        var contentPane = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                var g2 = (Graphics2D) g;
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        var contentPane = new BorderPane();
+        contentPane.setPadding(new Insets(30, 40, 30, 40));
 
-                // Background
-                g2.setColor(Theme.BG_BAR);
-                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), RADIUS, RADIUS));
+        var bg = Theme.toHex(Theme.BG_BAR);
+        var border = Theme.toHex(Theme.BORDER);
+        contentPane.setStyle(
+                "-fx-background-color: " + bg + "; " +
+                        "-fx-background-radius: " + RADIUS + "px; " +
+                        "-fx-border-radius: " + RADIUS + "px; " +
+                        "-fx-border-color: " + border + "; " +
+                        "-fx-border-width: 1px;"
+        );
 
-                // Border
-                g2.setColor(Theme.BORDER);
-                g2.setStroke(new BasicStroke(1f));
-                g2.draw(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, RADIUS, RADIUS));
-            }
-        };
-        contentPane.setLayout(new BorderLayout());
-        contentPane.setOpaque(false);
-        contentPane.setBorder(BorderFactory.createEmptyBorder(30, 40, 30, 40));
+        contentPane.setTop(createLogoPanel());
 
-        // Logo/Icon area
-        var logoPanel = createLogoPanel();
-        contentPane.add(logoPanel, BorderLayout.NORTH);
+        var titleLabel = new Label("Loom");
+        titleLabel.setFont(Font.font("SansSerif", FontWeight.BOLD, 32));
+        titleLabel.setTextFill(Theme.TEXT_PRIMARY);
+        titleLabel.setPadding(new Insets(10, 0, 20, 0));
+        BorderPane.setAlignment(titleLabel, Pos.CENTER);
+        contentPane.setCenter(titleLabel);
 
-        // Title
-        JLabel titleLabel = new JLabel("Loom", SwingConstants.CENTER);
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 32));
-        titleLabel.setForeground(Theme.TEXT_PRIMARY);
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(10, 0, 20, 0));
-        contentPane.add(titleLabel, BorderLayout.CENTER);
+        var progressPanel = new VBox(10);
+        progressPanel.setAlignment(Pos.CENTER);
 
-        // Progress area
-        var progressPanel = new JPanel(new BorderLayout(0, 10));
-        progressPanel.setOpaque(false);
+        statusLabel = new Label("Initializing browser engine...");
+        statusLabel.setFont(Font.font("SansSerif", 12));
+        statusLabel.setTextFill(Theme.TEXT_SECONDARY);
 
-        statusLabel = new JLabel("Initializing browser engine...", SwingConstants.CENTER);
-        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        statusLabel.setForeground(Theme.TEXT_SECONDARY);
-        progressPanel.add(statusLabel, BorderLayout.NORTH);
+        var progressBar = new ProgressBar();
+        progressBar.setPrefWidth(WIDTH - 80);
+        progressBar.setPrefHeight(6);
+        // Indeterminate mode in JavaFX
+        progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+        progressBar.setStyle("-fx-accent: " + Theme.toHex(Theme.ACCENT) + "; " +
+                "-fx-control-inner-background: " + Theme.toHex(Theme.BG_DEEP) + ";");
 
-        JProgressBar progressBar = new JProgressBar();
-        progressBar.setIndeterminate(true);
-        progressBar.setPreferredSize(new Dimension(WIDTH - 80, 6));
-        progressBar.setBorderPainted(false);
-        progressBar.setForeground(Theme.ACCENT);
-        progressBar.setBackground(Theme.BG_DEEP);
-        progressPanel.add(progressBar, BorderLayout.CENTER);
+        progressPanel.getChildren().addAll(statusLabel, progressBar);
+        contentPane.setBottom(progressPanel);
 
-        contentPane.add(progressPanel, BorderLayout.SOUTH);
-
-        setContentPane(contentPane);
-        setShape(new RoundRectangle2D.Double(0, 0, WIDTH, HEIGHT, RADIUS, RADIUS));
+        var scene = new Scene(contentPane, WIDTH, HEIGHT, Color.TRANSPARENT);
+        this.setScene(scene);
     }
 
-    private JPanel createLogoPanel() {
-        var panel = new JPanel(new BorderLayout());
-        panel.setOpaque(false);
-        panel.setPreferredSize(new Dimension(WIDTH - 80, 60));
+    private VBox createLogoPanel() {
+        var panel = new VBox();
+        panel.setAlignment(Pos.CENTER);
+        panel.setPrefSize(WIDTH - 80, 60);
 
-        var iconUrl = getClass().getResource("/app-icons/icon.png");
-        if (iconUrl != null) {
+        var iconStream = getClass().getResourceAsStream("/app-icons/icon.png");
+        if (iconStream != null) {
             try {
-                var icon = new ImageIcon(iconUrl);
-                var scaledIcon = new ImageIcon(icon.getImage().getScaledInstance(48, 48, Image.SCALE_SMOOTH));
-                var iconLabel = new JLabel(scaledIcon);
-                iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
-                panel.add(iconLabel, BorderLayout.CENTER);
+                var image = new Image(iconStream, 48, 48, true, true);
+                var iconView = new ImageView(image);
+                panel.getChildren().add(iconView);
             } catch (Exception e) {
                 addFallbackLogo(panel);
             }
@@ -96,25 +97,22 @@ public class SplashScreen extends JWindow {
         return panel;
     }
 
-    private void addFallbackLogo(JPanel panel) {
-        var logoLabel = new JLabel("L", SwingConstants.CENTER);
-        logoLabel.setFont(new Font("SansSerif", Font.BOLD, 48));
-        logoLabel.setForeground(Theme.ACCENT);
-        panel.add(logoLabel, BorderLayout.CENTER);
+    private void addFallbackLogo(VBox panel) {
+        var logoLabel = new Label("L");
+        logoLabel.setFont(Font.font("SansSerif", FontWeight.BOLD, 48));
+        logoLabel.setTextFill(Theme.ACCENT);
+        panel.getChildren().add(logoLabel);
     }
 
     public void updateStatus(String status) {
-        SwingUtilities.invokeLater(() -> statusLabel.setText(status));
+        Platform.runLater(() -> statusLabel.setText(status));
     }
 
     public void showSplash() {
-        SwingUtilities.invokeLater(() -> setVisible(true));
+        Platform.runLater(this::show);
     }
 
     public void hideSplash() {
-        SwingUtilities.invokeLater(() -> {
-            setVisible(false);
-            dispose();
-        });
+        Platform.runLater(this::hide);
     }
 }

@@ -4,62 +4,70 @@ import io.loom.app.config.AppPreferences;
 import io.loom.app.ui.Theme;
 import io.loom.app.utils.GlobalHotkeyManager;
 import io.loom.app.utils.SystemUtils;
+import javafx.geometry.Pos;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontPosture;
 
-import javax.swing.*;
-import java.awt.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class HotkeySection extends JPanel {
+public class HotkeySection extends VBox {
 
     public HotkeySection(AppPreferences appPreferences, GlobalHotkeyManager hotkeyManager) {
-        super();
-        this.setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
-        this.setOpaque(false);
-        this.setAlignmentX(Component.LEFT_ALIGNMENT);
-        this.setMaximumSize(new Dimension(Short.MAX_VALUE, 40));
+        this.setAlignment(Pos.CENTER_LEFT);
+        this.setMaxWidth(Double.MAX_VALUE);
 
-        var mainRow = new JPanel();
-        mainRow.setLayout(new BoxLayout(mainRow, BoxLayout.X_AXIS));
-        mainRow.setOpaque(false);
-        mainRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        var mainRow = new HBox();
+        mainRow.setAlignment(Pos.CENTER_LEFT);
+        mainRow.setMaxWidth(Double.MAX_VALUE);
 
-        mainRow.add(buildLabel("Toggle Window Shortcut"));
-        mainRow.add(Box.createHorizontalGlue());
+        mainRow.getChildren().add(buildLabel("Toggle Window Shortcut"));
+
+        var spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        mainRow.getChildren().add(spacer);
 
         if (hotkeyManager != null && hotkeyManager.isInitialized()) {
             var hotkeyRecordButton = buildHotkeyRecordButton(appPreferences, hotkeyManager);
-            mainRow.add(hotkeyRecordButton);
-            mainRow.add(Box.createHorizontalStrut(8));
-            mainRow.add(buildResetHotkeyButton(hotkeyManager, hotkeyRecordButton));
+            var resetBtn = buildResetHotkeyButton(hotkeyManager, hotkeyRecordButton);
+
+            HBox.setMargin(resetBtn, new javafx.geometry.Insets(0, 0, 0, 8));
+            mainRow.getChildren().addAll(hotkeyRecordButton, resetBtn);
         } else {
-            mainRow.add(buildLabel("Disabled"));
+            mainRow.getChildren().add(buildLabel("Disabled"));
         }
 
-        this.add(mainRow);
+        this.getChildren().add(mainRow);
 
         if (SystemUtils.isMac() && (hotkeyManager == null || !hotkeyManager.isInitialized())) {
-            this.add(Box.createVerticalStrut(8));
-            this.add(buildPermissionWarning());
+            var verticalSpacer = new Region();
+            verticalSpacer.setMinHeight(8);
+            this.getChildren().addAll(verticalSpacer, buildPermissionWarning());
         }
     }
 
-    private JLabel buildLabel(String text) {
-        var label = new JLabel(text);
+    private Label buildLabel(String text) {
+        var label = new Label(text);
         label.setFont(Theme.FONT_SETTINGS);
-        label.setForeground(Theme.TEXT_PRIMARY);
+        label.setTextFill(Theme.TEXT_PRIMARY);
         return label;
     }
 
-    private JPanel buildPermissionWarning() {
-        var warningPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        warningPanel.setOpaque(false);
-        warningPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        warningPanel.setMaximumSize(new Dimension(Short.MAX_VALUE, 30));
+    private HBox buildPermissionWarning() {
+        var warningPanel = new HBox();
+        warningPanel.setAlignment(Pos.CENTER_LEFT);
+        warningPanel.setMaxWidth(Double.MAX_VALUE);
 
-        var warningLabel = new JLabel("<html><i>Grant Accessibility permissions in System Settings and restart the application</i></html>");
-        warningLabel.setFont(Theme.FONT_SETTINGS.deriveFont(11f));
-        warningLabel.setForeground(new Color(255, 180, 0));
-        warningPanel.add(warningLabel);
+        var warningLabel = new Label("Grant Accessibility permissions in System Settings and restart the application");
+        warningLabel.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), FontPosture.ITALIC, 11));
+        warningLabel.setTextFill(Color.rgb(255, 180, 0));
+
+        warningPanel.getChildren().add(warningLabel);
 
         return warningPanel;
     }
@@ -75,7 +83,7 @@ public class HotkeySection extends JPanel {
                 button.setText("Press keys... (Esc to cancel)");
                 hotkeyManager.startRecording(() -> {
                     var newHotkey = GlobalHotkeyManager.getHotkeyText(appPreferences.getHotkeyToStartApplication());
-                    button.setText(newHotkey);
+                    javafx.application.Platform.runLater(() -> button.setText(newHotkey));
                 });
             }
         };
@@ -86,8 +94,9 @@ public class HotkeySection extends JPanel {
     }
 
     private ColorfulButton buildResetHotkeyButton(GlobalHotkeyManager hotkeyManager, AnimatedSettingsButton hotkeyRecordButton) {
-        var resetColor = new Color(255, 94, 91);
+        var resetColor = Color.rgb(255, 94, 91);
         var buttonText = SystemUtils.isWindows() ? "X" : "✖";
+
         return new ColorfulButton(buttonText, resetColor, () -> {
             if (hotkeyManager != null) {
                 hotkeyManager.clearHotkey();

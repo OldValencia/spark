@@ -6,56 +6,54 @@ import io.loom.app.ui.dialogs.components.ProviderMainPanel;
 import io.loom.app.ui.dialogs.components.ProviderTitleLabel;
 import io.loom.app.ui.dialogs.components.ProvidersFormButtonsPanel;
 import io.loom.app.utils.SystemUtils;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.paint.Color;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
+import javafx.stage.Window;
 import lombok.Getter;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionListener;
-import java.awt.geom.RoundRectangle2D;
-
-public class ProviderEditDialog extends JDialog {
+public class ProviderEditDialog extends Stage {
 
     private final ProviderFormPanel providerFormPanel;
 
     @Getter
     private boolean confirmed = false;
 
-    public ProviderEditDialog(Frame owner, AiConfiguration.AiConfig provider) {
-        super(owner, provider == null ? "Add AI Provider" : "Edit AI Provider", true);
-        this.setUndecorated(true);
-        this.setBackground(new Color(0, 0, 0, 0));
-        this.setLayout(new BorderLayout());
+    public ProviderEditDialog(Window owner, AiConfiguration.AiConfig provider) {
+        this.initOwner(owner);
+        this.initModality(Modality.WINDOW_MODAL);
+        this.initStyle(StageStyle.TRANSPARENT);
 
         var mainPanel = new ProviderMainPanel();
-        mainPanel.add(new ProviderTitleLabel(provider == null), BorderLayout.NORTH);
+        mainPanel.setTop(new ProviderTitleLabel(provider == null));
 
         providerFormPanel = new ProviderFormPanel(provider);
-        mainPanel.add(providerFormPanel, BorderLayout.CENTER);
-        mainPanel.add(buildButtonsPanel(provider), BorderLayout.SOUTH);
+        mainPanel.setCenter(providerFormPanel);
 
-        this.add(mainPanel);
+        mainPanel.setBottom(buildButtonsPanel(provider));
 
-        this.pack();
+        double width = 420;
+        double height = SystemUtils.isWindows() ? 330 : 290;
 
-        int width = 420;
-        int height = SystemUtils.isWindows() ? 330 : 290;
-
-        this.setSize(width, height);
-        this.setLocationRelativeTo(owner);
-        this.setShape(new RoundRectangle2D.Double(0, 0, width, height, 14, 14));
+        var scene = new Scene(mainPanel, width, height, Color.TRANSPARENT);
+        this.setScene(scene);
     }
 
     private ProvidersFormButtonsPanel buildButtonsPanel(AiConfiguration.AiConfig provider) {
-        ActionListener actionConfirmed = e -> {
+        Runnable actionConfirmed = () -> {
             if (validateForm()) {
                 confirmed = true;
-                dispose();
+                this.close();
             }
         };
-        ActionListener actionCancelled = e -> {
+        Runnable actionCancelled = () -> {
             confirmed = false;
-            dispose();
+            this.close();
         };
+
         return new ProvidersFormButtonsPanel(provider == null, actionConfirmed, actionCancelled);
     }
 
@@ -64,16 +62,25 @@ public class ProviderEditDialog extends JDialog {
         var url = getProviderUrl();
 
         if (name.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please enter a provider name", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            showValidationError("Please enter a provider name");
             return false;
         }
 
         if (!url.startsWith("http")) {
-            JOptionPane.showMessageDialog(this, "Please enter a valid URL (starting with http:// or https://)", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            showValidationError("Please enter a valid URL (starting with http:// or https://)");
             return false;
         }
 
         return true;
+    }
+
+    private void showValidationError(String message) {
+        var alert = new Alert(Alert.AlertType.ERROR);
+        alert.initOwner(this);
+        alert.setTitle("Validation Error");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
     public String getProviderName() {

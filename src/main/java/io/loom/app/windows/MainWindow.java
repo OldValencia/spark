@@ -2,33 +2,36 @@ package io.loom.app.windows;
 
 import io.loom.app.config.AiConfiguration;
 import io.loom.app.config.AppPreferences;
-import io.loom.app.ui.CefWebView;
+import io.loom.app.ui.FxWebViewPane;
 import io.loom.app.ui.Theme;
 import io.loom.app.ui.settings.SettingsPanel;
 import io.loom.app.ui.topbar.TopBarArea;
 import io.loom.app.ui.topbar.components.AiDock;
 import io.loom.app.utils.GlobalHotkeyManager;
+import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.paint.Color;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.swing.*;
+import javax.imageio.ImageIO;
 import java.awt.*;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.awt.geom.RoundRectangle2D;
-import java.util.function.Consumer;
+import java.io.IOException;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class MainWindow extends JFrame {
+public class MainWindow extends Stage {
 
     private final AiConfiguration aiConfiguration;
     private final AppPreferences appPreferences;
 
-    private CefWebView cefWebView;
+    private FxWebViewPane fxWebViewPane;
     private SettingsWindow settingsWindow;
-    private JPanel rootPanel;
+    private BorderPane rootPane;
     private GlobalHotkeyManager globalHotkeyManager;
     private SplashScreen splashScreen;
 
@@ -39,71 +42,64 @@ public class MainWindow extends JFrame {
     private static final int RADIUS = 14;
 
     public MainWindow(AiConfiguration aiConfiguration, AppPreferences appPreferences) {
-        super("Loom");
         this.aiConfiguration = aiConfiguration;
         this.appPreferences = appPreferences;
 
-        this.setUndecorated(true);
+        this.setTitle("Loom");
+        this.initStyle(StageStyle.TRANSPARENT);
         this.setAlwaysOnTop(true);
-        this.setSize(WIDTH, HEIGHT);
-        this.setLocationRelativeTo(null);
-        this.setBackground(new Color(0, 0, 0, 0));
-        this.setShape(new RoundRectangle2D.Double(0, 0, WIDTH, HEIGHT, RADIUS, RADIUS));
-        this.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+        this.setWidth(WIDTH);
+        this.setHeight(HEIGHT);
+        this.centerOnScreen();
 
-        this.addWindowFocusListener(new WindowAdapter() {
-            @Override
-            public void windowLostFocus(WindowEvent e) {
-                if (authMode && isAlwaysOnTop()) {
-                    setAlwaysOnTop(false);
+        // Prevents JavaFX runtime from stopping when the main window is closed (keeps tray alive)
+        Platform.setImplicitExit(false);
+
+        this.focusedProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal) {
+                if (authMode && this.isAlwaysOnTop()) {
+                    this.setAlwaysOnTop(false);
                 }
-            }
-
-            @Override
-            public void windowGainedFocus(WindowEvent e) {
-                if (!isAlwaysOnTop()) {
-                    setAlwaysOnTop(true);
+            } else {
+                if (!this.isAlwaysOnTop()) {
+                    this.setAlwaysOnTop(true);
                 }
             }
         });
 
-        this.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                settingsWindow.close();
-            }
-
-            @Override
-            public void windowIconified(WindowEvent e) {
+        this.setOnCloseRequest(e -> {
+            if (settingsWindow != null) {
                 settingsWindow.close();
             }
         });
 
-        this.addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentHidden(ComponentEvent e) {
-                if (cefWebView != null) {
-                    cefWebView.setVisible(false);
-                }
+        this.iconifiedProperty().addListener((obs, oldVal, isIconified) -> {
+            if (isIconified && settingsWindow != null) {
                 settingsWindow.close();
             }
+        });
 
-            @Override
-            public void componentShown(ComponentEvent e) {
-                if (cefWebView != null) {
-                    cefWebView.setVisible(true);
-                }
+        this.showingProperty().addListener((obs, oldVal, isShowing) -> {
+            if (!isShowing && settingsWindow != null) {
+                settingsWindow.close();
             }
+        });
 
-            @Override
-            public void componentMoved(ComponentEvent e) {
+        this.xProperty().addListener((obs, oldVal, newVal) -> {
+            if (settingsWindow != null) {
+                settingsWindow.close();
+            }
+        });
+
+        this.yProperty().addListener((obs, oldVal, newVal) -> {
+            if (settingsWindow != null) {
                 settingsWindow.close();
             }
         });
     }
 
     public void showWindow() {
-        SwingUtilities.invokeLater(this::initializeOnEDT);
+        Platform.runLater(this::initializeOnFX);
     }
 
     public void setAuthMode(boolean isAuth) {
@@ -114,7 +110,7 @@ public class MainWindow extends JFrame {
     }
 
     private void handleProvidersChanged() {
-        SwingUtilities.invokeLater(() -> {
+        Platform.runLater(() -> {
             var activeIcons = aiConfiguration.getConfigurations().stream()
                     .map(AiConfiguration.AiConfig::icon)
                     .filter(icon -> icon != null && !icon.isEmpty())
@@ -125,55 +121,52 @@ public class MainWindow extends JFrame {
     }
 
     public void reloadTopBar() {
-        SwingUtilities.invokeLater(() -> {
+        Platform.runLater(() -> {
             aiConfiguration.reload();
+            rootPane.setTop(null);
 
-            Component topBarToRemove = null;
-            for (Component comp : rootPanel.getComponents()) {
-                var constraints = ((BorderLayout) rootPanel.getLayout()).getConstraints(comp);
-                if (constraints != null && constraints.equals(BorderLayout.NORTH)) {
-                    topBarToRemove = comp;
-                    break;
-                }
-            }
-
-            if (topBarToRemove != null) {
-                rootPanel.remove(topBarToRemove);
-            }
-
-            var newTopBarArea = new TopBarArea(aiConfiguration, cefWebView, this, settingsWindow, appPreferences,
+            var newTopBarArea = new TopBarArea(aiConfiguration, fxWebViewPane, this, settingsWindow, appPreferences,
                     this::toggleSettings, this::closeWindow);
 
-            rootPanel.add(newTopBarArea, BorderLayout.NORTH);
-            rootPanel.revalidate();
-            rootPanel.repaint();
-
+            rootPane.setTop(newTopBarArea);
             log.info("TopBar reloaded with {} providers", aiConfiguration.getConfigurations().size());
         });
     }
 
     private void setupTray() {
+        if (!SystemTray.isSupported()) {
+            return;
+        }
+
         var tray = SystemTray.getSystemTray();
         var iconUrl = getClass().getResource("/app-icons/icon.png");
         if (iconUrl == null) {
             iconUrl = getClass().getResource("/app-icons/icon.ico");
         }
-        var image = Toolkit.getDefaultToolkit().getImage(iconUrl);
+
+        Image image;
+        try {
+            image = ImageIO.read(iconUrl);
+        } catch (IOException | IllegalArgumentException e) {
+            log.error("Failed to load tray icon", e);
+            return;
+        }
+
         var popup = new PopupMenu();
 
         var showItem = new MenuItem("Show Application");
-        showItem.addActionListener(e -> showMainWindow());
+        showItem.addActionListener(e -> Platform.runLater(this::showMainWindow));
         popup.add(showItem);
 
         popup.addSeparator();
 
         var exitItem = new MenuItem("Exit Loom");
-        exitItem.addActionListener(e -> performShutdown());
+        exitItem.addActionListener(e -> Platform.runLater(this::performShutdown));
         popup.add(exitItem);
 
         var trayIcon = new TrayIcon(image, "Loom", popup);
         trayIcon.setImageAutoSize(true);
-        trayIcon.addActionListener(e -> showMainWindow());
+        trayIcon.addActionListener(e -> Platform.runLater(this::showMainWindow));
 
         try {
             tray.add(trayIcon);
@@ -183,14 +176,14 @@ public class MainWindow extends JFrame {
     }
 
     private void showMainWindow() {
-        this.setVisible(true);
-        this.setExtendedState(JFrame.NORMAL);
+        this.show();
+        this.setIconified(false);
         this.toFront();
         this.requestFocus();
     }
 
     private void toggleSettings() {
-        if (settingsWindow.isOpen() && !settingsWindow.isVisible()) {
+        if (settingsWindow.isOpen() && !settingsWindow.isShowing()) {
             settingsWindow.open();
             return;
         }
@@ -206,7 +199,7 @@ public class MainWindow extends JFrame {
         if (settingsWindow != null && settingsWindow.isOpen()) {
             settingsWindow.close();
         }
-        this.setVisible(false);
+        this.hide();
     }
 
     private void performShutdown() {
@@ -225,29 +218,31 @@ public class MainWindow extends JFrame {
             settingsWindow.close();
         }
 
-        this.setVisible(false);
+        this.hide();
         AiDock.clearIconCache();
 
-        if (cefWebView != null) {
-            cefWebView.shutdown(() -> log.info("Webview shutdown complete"));
+        if (fxWebViewPane != null) {
+            fxWebViewPane.shutdown(() -> log.info("Webview shutdown complete"));
         } else {
             System.exit(0);
         }
     }
 
-    private void initializeOnEDT() {
+    private void initializeOnFX() {
         try {
             splashScreen = new SplashScreen();
             splashScreen.showSplash();
 
-            rootPanel = createRootPanel();
+            rootPane = createRootPane();
+            Scene scene = new Scene(rootPane, WIDTH, HEIGHT, Color.TRANSPARENT);
+            this.setScene(scene);
 
             if (splashScreen != null) {
                 splashScreen.updateStatus("Initializing browser engine...");
             }
 
-            cefWebView = getCefWebView();
-            rootPanel.add(cefWebView, BorderLayout.CENTER);
+            fxWebViewPane = getFxWebViewPane();
+            rootPane.setCenter(fxWebViewPane);
 
             try {
                 globalHotkeyManager = new GlobalHotkeyManager(this, settingsWindow, appPreferences);
@@ -259,59 +254,52 @@ public class MainWindow extends JFrame {
 
             var settingsPanel = new SettingsPanel(appPreferences, globalHotkeyManager, aiConfiguration);
             settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
-            settingsPanel.setOnClearCookies(cefWebView::clearCookies);
-            settingsPanel.setOnZoomEnabledChanged(cefWebView::setZoomEnabled);
+            settingsPanel.setOnClearCookies(fxWebViewPane::clearCookies);
             settingsPanel.setOnProvidersChanged(this::handleProvidersChanged);
+
             settingsWindow = new SettingsWindow(this, settingsPanel);
-            cefWebView.setSettingsWindow(settingsWindow);
 
-            var topBarArea = new TopBarArea(aiConfiguration, cefWebView, this, settingsWindow, appPreferences,
+            var topBarArea = new TopBarArea(aiConfiguration, fxWebViewPane, this, settingsWindow, appPreferences,
                     this::toggleSettings, this::closeWindow);
-            rootPanel.add(topBarArea, BorderLayout.NORTH);
+            rootPane.setTop(topBarArea);
 
-            if (SystemTray.isSupported()) {
-                setupTray();
-            }
+            setupTray();
 
-            this.add(rootPanel);
-
-            var showTimer = new Timer(500, e -> {
-                ((Timer) e.getSource()).stop();
-                if (splashScreen != null) {
-                    splashScreen.hideSplash();
+            var showTimer = new Timer();
+            showTimer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    Platform.runLater(() -> {
+                        if (splashScreen != null) {
+                            splashScreen.hideSplash();
+                        }
+                        if (!appPreferences.isStartApplicationHiddenEnabled()) {
+                            show();
+                        }
+                    });
                 }
-                this.setVisible(!appPreferences.isStartApplicationHiddenEnabled());
-            });
-            showTimer.start();
+            }, 500);
 
         } catch (Exception e) {
             log.error("Failed to initialize application", e);
             if (splashScreen != null) {
                 splashScreen.hideSplash();
             }
-            JOptionPane.showMessageDialog(null,
-                    "Failed to initialize: " + e.getMessage(),
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
             System.exit(1);
         }
     }
 
-    private JPanel createRootPanel() {
-        JPanel panel = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                var g2 = (Graphics2D) g;
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Theme.BG_DEEP);
-                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), RADIUS, RADIUS));
-            }
-        };
-        panel.setBackground(Theme.BG_DEEP);
-        return panel;
+    private BorderPane createRootPane() {
+        var pane = new BorderPane();
+        pane.setStyle(
+                "-fx-background-color: " + Theme.toHex(Theme.BG_DEEP) + ";" +
+                        "-fx-background-radius: " + RADIUS + "px;" +
+                        "-fx-border-radius: " + RADIUS + "px;"
+        );
+        return pane;
     }
 
-    private CefWebView getCefWebView() {
+    private FxWebViewPane getFxWebViewPane() {
         String startUrl = null;
 
         if (appPreferences.isRememberLastAi()) {
@@ -326,11 +314,9 @@ public class MainWindow extends JFrame {
             startUrl = "https://chatgpt.com";
         }
 
-        Consumer<String> onStatusUpdate = status -> {
-            if (splashScreen != null) {
-                SwingUtilities.invokeLater(() -> splashScreen.updateStatus(status));
-            }
-        };
-        return new CefWebView(startUrl, appPreferences, this::toggleSettings, onStatusUpdate);
+        var pane = new FxWebViewPane(startUrl, appPreferences, this::toggleSettings);
+        pane.setOnAuthPageDetected(this::setAuthMode);
+
+        return pane;
     }
 }

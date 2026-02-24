@@ -1,20 +1,17 @@
 package io.loom.app.ui.settings.components;
 
+import javafx.geometry.Pos;
+import javafx.scene.layout.HBox;
 import lombok.Setter;
 
-import javax.swing.*;
-import java.awt.*;
-
 @Setter
-public class ClearCookiesButton extends JPanel {
+public class ClearCookiesButton extends HBox {
 
     private Runnable onClearCookies;
 
     public ClearCookiesButton() {
-        super(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        this.setOpaque(false);
-        this.setAlignmentX(Component.LEFT_ALIGNMENT);
-        this.setMaximumSize(new Dimension(Short.MAX_VALUE, 40));
+        this.setAlignment(Pos.CENTER_LEFT);
+        this.setMaxWidth(Double.MAX_VALUE);
 
         var clearCookiesBtn = new AnimatedSettingsButton("Clear cookies", () -> {
             if (onClearCookies != null) {
@@ -22,6 +19,6 @@ public class ClearCookiesButton extends JPanel {
             }
         });
 
-        this.add(clearCookiesBtn);
+        this.getChildren().add(clearCookiesBtn);
     }
 }

@@ -1,14 +1,15 @@
 package io.loom.app.ui.settings.components;
 
 import io.loom.app.ui.Theme;
+import javafx.geometry.Insets;
+import javafx.scene.control.Label;
+import javafx.scene.text.Font;
 
-import javax.swing.*;
-
-class ProvidersEmptyListLabel extends JLabel {
+class ProvidersEmptyListLabel extends Label {
     ProvidersEmptyListLabel() {
         super("No providers available. Click '+ Add' to create a custom one.");
-        this.setFont(Theme.FONT_SETTINGS.deriveFont(12f));
-        this.setForeground(Theme.TEXT_TERTIARY);
-        this.setBorder(BorderFactory.createEmptyBorder(20, 0, 20, 0));
+        this.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), 12));
+        this.setTextFill(Theme.TEXT_TERTIARY);
+        this.setPadding(new Insets(20, 0, 20, 0));
     }
 }

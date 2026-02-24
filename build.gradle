@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
 }
 
 group = 'io.loom'
@@ -13,8 +14,13 @@ repositories {
 
 processResources {
     filesMatching('app.properties') {
-        expand(version: project.findProperty('app.version'))
+        expand(project.properties)
     }
+}
+
+javafx {
+    version = "21.0.2"
+    modules = [ 'javafx.controls', 'javafx.web', 'javafx.swing' ]
 }
 
 def junitVersion = '5.10.2'

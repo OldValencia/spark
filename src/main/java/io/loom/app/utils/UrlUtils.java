@@ -1,12 +1,13 @@
-package io.loom.app.ui.settings.utils;
+package io.loom.app.utils;
 
 import lombok.extern.slf4j.Slf4j;
 
-import java.awt.*;
+import java.awt.Desktop;
 import java.net.URI;
 
 @Slf4j
 public class UrlUtils {
+
     public static void openLink(String url) {
         try {
             Desktop.getDesktop().browse(new URI(url));

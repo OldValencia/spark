@@ -2,7 +2,7 @@ package io.loom.app.ui.topbar.utils;
 
 import io.loom.app.config.AiConfiguration;
 import io.loom.app.config.AppPreferences;
-import io.loom.app.ui.topbar.components.AiDock;
+import io.loom.app.ui.topbar.components.DockItemNode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,8 +35,7 @@ public class AiDockOrderUtils {
         return ordered;
     }
 
-    public static void saveCurrentOrder(List<AiDock.DockItem> dockItems, AppPreferences appPreferences) {
-
+    public static void saveCurrentOrder(List<DockItemNode> dockItems, AppPreferences appPreferences) {
         var urls = dockItems.stream()
                 .map(item -> item.getConfig().url())
                 .collect(Collectors.toList());

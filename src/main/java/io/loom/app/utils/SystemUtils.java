@@ -10,19 +10,18 @@ public class SystemUtils {
     public static final String VERSION;
 
     static {
-        String version = null;
+        var versionValue = "Dev-Build";
         try (var inputStream = SystemUtils.class.getResourceAsStream("/app.properties")) {
             if (inputStream != null) {
                 var props = new Properties();
                 props.load(inputStream);
-                version = props.getProperty("version", "Dev-Build");
+                versionValue = props.getProperty("version", "Dev-Build");
             }
         } catch (Exception e) {
             log.error("Failed to load app version", e);
         }
-        VERSION = version;
+        VERSION = versionValue;
     }
-
 
     public static boolean isWindows() {
         return System.getProperty("os.name", "").toLowerCase().contains("win");

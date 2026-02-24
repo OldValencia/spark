@@ -9,9 +9,10 @@ import com.github.kwhat.jnativehook.mouse.NativeMouseInputListener;
 import io.loom.app.config.AppPreferences;
 import io.loom.app.windows.MainWindow;
 import io.loom.app.windows.SettingsWindow;
+import javafx.application.Platform;
 import lombok.Getter;
 
-import javax.swing.*;
+import javax.swing.Timer; // Timer from Swing is ok here for background logical ticks, or use java.util.Timer
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -47,7 +48,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
         this.appPreferences = appPreferences;
         this.settingsWindow = settingsWindow;
 
-        Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
+        var logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
         logger.setLevel(Level.OFF);
         logger.setUseParentHandlers(false);
 
@@ -106,15 +107,19 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
     }
 
     private void tryTriggerHotkey() {
-        if (recording || hotkeyTriggered) return;
+        if (recording || hotkeyTriggered) {
+            return;
+        }
 
         var saved = appPreferences.getHotkeyToStartApplication();
-        if (saved == null || saved.isEmpty()) return;
+        if (saved == null || saved.isEmpty()) {
+            return;
+        }
 
         synchronized (pressedKeys) {
             if (pressedKeys.containsAll(saved)) {
                 hotkeyTriggered = true;
-                SwingUtilities.invokeLater(this::toggleWindow);
+                Platform.runLater(this::toggleWindow);
             }
         }
     }
@@ -124,11 +129,11 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
             settingsWindow.close();
         }
 
-        if (mainWindow.isVisible() && mainWindow.isActive()) {
-            mainWindow.setVisible(false);
+        if (mainWindow.isShowing() && mainWindow.isFocused()) {
+            mainWindow.hide();
         } else {
-            mainWindow.setVisible(true);
-            mainWindow.setExtendedState(JFrame.NORMAL);
+            mainWindow.show();
+            mainWindow.setIconified(false);
             mainWindow.toFront();
             mainWindow.requestFocus();
         }
@@ -137,7 +142,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
     @Override
     public void nativeKeyPressed(NativeKeyEvent e) {
         lastEventTime = System.currentTimeMillis();
-        int code = e.getKeyCode();
+        var code = e.getKeyCode();
 
         if (recording) {
             if (code == NativeKeyEvent.VC_ESCAPE) {
@@ -186,10 +191,10 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
     @Override
     public void nativeMouseReleased(NativeMouseEvent e) {
         lastEventTime = System.currentTimeMillis();
-        int code = MOUSE_OFFSET + e.getButton();
+        var code = MOUSE_OFFSET + e.getButton();
 
         if (recording) {
-            boolean simpleClick;
+            var simpleClick = false;
             synchronized (pressedKeys) {
                 simpleClick = pressedKeys.size() == 1 && (pressedKeys.contains(MOUSE_OFFSET + 1) || pressedKeys.contains(MOUSE_OFFSET + 2));
             }
@@ -221,7 +226,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
         pressedKeys.clear();
 
         if (onRecordComplete != null) {
-            SwingUtilities.invokeLater(onRecordComplete);
+            Platform.runLater(onRecordComplete);
         }
     }
 
@@ -242,7 +247,9 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
     }
 
     public static String getHotkeyText(List<Integer> codes) {
-        if (codes == null || codes.isEmpty()) return "None";
+        if (codes == null || codes.isEmpty()) {
+            return "None";
+        }
 
         return codes.stream()
                 .map(code -> {

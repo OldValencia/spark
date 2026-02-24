@@ -1,34 +1,31 @@
 package io.loom.app.ui.settings.components;
 
 import io.loom.app.ui.Theme;
+import javafx.scene.Cursor;
+import javafx.scene.control.Label;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+class ProvidersListTextButton extends Label {
 
-class ProvidersListTextButton extends JButton {
-    ProvidersListTextButton(String text, Color color, ActionListener action) {
+    ProvidersListTextButton(String text, Color defaultColor, Runnable action) {
         super(text);
-        this.setFont(Theme.FONT_SETTINGS.deriveFont(12f));
-        this.setForeground(color);
-        this.setOpaque(false);
-        this.setContentAreaFilled(false);
-        this.setBorderPainted(false);
-        this.setFocusPainted(false);
-        this.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        this.addActionListener(action);
-        this.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                if (color == Theme.TEXT_SECONDARY) setForeground(Theme.ACCENT);
-            }
+        this.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), 12));
+        this.setTextFill(defaultColor);
+        this.setCursor(Cursor.HAND);
 
-            @Override
-            public void mouseExited(MouseEvent e) {
-                setForeground(color);
+        this.setOnMouseClicked(e -> {
+            if (action != null) {
+                action.run();
             }
         });
+
+        this.setOnMouseEntered(e -> {
+            if (defaultColor.equals(Theme.TEXT_SECONDARY)) {
+                this.setTextFill(Theme.ACCENT);
+            }
+        });
+
+        this.setOnMouseExited(e -> this.setTextFill(defaultColor));
     }
 }

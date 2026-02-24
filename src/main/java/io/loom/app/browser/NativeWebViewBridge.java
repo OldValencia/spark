@@ -6,6 +6,7 @@ import dev.webview.Webview;
 import io.loom.app.config.AiConfiguration;
 import io.loom.app.config.AppPreferences;
 import io.loom.app.utils.NativeWindowUtils;
+import io.loom.app.utils.SystemUtils;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -136,6 +137,28 @@ public class NativeWebViewBridge {
 
         webviewThread.setDaemon(true);
         webviewThread.start();
+    }
+
+    public void hibernate() {
+        if (!ready.get()) return;
+        long handle = getHandleSafe();
+        if (handle != 0 && SystemUtils.isWindows()) {
+            NativeWindowUtils.setVisible(handle, false);
+            NativeWindowUtils.unparent(handle);
+        } else {
+            setVisible(false);
+        }
+    }
+
+    public void wakeup(long parentHandle) {
+        if (!ready.get()) return;
+        long handle = getHandleSafe();
+        if (handle != 0 && SystemUtils.isWindows()) {
+            NativeWindowUtils.setParent(handle, parentHandle);
+            NativeWindowUtils.setVisible(handle, true);
+        } else {
+            setVisible(true);
+        }
     }
 
     private void awaitReady() {

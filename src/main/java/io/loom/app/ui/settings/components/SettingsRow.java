@@ -1,27 +1,25 @@
 package io.loom.app.ui.settings.components;
 
 import io.loom.app.ui.Theme;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 
-import javax.swing.*;
-import java.awt.*;
+public class SettingsRow extends HBox {
 
-public class SettingsRow extends JPanel {
-    public SettingsRow(String labelText, JComponent control) {
-        super();
-        this.setOpaque(false);
-        this.setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
-        this.setAlignmentX(Component.LEFT_ALIGNMENT);
-        this.setMaximumSize(new Dimension(Short.MAX_VALUE, 30));
+    public SettingsRow(String labelText, Node control) {
+        this.setAlignment(Pos.CENTER_LEFT);
+        this.setMaxWidth(Double.MAX_VALUE);
 
-        this.add(buildRowLabel(labelText));
-        this.add(Box.createHorizontalGlue());
-        this.add(control);
-    }
-
-    private static JLabel buildRowLabel(String labelText) {
-        var label = new JLabel(labelText);
+        var label = new Label(labelText);
         label.setFont(Theme.FONT_SETTINGS);
-        label.setForeground(Theme.TEXT_PRIMARY);
-        return label;
+        label.setTextFill(Theme.TEXT_PRIMARY);
+        var spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        this.getChildren().addAll(label, spacer, control);
     }
 }

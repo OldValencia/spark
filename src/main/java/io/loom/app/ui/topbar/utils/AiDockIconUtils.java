@@ -3,6 +3,9 @@ package io.loom.app.ui.topbar.utils;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import io.loom.app.config.AiConfiguration;
 import io.loom.app.ui.topbar.components.AiDock;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.image.Image;
+import javafx.scene.image.WritableImage;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.imageio.ImageIO;
@@ -24,9 +27,9 @@ public class AiDockIconUtils {
                 if (resourceUrl != null) {
                     if (key.toLowerCase().endsWith(".svg")) {
                         var icon = new FlatSVGIcon(resourceUrl);
-                        return renderSvg(icon);
+                        return renderSvgToFx(icon);
                     } else {
-                        return resize(ImageIO.read(resourceUrl));
+                        return resizeToFx(ImageIO.read(resourceUrl));
                     }
                 }
 
@@ -34,9 +37,9 @@ public class AiDockIconUtils {
                 if (userIconFile.exists()) {
                     if (key.toLowerCase().endsWith(".svg")) {
                         var icon = new FlatSVGIcon(userIconFile);
-                        return renderSvg(icon);
+                        return renderSvgToFx(icon);
                     } else {
-                        return resize(ImageIO.read(userIconFile));
+                        return resizeToFx(ImageIO.read(userIconFile));
                     }
                 }
 
@@ -50,44 +53,36 @@ public class AiDockIconUtils {
         });
     }
 
-    private static Image renderSvg(FlatSVGIcon icon) {
-        var scaledIcon = icon.derive(AiDock.ICON_SIZE, AiDock.ICON_SIZE);
-        var img = new BufferedImage(AiDock.ICON_SIZE, AiDock.ICON_SIZE, BufferedImage.TYPE_INT_ARGB);
+    private static javafx.scene.image.Image renderSvgToFx(com.formdev.flatlaf.extras.FlatSVGIcon icon) {
+        int padding = 2;
+        int innerSize = AiDock.ICON_SIZE - padding * 2;
+
+        var scaledIcon = icon.derive(innerSize, innerSize);
+        var img = new java.awt.image.BufferedImage(AiDock.ICON_SIZE, AiDock.ICON_SIZE, java.awt.image.BufferedImage.TYPE_INT_ARGB);
         var g = img.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        scaledIcon.paintIcon(null, g, 0, 0);
+
+        g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY);
+
+        scaledIcon.paintIcon(null, g, padding, padding);
         g.dispose();
-        return img;
+
+        return javafx.embed.swing.SwingFXUtils.toFXImage(img, null);
     }
 
-    private static Image createPlaceholderIcon() {
-        var img = new BufferedImage(AiDock.ICON_SIZE, AiDock.ICON_SIZE, BufferedImage.TYPE_INT_ARGB);
-        var g = img.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-        g.setColor(new Color(100, 100, 100));
-        g.fillOval(2, 2, AiDock.ICON_SIZE - 4, AiDock.ICON_SIZE - 4);
-
-        g.setColor(Color.WHITE);
-        g.setFont(new Font("SansSerif", Font.BOLD, 16));
-        var fm = g.getFontMetrics();
-        var text = "?";
-        var x = (AiDock.ICON_SIZE - fm.stringWidth(text)) / 2;
-        var y = (AiDock.ICON_SIZE + fm.getAscent() - fm.getDescent()) / 2;
-        g.drawString(text, x, y);
-
-        g.dispose();
-        return img;
-    }
-
-    private static Image resize(BufferedImage img) {
+    private static Image resizeToFx(BufferedImage img) {
         var resized = new BufferedImage(AiDock.ICON_SIZE, AiDock.ICON_SIZE, BufferedImage.TYPE_INT_ARGB);
         var g = resized.createGraphics();
+
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g.drawImage(img, 0, 0, AiDock.ICON_SIZE, AiDock.ICON_SIZE, null);
         g.dispose();
-        return resized;
+
+        return SwingFXUtils.toFXImage(resized, null);
+    }
+
+    private static Image createPlaceholderIcon() {
+        return new WritableImage(1, 1);
     }
 }

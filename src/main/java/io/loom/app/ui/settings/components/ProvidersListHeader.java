@@ -1,24 +1,26 @@
 package io.loom.app.ui.settings.components;
 
 import io.loom.app.ui.Theme;
+import javafx.geometry.Pos;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionListener;
+class ProvidersListHeader extends HBox {
 
-class ProvidersListHeader extends JPanel {
+    ProvidersListHeader(Runnable action) {
+        this.setAlignment(Pos.CENTER_LEFT);
 
-    ProvidersListHeader(ActionListener action) {
-        super(new BorderLayout());
-        this.setOpaque(false);
-
-        var titleLabel = new JLabel("AI PROVIDERS");
+        var titleLabel = new Label("AI PROVIDERS");
         titleLabel.setFont(Theme.FONT_SETTINGS_SECTION);
-        titleLabel.setForeground(Theme.TEXT_TERTIARY);
+        titleLabel.setTextFill(Theme.TEXT_TERTIARY);
+
+        var spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
         var addButton = new ProvidersListTextButton("+ Add", Theme.ACCENT, action);
 
-        this.add(titleLabel, BorderLayout.WEST);
-        this.add(addButton, BorderLayout.EAST);
+        this.getChildren().addAll(titleLabel, spacer, addButton);
     }
 }

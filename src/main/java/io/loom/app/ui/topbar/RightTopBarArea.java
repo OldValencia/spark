@@ -1,40 +1,28 @@
 package io.loom.app.ui.topbar;
 
-import io.loom.app.ui.CefWebView;
+import io.loom.app.ui.FxWebViewPane;
 import io.loom.app.ui.Theme;
 import io.loom.app.ui.topbar.components.AnimatedIconButton;
 import io.loom.app.ui.topbar.components.ZoomButton;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.layout.HBox;
 
-import javax.swing.*;
-import java.awt.*;
+class RightTopBarArea extends HBox {
 
-class RightTopBarArea extends Box {
+    public RightTopBarArea(FxWebViewPane fxWebViewPane, Runnable onSettingsToggle, Runnable onCloseWindow) {
+        this.setAlignment(Pos.CENTER_RIGHT);
+        this.setSpacing(6);
+        this.setPadding(new Insets(0, 10, 0, 0));
+        this.setStyle("-fx-background-color: transparent;");
 
-    public RightTopBarArea(CefWebView cefWebView, Runnable onSettingsToggle, Runnable onCloseWindow) {
-        super(BoxLayout.X_AXIS);
+        var zoomButton = new ZoomButton(fxWebViewPane::resetZoom);
+        fxWebViewPane.setZoomCallback(zoomButton::updateZoomDisplay);
+        HBox.setMargin(zoomButton, new Insets(0, 9, 0, 0));
 
-        var wrapper = new JPanel(new GridBagLayout());
-        wrapper.setOpaque(false);
+        var settingsButton = new AnimatedIconButton("⚙", Theme.BTN_HOVER_SETTINGS, onSettingsToggle);
+        var closeButton = new AnimatedIconButton("✕", Theme.BTN_HOVER_CLOSE, onCloseWindow);
 
-        var gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.anchor = GridBagConstraints.CENTER;
-
-        var zoomButton = new ZoomButton(cefWebView::resetZoom);
-        cefWebView.setZoomCallback(zoomButton::updateZoomDisplay);
-        gbc.insets = new Insets(0, 0, 0, 15);
-        wrapper.add(zoomButton, gbc);
-
-        gbc.gridx++;
-        gbc.insets = new Insets(0, 0, 0, 6);
-        wrapper.add(new AnimatedIconButton("⚙", Theme.BTN_HOVER_SETTINGS, onSettingsToggle), gbc);
-
-        gbc.gridx++;
-        gbc.insets = new Insets(0, 0, 0, 0);
-        wrapper.add(new AnimatedIconButton("✕", Theme.BTN_HOVER_CLOSE, onCloseWindow), gbc);
-
-        this.add(wrapper);
-        this.add(Box.createHorizontalStrut(10));
+        this.getChildren().addAll(zoomButton, settingsButton, closeButton);
     }
 }

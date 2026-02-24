@@ -1,7 +1,6 @@
 package io.loom.app.utils;
 
 import com.sun.jna.Function;
-import com.sun.jna.Native;
 import com.sun.jna.NativeLibrary;
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.User32;
@@ -29,6 +28,10 @@ public final class NativeWindowUtils {
     private static final int WS_POPUP = 0x80000000;
     private static final int WS_CHILD = 0x40000000;
 
+    private static final int WS_CAPTION = 0x00C00000;
+    private static final int WS_THICKFRAME = 0x00040000;
+    private static final int WS_BORDER = 0x00800000;
+
     static {
         if (SystemUtils.isMac()) {
             try {
@@ -43,34 +46,27 @@ public final class NativeWindowUtils {
                 macInitialized = true;
                 log.debug("macOS ObjC bridge initialised");
             } catch (Exception e) {
-                log.warn("Could not initialise macOS ObjC bridge — window positioning disabled", e);
+                log.warn("Could not initialise macOS ObjC bridge", e);
             }
         }
     }
 
-    /**
-     * Returns the native HWND of any AWT/Swing component (Windows only).
-     * The component must already be displayable (peer created).
-     */
-    public static long getSwingWindowHandle(Component component) {
-        if (!SystemUtils.isWindows() || component == null) {
+    public static long getJavaFXWindowHandle(String windowTitle) {
+        if (!SystemUtils.isWindows() || windowTitle == null || windowTitle.isEmpty()) {
             return 0L;
         }
         try {
-            return Native.getComponentID(component);
+            var hwnd = User32.INSTANCE.FindWindow(null, windowTitle);
+            if (hwnd != null) {
+                return Pointer.nativeValue(hwnd.getPointer());
+            }
+            return 0L;
         } catch (Exception e) {
-            log.warn("Could not get native HWND for Swing component", e);
+            log.warn("Error getting HWND for JavaFX window", e);
             return 0L;
         }
     }
 
-    /**
-     * Make the webview window a child of the Swing JFrame (Windows only).
-     * After this:
-     * - setBounds() coordinates become relative to the parent client area
-     * - z-order is owned by the OS — child is always in front of parent
-     * - the webview moves/resizes with the JFrame automatically when parented
-     */
     public static void setParent(long childHandle, long parentHandle) {
         if (!SystemUtils.isWindows() || childHandle == 0 || parentHandle == 0) {
             return;
@@ -78,24 +74,30 @@ public final class NativeWindowUtils {
         try {
             var child = new WinDef.HWND(Pointer.createConstant(childHandle));
             var parent = new WinDef.HWND(Pointer.createConstant(parentHandle));
-
-            // Must restyle before SetParent: swap WS_POPUP → WS_CHILD
             int style = User32.INSTANCE.GetWindowLong(child, GWL_STYLE);
-            style = (style & ~WS_POPUP) | WS_CHILD;
+            style = (style & ~(WS_POPUP | WS_CAPTION | WS_THICKFRAME | WS_BORDER)) | WS_CHILD;
             User32.INSTANCE.SetWindowLong(child, GWL_STYLE, style);
 
             User32.INSTANCE.SetParent(child, parent);
-            log.debug("Webview 0x{} parented to Swing 0x{}",
-                    Long.toHexString(childHandle), Long.toHexString(parentHandle));
+            log.debug("Webview parented successfully");
         } catch (Exception e) {
             log.warn("SetParent failed", e);
         }
     }
 
-    public static void setBounds(long windowHandle, int x, int y, int width, int height) {
-        if (windowHandle == 0) {
-            return;
+    public static void unparent(long childHandle) {
+        if (!SystemUtils.isWindows() || childHandle == 0) return;
+        try {
+            var child = new WinDef.HWND(Pointer.createConstant(childHandle));
+            User32.INSTANCE.SetParent(child, null);
+            log.debug("Webview unparented to survive hide");
+        } catch (Exception e) {
+            log.warn("Unparent failed", e);
         }
+    }
+
+    public static void setBounds(long windowHandle, int x, int y, int width, int height) {
+        if (windowHandle == 0) return;
         if (SystemUtils.isWindows()) {
             setBoundsWindows(windowHandle, x, y, width, height);
         } else if (SystemUtils.isMac()) {
@@ -104,9 +106,7 @@ public final class NativeWindowUtils {
     }
 
     public static void setVisible(long windowHandle, boolean visible) {
-        if (windowHandle == 0) {
-            return;
-        }
+        if (windowHandle == 0) return;
         if (SystemUtils.isWindows()) {
             setVisibleWindows(windowHandle, visible);
         } else if (SystemUtils.isMac()) {
@@ -117,7 +117,6 @@ public final class NativeWindowUtils {
     private static void setBoundsWindows(long handle, int x, int y, int width, int height) {
         try {
             var hwnd = new WinDef.HWND(Pointer.createConstant(handle));
-            // SWP_NOZORDER | SWP_NOACTIVATE
             User32.INSTANCE.SetWindowPos(hwnd, null, x, y, width, height, 0x0004 | 0x0010);
         } catch (Exception e) {
             log.warn("SetWindowPos failed", e);
@@ -134,12 +133,9 @@ public final class NativeWindowUtils {
     }
 
     private static void setPositionMac(long handle, int javaX, int javaY) {
-        if (!macInitialized) {
-            return;
-        }
+        if (!macInitialized) return;
         try {
             var nsWindow = Pointer.createConstant(handle);
-
             var screenH = (int) GraphicsEnvironment
                     .getLocalGraphicsEnvironment()
                     .getDefaultScreenDevice()
@@ -149,15 +145,11 @@ public final class NativeWindowUtils {
 
             var macY = screenH - javaY - cachedWebviewHeight;
             msgSend.invoke(Void.class, new Object[]{nsWindow, selSetFrameOrigin, (double) javaX, macY});
-        } catch (Exception e) {
-            log.warn("NSWindow setFrameOrigin: failed", e);
-        }
+        } catch (Exception ignored) {}
     }
 
     private static void setVisibleMac(long handle, boolean visible) {
-        if (!macInitialized) {
-            return;
-        }
+        if (!macInitialized) return;
         try {
             var nsWindow = Pointer.createConstant(handle);
             if (visible) {
@@ -165,8 +157,6 @@ public final class NativeWindowUtils {
             } else {
                 msgSend.invoke(Void.class, new Object[]{nsWindow, selOrderOut, null});
             }
-        } catch (Exception e) {
-            log.warn("NSWindow show/hide failed", e);
-        }
+        } catch (Exception ignored) {}
     }
 }

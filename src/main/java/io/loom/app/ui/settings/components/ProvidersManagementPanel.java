@@ -2,51 +2,47 @@ package io.loom.app.ui.settings.components;
 
 import io.loom.app.config.AiConfiguration;
 import io.loom.app.config.CustomAiProvidersManager;
-import io.loom.app.ui.dialogs.ProviderEditDialog;
-import io.loom.app.ui.settings.utils.FrameUtils;
+import io.loom.app.windows.FrameUtils;
+import javafx.application.Platform;
+import javafx.geometry.Insets;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.layout.VBox;
 
-import javax.swing.*;
-import java.awt.*;
 import java.util.List;
 import java.util.function.Consumer;
 
-public class ProvidersManagementPanel extends JPanel {
+public class ProvidersManagementPanel extends VBox {
 
     private final CustomAiProvidersManager providersManager;
     private final Consumer<Void> onProvidersChanged;
-    private final JPanel listContainer;
+    private final VBox listContainer;
 
     public ProvidersManagementPanel(CustomAiProvidersManager providersManager, Consumer<Void> onProvidersChanged) {
         this.providersManager = providersManager;
         this.onProvidersChanged = onProvidersChanged;
 
-        this.setOpaque(false);
-        this.setLayout(new BorderLayout());
-        this.setBorder(BorderFactory.createEmptyBorder(0, 0, 12, 0));
-        this.setAlignmentX(Component.LEFT_ALIGNMENT);
+        this.setPadding(new Insets(0, 0, 12, 0));
+        this.setSpacing(8); // Gap between header and list
 
-        this.add(new ProvidersListHeader(e -> openAddDialog()), BorderLayout.NORTH);
+        this.getChildren().add(new ProvidersListHeader(this::openAddDialog));
 
-        listContainer = new JPanel();
-        listContainer.setOpaque(false);
-        listContainer.setLayout(new BoxLayout(listContainer, BoxLayout.Y_AXIS));
-        this.add(listContainer, BorderLayout.CENTER);
+        listContainer = new VBox();
+        listContainer.setSpacing(4);
+        this.getChildren().add(listContainer);
 
         refreshProvidersList();
     }
 
     private void refreshProvidersList() {
-        listContainer.removeAll();
+        listContainer.getChildren().clear();
         var allProviders = providersManager.loadProviders();
 
         if (allProviders.isEmpty()) {
-            listContainer.add(new ProvidersEmptyListLabel());
+            listContainer.getChildren().add(new ProvidersEmptyListLabel());
         } else {
             fillProviderList(allProviders);
         }
-
-        listContainer.revalidate();
-        listContainer.repaint();
     }
 
     private void fillProviderList(List<AiConfiguration.AiConfig> allProviders) {
@@ -56,14 +52,14 @@ public class ProvidersManagementPanel extends JPanel {
                     () -> openEditDialog(provider),
                     () -> confirmAndDelete(provider)
             );
-            listContainer.add(itemPanel);
-            listContainer.add(Box.createVerticalStrut(4));
+            listContainer.getChildren().add(itemPanel);
         }
     }
 
     private void openAddDialog() {
-        var dialog = new ProviderEditDialog(FrameUtils.getOwnerFrame(this), null);
-        dialog.setVisible(true);
+        var owner = FrameUtils.getOwnerStage(this);
+        var dialog = new io.loom.app.ui.dialogs.ProviderEditDialog(owner, null);
+        dialog.showAndWait();
 
         if (dialog.isConfirmed()) {
             var name = dialog.getProviderName();
@@ -75,8 +71,9 @@ public class ProvidersManagementPanel extends JPanel {
     }
 
     private void openEditDialog(AiConfiguration.AiConfig provider) {
-        var dialog = new ProviderEditDialog(FrameUtils.getOwnerFrame(this), provider);
-        dialog.setVisible(true);
+        var owner = FrameUtils.getOwnerStage(this);
+        var dialog = new io.loom.app.ui.dialogs.ProviderEditDialog(owner, provider);
+        dialog.showAndWait();
 
         if (dialog.isConfirmed()) {
             var name = dialog.getProviderName();
@@ -87,34 +84,32 @@ public class ProvidersManagementPanel extends JPanel {
     }
 
     private void confirmAndDelete(AiConfiguration.AiConfig provider) {
-        int result = JOptionPane.showConfirmDialog(
-                FrameUtils.getOwnerFrame(this),
-                "Are you sure you want to delete \"" + provider.name() + "\"?",
-                "Confirm Deletion",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE
-        );
+        var alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Confirm Deletion");
+        alert.setHeaderText(null);
+        alert.setContentText("Are you sure you want to delete \"" + provider.name() + "\"?");
 
-        if (result == JOptionPane.YES_OPTION) {
-            providersManager.deleteProvider(provider.id());
-            refreshProvidersList();
-            onProvidersChanged.accept(null);
+        var result = alert.showAndWait();
+        if (result.isPresent()) {
+            if (result.get() == ButtonType.OK) {
+                providersManager.deleteProvider(provider.id());
+                refreshProvidersList();
+                if (onProvidersChanged != null) {
+                    onProvidersChanged.accept(null);
+                }
+            }
         }
     }
 
     private void executeAsyncOp(Runnable backgroundAction) {
-        new SwingWorker<Void, Void>() {
-            @Override
-            protected Void doInBackground() {
-                backgroundAction.run();
-                return null;
-            }
-
-            @Override
-            protected void done() {
+        new Thread(() -> {
+            backgroundAction.run();
+            Platform.runLater(() -> {
                 refreshProvidersList();
-                onProvidersChanged.accept(null);
-            }
-        }.execute();
+                if (onProvidersChanged != null) {
+                    onProvidersChanged.accept(null);
+                }
+            });
+        }).start();
     }
 }
