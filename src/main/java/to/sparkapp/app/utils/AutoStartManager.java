@@ -1,5 +1,6 @@
 package to.sparkapp.app.utils;
 
+import to.sparkapp.app.config.AppPaths;
 import to.sparkapp.app.config.AppPreferences;
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,7 +40,7 @@ public class AutoStartManager {
     }
 
     private static void handleMac(boolean enable, String path) throws Exception {
-        var launchAgentsDir = new File(AppPreferences.DATA_DIR, "Library/LaunchAgents");
+        var launchAgentsDir = new File(AppPaths.DATA_DIR, "Library/LaunchAgents");
         if (!launchAgentsDir.exists()) {
             launchAgentsDir.mkdirs();
         }

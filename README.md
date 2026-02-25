@@ -89,7 +89,7 @@ Contains:
 ### Build Steps
 ```bash
 # Clone repository
-git clone [https://github.com/OldValencia/spark.git](https://github.com/OldValencia/spark.git)
+git clone https://github.com/OldValencia/spark.git
 cd spark
 
 # Run locally

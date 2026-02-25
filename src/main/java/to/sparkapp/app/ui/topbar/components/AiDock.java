@@ -1,17 +1,18 @@
 package to.sparkapp.app.ui.topbar.components;
 
-import to.sparkapp.app.config.AiConfiguration;
-import to.sparkapp.app.config.AppPreferences;
-import to.sparkapp.app.ui.FxWebViewPane;
-import to.sparkapp.app.ui.Theme;
-import to.sparkapp.app.ui.topbar.utils.AiDockIconUtils;
-import to.sparkapp.app.ui.topbar.utils.AiDockOrderUtils;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import lombok.extern.slf4j.Slf4j;
+import to.sparkapp.app.config.AiConfiguration;
+import to.sparkapp.app.config.AppPaths;
+import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.ui.FxWebViewPane;
+import to.sparkapp.app.ui.Theme;
+import to.sparkapp.app.ui.topbar.utils.AiDockIconUtils;
+import to.sparkapp.app.ui.topbar.utils.AiDockOrderUtils;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -38,12 +39,13 @@ public class AiDock extends ScrollPane {
     private final AppPreferences appPreferences;
 
     private DockItemNode selectedNode = null;
+    private long lastSelectionTime = 0;
 
     public AiDock(List<AiConfiguration.AiConfig> configs, FxWebViewPane fxWebViewPane, AppPreferences appPreferences) {
         this.fxWebViewPane = fxWebViewPane;
         this.appPreferences = appPreferences;
 
-        var userIconsDir = new File(AppPreferences.DATA_DIR, "icons");
+        var userIconsDir = new File(AppPaths.DATA_DIR, "icons");
 
         this.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
         this.setHbarPolicy(ScrollBarPolicy.AS_NEEDED);
@@ -113,6 +115,12 @@ public class AiDock extends ScrollPane {
             return;
         }
 
+        var now = System.currentTimeMillis();
+        if (now - lastSelectionTime < 800) {
+            return;
+        }
+        lastSelectionTime = now;
+
         if (selectedNode != null) {
             selectedNode.setSelected(false);
         }
@@ -158,7 +166,6 @@ public class AiDock extends ScrollPane {
                 }
             }
 
-            // AppPreferences is saved immediately after dropping
             AiDockOrderUtils.saveCurrentOrder(dockItems, appPreferences);
         }
     }
@@ -167,7 +174,6 @@ public class AiDock extends ScrollPane {
         Platform.runLater(() -> {
             var parent = this.getParent();
 
-            // Traverse up to find GradientPanel
             while (parent != null && !(parent instanceof GradientPanel)) {
                 parent = parent.getParent();
             }

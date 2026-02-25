@@ -15,24 +15,8 @@ import java.util.List;
 @Slf4j
 public class AppPreferences {
 
-    public static final String DIR;
-    public static final File DATA_DIR;
-
-    static {
-        boolean isDev = "Dev-Build".equals(SystemUtils.VERSION) || SystemUtils.VERSION == null;
-
-        if (SystemUtils.isMac() && !isDev) {
-            DIR = System.getProperty("user.home") + "/Library/Application Support/OldValencia/Spark";
-        } else {
-            DIR = System.getProperty("user.home") + "/Documents/OldValencia/Spark";
-        }
-
-        DATA_DIR = new File(DIR);
-        DATA_DIR.mkdirs();
-    }
-
     private static final String FILE_NAME = "app-config.json";
-    private static final File FILE = new File(DIR, FILE_NAME);
+    private static final File FILE = new File(AppPaths.DIR, FILE_NAME);
 
     private final ObjectMapper mapper = new ObjectMapper();
     private AppConfig config;
@@ -103,7 +87,7 @@ public class AppPreferences {
     }
 
     private void save() {
-        new File(DIR).mkdirs();
+        new File(AppPaths.DIR).mkdirs();
         try {
             mapper.writerWithDefaultPrettyPrinter().writeValue(FILE, config);
         } catch (IOException e) {

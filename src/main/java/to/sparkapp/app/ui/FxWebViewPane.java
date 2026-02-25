@@ -1,21 +1,32 @@
 package to.sparkapp.app.ui;
 
+import javafx.animation.Animation;
+import javafx.animation.PauseTransition;
+import javafx.animation.ScaleTransition;
+import javafx.application.Platform;
+import javafx.geometry.Bounds;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.browser.NativeWebViewBridge;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.ui.topbar.components.AiDock;
 import to.sparkapp.app.utils.NativeWindowUtils;
 import to.sparkapp.app.utils.SystemUtils;
-import javafx.application.Platform;
-import javafx.geometry.Bounds;
-import javafx.scene.layout.Region;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 
 import java.util.function.Consumer;
 
 @Slf4j
-public class FxWebViewPane extends Region {
+public class FxWebViewPane extends StackPane {
 
     private final NativeWebViewBridge bridge;
     private final AppPreferences appPreferences;
@@ -29,6 +40,11 @@ public class FxWebViewPane extends Region {
 
     private boolean bridgeStarted = false;
 
+    private final VBox loadingOverlay;
+    private final ImageView loadingIcon;
+    private PauseTransition loadingTimer;
+    private final ScaleTransition iconPulse;
+
     public FxWebViewPane(String startUrl,
                          AppPreferences appPreferences,
                          Runnable onToggleSettings) {
@@ -36,14 +52,55 @@ public class FxWebViewPane extends Region {
         this.appPreferences = appPreferences;
         this.onToggleSettings = onToggleSettings;
 
+        this.setPadding(new Insets(0));
+        this.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        this.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
         this.setStyle(String.format("-fx-background-color: %s;", Theme.toHex(Theme.BG_DEEP)));
+
+        loadingIcon = new ImageView();
+        loadingIcon.setFitWidth(32);
+        loadingIcon.setFitHeight(32);
+        loadingIcon.setPreserveRatio(true);
+        loadingIcon.setSmooth(true);
+
+        var glow = new DropShadow();
+        glow.setColor(Color.web("#FFFFFF66"));
+        glow.setRadius(15);
+        loadingIcon.setEffect(glow);
+
+        loadingOverlay = new VBox(loadingIcon);
+        loadingOverlay.setAlignment(Pos.CENTER);
+        loadingOverlay.setStyle(String.format("-fx-background-color: %s;", Theme.toHex(Theme.BG_DEEP)));
+        loadingOverlay.setVisible(true);
+
+        iconPulse = new ScaleTransition(javafx.util.Duration.millis(600), loadingIcon);
+        iconPulse.setFromX(0.9);
+        iconPulse.setFromY(0.9);
+        iconPulse.setToX(1.2);
+        iconPulse.setToY(1.2);
+        iconPulse.setAutoReverse(true);
+        iconPulse.setCycleCount(Animation.INDEFINITE);
+
+        this.getChildren().add(loadingOverlay);
 
         bridge = new NativeWebViewBridge(appPreferences);
 
-        bridge.setZoomCallback(pct -> {
-            if (zoomCallback != null) {
-                zoomCallback.accept(pct);
+        bridge.setOnReadyCallback(() -> Platform.runLater(() -> {
+            syncBounds();
+            bridge.setVisible(true);
+
+            if (loadingOverlay.isVisible()) {
+                iconPulse.stop();
+                loadingOverlay.setVisible(false);
+                if (loadingTimer != null) {
+                    loadingTimer.stop();
+                    loadingTimer = null;
+                }
             }
+        }));
+
+        bridge.setZoomCallback(pct -> {
+            if (zoomCallback != null) zoomCallback.accept(pct);
         });
 
         bridge.setOnUrlChanged(url -> {
@@ -77,12 +134,10 @@ public class FxWebViewPane extends Region {
                                 if (!bridgeStarted) {
                                     startBridgeIfNeeded();
                                 } else {
-                                    // Просыпаемся из трея
                                     wakeupBridge();
                                 }
                             } else {
                                 if (bridgeStarted) {
-                                    // Прячемся в трей без смерти процесса
                                     bridge.hibernate();
                                 }
                             }
@@ -122,15 +177,11 @@ public class FxWebViewPane extends Region {
     }
 
     public void resetZoom() {
-        if (bridge != null) {
-            bridge.resetZoom();
-        }
+        if (bridge != null) bridge.resetZoom();
     }
 
     private synchronized void startBridgeIfNeeded() {
-        if (bridgeStarted) {
-            return;
-        }
+        if (bridgeStarted) return;
 
         var scene = getScene();
         if (scene == null) return;
@@ -138,7 +189,7 @@ public class FxWebViewPane extends Region {
         if (window == null || !window.isShowing()) return;
 
         long parentHandle = 0L;
-        if (SystemUtils.isWindows() && window instanceof javafx.stage.Stage stage) {
+        if (SystemUtils.isWindows() && window instanceof Stage stage) {
             var title = stage.getTitle();
             if (title == null || title.isEmpty()) {
                 title = "SparkMainWindow-" + System.nanoTime();
@@ -152,7 +203,6 @@ public class FxWebViewPane extends Region {
             }
 
             if (parentHandle == 0L) {
-                log.warn("HWND not found yet, retrying bridge init...");
                 var pause = new javafx.animation.PauseTransition(javafx.util.Duration.millis(50));
                 pause.setOnFinished(e -> startBridgeIfNeeded());
                 pause.play();
@@ -162,36 +212,12 @@ public class FxWebViewPane extends Region {
 
         bridgeStarted = true;
 
-        int w = 400, h = 300, x = 0, y = 0;
-        var screenBounds = getBoundsInScreen();
-
-        if (screenBounds != null) {
-            if (SystemUtils.isWindows()) {
-                double scaleX = window.getOutputScaleX();
-                double scaleY = window.getOutputScaleY();
-                x = (int) Math.round((screenBounds.getMinX() - window.getX()) * scaleX);
-                y = (int) Math.round((screenBounds.getMinY() - window.getY()) * scaleY);
-                w = (int) Math.round(screenBounds.getWidth() * scaleX);
-                h = (int) Math.round(screenBounds.getHeight() * scaleY);
-            } else {
-                x = (int) Math.round(screenBounds.getMinX());
-                y = (int) Math.round(screenBounds.getMinY());
-                w = (int) Math.round(screenBounds.getWidth());
-                h = (int) Math.round(screenBounds.getHeight());
-            }
-        }
-
-        bridge.init(startUrl, parentHandle, x, y, Math.max(w, 400), Math.max(h, 300));
-        bridge.setVisible(true);
-        log.info("NativeWebViewBridge started — url={}", startUrl);
-
+        bridge.init(startUrl, parentHandle, 0, 0, 10, 10);
         Platform.runLater(this::syncBounds);
     }
 
     private void syncBounds() {
-        if (!bridgeStarted || getScene() == null || getScene().getWindow() == null || bridge == null) {
-            return;
-        }
+        if (!bridgeStarted || getScene() == null || getScene().getWindow() == null || bridge == null) return;
 
         var window = getScene().getWindow();
         var screenBounds = getBoundsInScreen();
@@ -202,6 +228,7 @@ public class FxWebViewPane extends Region {
         if (SystemUtils.isWindows()) {
             double scaleX = window.getOutputScaleX();
             double scaleY = window.getOutputScaleY();
+            // Возвращаем оригинальную, на 100% работающую логику отступов
             x = (int) Math.round((screenBounds.getMinX() - window.getX()) * scaleX);
             y = (int) Math.round((screenBounds.getMinY() - window.getY()) * scaleY);
             w = (int) Math.round(screenBounds.getWidth() * scaleX);
@@ -222,7 +249,34 @@ public class FxWebViewPane extends Region {
     }
 
     public void setCurrentConfig(AiConfiguration.AiConfig config) {
+        if (loadingTimer != null) {
+            loadingTimer.stop();
+            loadingTimer = null;
+        }
+
+        var image = AiDock.ICON_CACHE.get(config.icon());
+        if (image != null) {
+            loadingIcon.setImage(image);
+        } else {
+            loadingIcon.setImage(null);
+        }
+
+        loadingOverlay.toFront();
+        loadingOverlay.setVisible(true);
+        iconPulse.play();
+        bridge.setVisible(false);
+
         bridge.setCurrentConfig(config);
+
+        loadingTimer = new PauseTransition(javafx.util.Duration.millis(1200));
+        loadingTimer.setOnFinished(e -> {
+            syncBounds();
+            bridge.setVisible(true);
+            iconPulse.stop();
+            loadingOverlay.setVisible(false);
+            loadingTimer = null;
+        });
+        loadingTimer.play();
     }
 
     public void clearCookies() {

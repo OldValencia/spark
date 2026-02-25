@@ -3,7 +3,7 @@ package to.sparkapp.app.utils;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import ch.qos.logback.core.joran.spi.JoranException;
-import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.config.AppPaths;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.slf4j.LoggerFactory;
@@ -17,11 +17,12 @@ import java.util.Date;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class LogSetup {
 
-    public static final String LOGS_DIR = new File(AppPreferences.DATA_DIR, "logs").getAbsolutePath();
     private static final int MAX_LOG_FILES = 3;
 
     public static void init() {
-        var logsDir = new File(LOGS_DIR);
+        var logsDirPath = new File(AppPaths.DATA_DIR, "logs").getAbsolutePath();
+        var logsDir = new File(logsDirPath);
+
         if (!logsDir.exists()) {
             logsDir.mkdirs();
         }
@@ -31,7 +32,7 @@ public class LogSetup {
         var logFileName = "app-" + timestamp;
 
         System.setProperty("log.name", logFileName);
-        System.setProperty("log.dir", LOGS_DIR);
+        System.setProperty("log.dir", logsDirPath);
 
         reloadLogbackConfig();
         System.out.println("Logs initialized at: " + new File(logsDir, logFileName + ".log").getAbsolutePath());
@@ -45,7 +46,7 @@ public class LogSetup {
             configurator.setContext(context);
             context.reset();
 
-            var configFile = LogSetup.class.getResource("/logback.xml");
+            var configFile = LogSetup.class.getResource("/app-logback.xml");
             if (configFile != null) {
                 configurator.doConfigure(configFile);
             }

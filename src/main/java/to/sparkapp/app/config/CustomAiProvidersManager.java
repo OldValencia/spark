@@ -26,11 +26,11 @@ public class CustomAiProvidersManager {
     private final File iconsDir;
 
     public CustomAiProvidersManager() {
-        this.configFile = new File(AppPreferences.DATA_DIR, "providers.json");
-        this.iconsDir = new File(AppPreferences.DATA_DIR, "icons");
+        this.configFile = new File(AppPaths.DATA_DIR, "providers.json");
+        this.iconsDir = new File(AppPaths.DATA_DIR, "icons");
 
-        if (!AppPreferences.DATA_DIR.exists() && !AppPreferences.DATA_DIR.mkdirs()) {
-            log.error("Failed to create config directory: {}", AppPreferences.DATA_DIR);
+        if (!AppPaths.DATA_DIR.exists() && !AppPaths.DATA_DIR.mkdirs()) {
+            log.error("Failed to create config directory: {}", AppPaths.DATA_DIR);
         }
         if (!iconsDir.exists() && !iconsDir.mkdirs()) {
             log.error("Failed to create icons directory: {}", iconsDir);

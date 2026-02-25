@@ -1,43 +1,32 @@
 package to.sparkapp.app.browser;
 
+import co.casterlabs.rakurai.json.Rson;
 import co.casterlabs.rakurai.json.element.JsonArray;
-import co.casterlabs.rakurai.json.element.JsonNull;
-import dev.webview.Webview;
+import javafx.application.Platform;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import to.sparkapp.app.browser.webview.Webview;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.utils.NativeWindowUtils;
 import to.sparkapp.app.utils.SystemUtils;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 
-import javax.swing.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
-/**
- * Manages a native OS WebView (WKWebView on macOS, WebView2/Edge on Windows)
- * via webview_java running on its own dedicated thread.
- *
- * <p>The webview opens as an independent OS window. CefWebView (a JPanel
- * placeholder in the Swing hierarchy) calls {@link #updateBounds} whenever it is
- * moved or resized so the native window tracks the Swing layout pixel-for-pixel.
- *
- * <p><b>Thread model:</b>
- * <ul>
- *   <li>All webview API calls MUST happen on the webview thread (via {@code dispatch()}).
- *   <li>Swing callbacks are dispatched back to the EDT via {@code SwingUtilities.invokeLater}.
- * </ul>
- */
 @Slf4j
 public class NativeWebViewBridge {
 
     private volatile Webview webview;
+    private volatile long nativeHandle = 0L;
+    private volatile long parentHandle = 0L;
 
     private final AtomicBoolean ready = new AtomicBoolean(false);
     private final AtomicBoolean disposed = new AtomicBoolean(false);
-    private final CountDownLatch readyLatch = new CountDownLatch(1);
+
+    private volatile int retryCount = 0;
+    private static final int MAX_RETRIES = 10;
 
     private volatile String currentUrl;
     private volatile double currentZoom;
@@ -47,10 +36,15 @@ public class NativeWebViewBridge {
 
     private final AppPreferences appPreferences;
 
+    // Идентификатор текущей навигации (чтобы отменять старые при быстром клике)
+    private volatile long currentNavId = 0L;
+
     @Setter
     private Consumer<Double> zoomCallback;
     @Setter
     private Consumer<String> onUrlChanged;
+    @Setter
+    private Runnable onReadyCallback;
 
     private static final String INIT_SCRIPTS = """
             (function() {
@@ -81,18 +75,11 @@ public class NativeWebViewBridge {
         this.currentZoom = appPreferences.getLastZoomValue();
     }
 
-    /**
-     * @param parentHandle native HWND of the Swing JFrame (Windows) or 0 (macOS).
-     *                     On Windows the webview is embedded as a child window so
-     *                     z-order and clipping are handled by the OS.
-     *                     x/y must then be relative to the JFrame client area.
-     */
     public void init(String startUrl, long parentHandle, int x, int y, int width, int height) {
-        if (disposed.get()) {
-            return;
-        }
+        if (disposed.get()) return;
 
         this.currentUrl = startUrl;
+        this.parentHandle = parentHandle;
         this.nativeX = x;
         this.nativeY = y;
         this.nativeW = width;
@@ -100,40 +87,86 @@ public class NativeWebViewBridge {
 
         NativeWindowUtils.cachedWebviewHeight = height;
 
+        startWebviewThread();
+    }
+
+    private void startWebviewThread() {
+        if (retryCount >= MAX_RETRIES || disposed.get()) {
+            log.error("NativeWebViewBridge: Max retries reached or disposed. Aborting start.");
+            return;
+        }
+
         var webviewThread = new Thread(() -> {
             try {
-                log.info("Initialising native webview ({}x{}) at ({},{})", width, height, x, y);
+                log.info("NativeWebViewBridge: Starting native webview event loop (Attempt {}/{})", retryCount + 1, MAX_RETRIES);
+                ready.set(false);
 
                 webview = new Webview(false);
 
+                long handle = webview.getNativeWindowPointer();
+                this.nativeHandle = handle;
+
+                if (handle != 0) {
+                    NativeWindowUtils.setBounds(handle, -15000, -15000, 10, 10);
+                    NativeWindowUtils.setVisible(handle, false);
+                    if (parentHandle != 0) {
+                        NativeWindowUtils.setParent(handle, parentHandle);
+                    }
+                }
+
                 bindJsFunctions();
                 webview.setInitScript(INIT_SCRIPTS);
-                webview.setSize(width, height);
-                webview.loadURL(startUrl);
-                applyZoomCss(currentZoom);
+                webview.setSize(nativeW, nativeH);
 
-                ready.set(true);
-                readyLatch.countDown();
+                String loadUrl = currentUrl != null ? currentUrl : "about:blank";
+                webview.loadURL(loadUrl);
 
                 webview.dispatch(() -> {
-                    long handle = webview.getNativeWindowPointer();
-                    if (handle != 0) {
-                        NativeWindowUtils.setParent(handle, parentHandle);
-                        NativeWindowUtils.setBounds(handle, x, y, width, height);
-                        log.debug("Native window handle=0x{}, positioned at ({},{}) {}x{}",
-                                Long.toHexString(handle), x, y, width, height);
+                    try {
+                        applyZoomCss(currentZoom);
+                        ready.set(true);
+                        retryCount = 0;
+                        log.info("NativeWebViewBridge: Webview is completely READY.");
+
+                        if (onReadyCallback != null) {
+                            onReadyCallback.run();
+                        }
+                    } catch (Exception e) {
+                        log.error("NativeWebViewBridge: Error in initial dispatch", e);
                     }
                 });
 
-                log.info("Native webview event loop starting");
+                log.info("NativeWebViewBridge: Entering C++ blocking loop...");
                 webview.run();
-                log.info("Native webview event loop exited");
 
-            } catch (Exception e) {
-                log.error("Fatal webview error", e);
-                readyLatch.countDown();
+                if (disposed.get()) {
+                    log.info("NativeWebViewBridge: Webview closed normally via dispose.");
+                } else {
+                    throw new RuntimeException("Webview event loop exited unexpectedly (without dispose)");
+                }
+
+            } catch (Throwable t) {
+                log.error("CRITICAL: Webview crashed on thread " + Thread.currentThread().getName(), t);
+                ready.set(false);
+                this.nativeHandle = 0L;
+                retryCount++;
+
+                log.warn("NativeWebViewBridge: Abandoning broken Webview instance to prevent JVM crash.");
+                webview = null;
+
+                if (retryCount < MAX_RETRIES && !disposed.get()) {
+                    log.info("NativeWebViewBridge: Restarting browser engine on a NEW thread in 1.5 seconds...");
+                    try {
+                        Thread.sleep(1500);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    startWebviewThread();
+                } else {
+                    log.error("NativeWebViewBridge: Max retries reached. Browser engine is permanently dead.");
+                }
             }
-        }, "spark-webview-thread");
+        }, "spark-webview-thread-" + System.currentTimeMillis());
 
         webviewThread.setDaemon(true);
         webviewThread.start();
@@ -144,17 +177,19 @@ public class NativeWebViewBridge {
         long handle = getHandleSafe();
         if (handle != 0 && SystemUtils.isWindows()) {
             NativeWindowUtils.setVisible(handle, false);
-            NativeWindowUtils.unparent(handle);
+            NativeWindowUtils.setBounds(handle, -15000, -15000, 10, 10);
         } else {
             setVisible(false);
         }
     }
 
     public void wakeup(long parentHandle) {
+        this.parentHandle = parentHandle;
         if (!ready.get()) return;
         long handle = getHandleSafe();
         if (handle != 0 && SystemUtils.isWindows()) {
             NativeWindowUtils.setParent(handle, parentHandle);
+            NativeWindowUtils.setBounds(handle, nativeX, nativeY, nativeW, nativeH);
             NativeWindowUtils.setVisible(handle, true);
         } else {
             setVisible(true);
@@ -162,66 +197,128 @@ public class NativeWebViewBridge {
     }
 
     private void awaitReady() {
-        if (ready.get()) {
-            return;
-        }
-        try {
-            readyLatch.await(10, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        int waits = 0;
+        while (!ready.get() && !disposed.get() && retryCount < MAX_RETRIES) {
+            try {
+                Thread.sleep(50);
+                waits++;
+                if (waits > 100) break;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
     }
 
-    private void dispatch(Runnable r) {
-        if (disposed.get() || webview == null) {
-            return;
-        }
+    private void dispatch(Runnable action) {
+        if (disposed.get() || retryCount >= MAX_RETRIES) return;
         awaitReady();
-        if (webview != null) {
-            webview.dispatch(r);
+
+        var currentWebview = webview;
+        if (currentWebview != null && ready.get()) {
+            try {
+                currentWebview.dispatch(() -> {
+                    try {
+                        action.run();
+                    } catch (Exception e) {
+                        log.error("NativeWebViewBridge: Task failed with exception", e);
+                    }
+                });
+            } catch (Throwable t) {
+                log.warn("NativeWebViewBridge: Failed to dispatch to webview", t);
+            }
         }
     }
 
     private void bindJsFunctions() {
-        webview.bind("sparkZoom", (JsonArray args) -> {
-            if (!appPreferences.isZoomEnabled()) {
-                return JsonNull.INSTANCE;
+        webview.bind("sparkZoom", (String req) -> {
+            try {
+                if (!appPreferences.isZoomEnabled() || req == null || req.isBlank()) return null;
+
+                // Входящая строка выглядит как '["up"]', '["down"]' или '["reset"]'. Очищаем ее от мусора
+                String direction = req.replaceAll("[\"\\[\\]\\s]", "");
+
+                Platform.runLater(() -> {
+                    switch (direction) {
+                        case "up" -> changeZoom(true);
+                        case "down" -> changeZoom(false);
+                        case "reset" -> resetZoom();
+                    }
+                });
+            } catch (Exception e) {
+                log.error("NativeWebViewBridge: Caught exception in sparkZoom JS callback!", e);
             }
-            var direction = args.get(0).getAsString();
-            SwingUtilities.invokeLater(() -> {
-                switch (direction) {
-                    case "up" -> changeZoom(true);
-                    case "down" -> changeZoom(false);
-                    case "reset" -> resetZoom();
-                }
-            });
-            return JsonNull.INSTANCE;
+            return null; // Аналог JsonNull
         });
 
-        webview.bind("sparkUrl", (JsonArray args) -> {
-            var url = args.get(0).getAsString();
-            if (!url.isBlank() && !url.equals("about:blank") && onUrlChanged != null) {
-                SwingUtilities.invokeLater(() -> onUrlChanged.accept(url));
+        webview.bind("sparkUrl", (String req) -> {
+            try {
+                if (req == null || req.isBlank()) return null;
+
+                // Входящая строка выглядит как '["https://chat.mistral.ai/"]'. Парсим через Rson
+                JsonArray args = Rson.DEFAULT.fromJson(req, JsonArray.class);
+                if (args == null || args.isEmpty()) return null;
+
+                String url = args.get(0).getAsString();
+                if (!url.isBlank() && !url.equals("about:blank") && onUrlChanged != null) {
+                    Platform.runLater(() -> onUrlChanged.accept(url));
+                }
+            } catch (Exception e) {
+                log.error("NativeWebViewBridge: Caught exception in sparkUrl JS callback!", e);
             }
-            return JsonNull.INSTANCE;
+            return null; // Аналог JsonNull
         });
     }
 
     public void setCurrentConfig(AiConfiguration.AiConfig config) {
+        log.info("NativeWebViewBridge: Changing config to: {}", config.url());
         this.currentConfig = config;
         navigate(config.url());
     }
 
     public void navigate(String url) {
         this.currentUrl = url;
+
+        long navId = System.currentTimeMillis();
+        this.currentNavId = navId;
+
         dispatch(() -> {
-            webview.loadURL(url);
+            if (webview != null && currentNavId == navId) {
+                log.debug("NativeWebViewBridge: Soft cease triggered (about:blank) for [Nav-{}]", navId);
+                webview.loadURL("about:blank");
+            }
+        });
+
+        new Thread(() -> {
             try {
-                Thread.sleep(800);
+                Thread.sleep(150);
             } catch (InterruptedException ignored) {
             }
-            applyZoomCss(currentZoom);
-        });
+
+            if (navId == this.currentNavId) {
+                dispatch(() -> {
+                    if (webview != null && currentNavId == navId) {
+                        log.info("NativeWebViewBridge: Loading actual URL: {} [Nav-{}]", url, navId);
+                        webview.loadURL(url);
+                    } else {
+                        log.debug("NativeWebViewBridge: URL Load cancelled. Newer navigation exists.");
+                    }
+                });
+
+                try {
+                    Thread.sleep(800);
+                } catch (InterruptedException ignored) {
+                }
+
+                if (navId == this.currentNavId) {
+                    dispatch(() -> {
+                        if (webview != null) applyZoomCss(currentZoom);
+                    });
+                }
+            } else {
+                log.debug("NativeWebViewBridge: Navigation sequence [Nav-{}] cancelled entirely.", navId);
+            }
+        }, "spark-navigate-" + navId).start();
     }
 
     public void updateBounds(int x, int y, int width, int height) {
@@ -231,11 +328,11 @@ public class NativeWebViewBridge {
         this.nativeH = height;
         NativeWindowUtils.cachedWebviewHeight = height;
 
-        if (!ready.get()) {
-            return;
-        }
+        if (!ready.get()) return;
 
-        dispatch(() -> webview.setSize(width, height));
+        dispatch(() -> {
+            if (webview != null) webview.setSize(width, height);
+        });
 
         long handle = getHandleSafe();
         if (handle != 0) {
@@ -244,9 +341,7 @@ public class NativeWebViewBridge {
     }
 
     public void setVisible(boolean visible) {
-        if (!ready.get()) {
-            return;
-        }
+        if (!ready.get()) return;
         long handle = getHandleSafe();
         if (handle != 0) {
             NativeWindowUtils.setVisible(handle, visible);
@@ -263,7 +358,9 @@ public class NativeWebViewBridge {
     private void setZoomInternal(double level) {
         this.currentZoom = level;
         appPreferences.setLastZoomValue(level);
-        dispatch(() -> applyZoomCss(level));
+        dispatch(() -> {
+            if (webview != null) applyZoomCss(level);
+        });
         updateZoomDisplay(level);
     }
 
@@ -288,42 +385,58 @@ public class NativeWebViewBridge {
         if (zoomCallback != null) {
             var pct = Math.pow(1.2, level) * 100.0;
             var displayVal = Math.round(pct / 5.0) * 5.0;
-            SwingUtilities.invokeLater(() -> zoomCallback.accept(displayVal));
+            Platform.runLater(() -> zoomCallback.accept(displayVal));
         }
     }
 
     public void clearCookies() {
+        log.info("NativeWebViewBridge: Clearing cookies...");
         var returnUrl = currentUrl != null ? currentUrl : "about:blank";
+        long navId = System.currentTimeMillis();
+        this.currentNavId = navId;
+
         dispatch(() -> {
-            webview.eval("""
-                    (function() {
-                        document.cookie.split(';').forEach(function(c) {
-                            document.cookie = c.trim().split('=')[0] +
-                                '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-                        });
-                    })();
-                    """);
-            webview.loadURL("about:blank");
+            if (webview != null && currentNavId == navId) {
+                webview.eval("""
+                        (function() {
+                            document.cookie.split(';').forEach(function(c) {
+                                document.cookie = c.trim().split('=')[0] +
+                                    '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+                            });
+                        })();
+                        """);
+                webview.loadURL("about:blank");
+            }
 
             new Thread(() -> {
                 try {
                     Thread.sleep(400);
                 } catch (InterruptedException ignored) {
                 }
-                dispatch(() -> webview.loadURL(returnUrl));
-            }, "spark-cookie-clear").start();
+
+                if (currentNavId == navId) {
+                    dispatch(() -> {
+                        if (webview != null) webview.loadURL(returnUrl);
+                    });
+                }
+            }, "spark-cookie-clear-" + navId).start();
         });
     }
 
     public void shutdown(Runnable onComplete) {
-        if (disposed.getAndSet(true)) {
-            return;
-        }
+        if (disposed.getAndSet(true)) return;
+        log.info("NativeWebViewBridge: Shutting down...");
 
         if (webview != null && ready.get()) {
-            webview.dispatch(() -> {
-                webview.close();
-                SwingUtilities.invokeLater(onComplete);
+            dispatch(() -> {
+                if (webview != null) {
+                    try {
+                        webview.close();
+                    } catch (Throwable e) {
+                        log.error("NativeWebViewBridge: Error while closing webview", e);
+                    }
+                }
+                Platform.runLater(onComplete);
             });
         } else {
             onComplete.run();
@@ -331,11 +444,7 @@ public class NativeWebViewBridge {
     }
 
     private long getHandleSafe() {
-        try {
-            return webview != null ? webview.getNativeWindowPointer() : 0L;
-        } catch (Exception e) {
-            return 0L;
-        }
+        return nativeHandle;
     }
 
     public boolean isReady() {
