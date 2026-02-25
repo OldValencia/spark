@@ -20,12 +20,10 @@ public class WebviewManager {
 
     private final AtomicBoolean ready = new AtomicBoolean(false);
     private final AtomicBoolean disposed = new AtomicBoolean(false);
+    private final AtomicBoolean isStarting = new AtomicBoolean(false);
 
-    private volatile int retryCount = 0;
-    private static final int MAX_RETRIES = 10;
     private volatile int nativeX, nativeY, nativeW, nativeH;
 
-    // --- Sub-Managers ---
     private final WebviewZoomManager zoomManager;
     private final WebviewNavigator navigator;
 
@@ -75,14 +73,11 @@ public class WebviewManager {
     }
 
     private void startWebviewThread(String initialUrl) {
-        if (retryCount >= MAX_RETRIES || disposed.get()) {
-            log.error("NativeWebViewBridge: Max retries reached or disposed. Aborting start.");
-            return;
-        }
+        if (disposed.get() || !isStarting.compareAndSet(false, true)) return;
 
         var webviewThread = new Thread(() -> {
             try {
-                log.info("NativeWebViewBridge: Starting webview event loop (Attempt {}/{})", retryCount + 1, MAX_RETRIES);
+                log.info("WebviewManager: Starting webview event loop...");
                 ready.set(false);
 
                 webview = new Webview(false);
@@ -91,6 +86,7 @@ public class WebviewManager {
                 if (nativeHandle != 0) {
                     NativeWindowUtils.setBounds(nativeHandle, -15000, -15000, 10, 10);
                     NativeWindowUtils.setVisible(nativeHandle, false);
+
                     if (parentHandle != 0) {
                         NativeWindowUtils.setParent(nativeHandle, parentHandle);
                     }
@@ -105,30 +101,29 @@ public class WebviewManager {
                 webview.dispatch(() -> {
                     zoomManager.applyZoomCss();
                     ready.set(true);
-                    retryCount = 0;
-                    log.info("NativeWebViewBridge: Webview is completely READY.");
+
+                    if (nativeHandle != 0 && parentHandle != 0) {
+                        NativeWindowUtils.setParent(nativeHandle, parentHandle);
+                        NativeWindowUtils.setBounds(nativeHandle, nativeX, nativeY, nativeW, nativeH);
+                        NativeWindowUtils.setVisible(nativeHandle, true);
+                    }
+
+                    log.info("WebviewManager: Webview is completely READY.");
 
                     if (onReadyCallback != null) onReadyCallback.run();
                 });
 
-                webview.run(); // Blocking native loop
+                webview.run();
 
-                if (!disposed.get()) throw new RuntimeException("Webview event loop exited unexpectedly");
+                log.info("WebviewManager: Event loop naturally finished.");
 
             } catch (Throwable t) {
-                log.error("CRITICAL: Webview crashed!", t);
+                log.error("WebviewManager: Webview thread encountered an error", t);
+            } finally {
                 ready.set(false);
-                this.nativeHandle = 0L;
-                retryCount++;
+                nativeHandle = 0L;
                 webview = null;
-
-                if (retryCount < MAX_RETRIES && !disposed.get()) {
-                    try {
-                        Thread.sleep(1500);
-                    } catch (InterruptedException ignored) {
-                    }
-                    startWebviewThread(initialUrl);
-                }
+                isStarting.set(false);
             }
         }, "spark-webview-thread-" + System.currentTimeMillis());
 
@@ -137,6 +132,7 @@ public class WebviewManager {
     }
 
     private void setupJsApi() {
+        if (webview == null) return;
         var api = new SparkJsApi(webview);
 
         api.on("zoom", args -> {
@@ -149,7 +145,12 @@ public class WebviewManager {
     }
 
     public void dispatch(Runnable action) {
-        if (disposed.get() || retryCount >= MAX_RETRIES) return;
+        if (disposed.get()) return;
+
+        if (!ready.get() && webview == null) {
+            log.info("WebviewManager: Auto-healing dead webview...");
+            startWebviewThread(navigator.getCurrentUrl());
+        }
 
         if (ready.get() && webview != null) {
             webview.dispatch(() -> {
@@ -162,11 +163,10 @@ public class WebviewManager {
         } else {
             new Thread(() -> {
                 int waits = 0;
-                while (!ready.get() && !disposed.get() && retryCount < MAX_RETRIES) {
+                while (!ready.get() && !disposed.get() && waits < 100) {
                     try {
                         Thread.sleep(50);
                         waits++;
-                        if (waits > 100) return;
                     } catch (InterruptedException ignored) {
                         return;
                     }
@@ -205,21 +205,35 @@ public class WebviewManager {
         dispatch(() -> {
             if (webview != null) webview.setSize(width, height);
         });
-        if (nativeHandle != 0) NativeWindowUtils.setBounds(nativeHandle, x, y, width, height);
+
+        if (nativeHandle != 0) {
+            if (parentHandle != 0) {
+                NativeWindowUtils.setParent(nativeHandle, parentHandle);
+            }
+            NativeWindowUtils.setBounds(nativeHandle, x, y, width, height);
+        }
     }
 
     public void hibernate() {
         if (!ready.get() || nativeHandle == 0 || !SystemUtils.isWindows()) return;
+
+        NativeWindowUtils.unparent(nativeHandle);
         NativeWindowUtils.setVisible(nativeHandle, false);
         NativeWindowUtils.setBounds(nativeHandle, -15000, -15000, 10, 10);
     }
 
     public void wakeup(long parentHandle) {
         this.parentHandle = parentHandle;
-        if (!ready.get() || nativeHandle == 0 || !SystemUtils.isWindows()) return;
-        NativeWindowUtils.setParent(nativeHandle, parentHandle);
-        NativeWindowUtils.setBounds(nativeHandle, nativeX, nativeY, nativeW, nativeH);
-        NativeWindowUtils.setVisible(nativeHandle, true);
+        if (disposed.get() || !SystemUtils.isWindows()) return;
+
+        if (!ready.get() || nativeHandle == 0 || webview == null) {
+            log.info("WebviewManager: Webview suspended. Reviving...");
+            startWebviewThread(navigator.getCurrentUrl());
+        } else {
+            NativeWindowUtils.setParent(nativeHandle, parentHandle);
+            NativeWindowUtils.setBounds(nativeHandle, nativeX, nativeY, nativeW, nativeH);
+            NativeWindowUtils.setVisible(nativeHandle, true);
+        }
     }
 
     public void shutdown(Runnable onComplete) {
@@ -237,7 +251,6 @@ public class WebviewManager {
         }
     }
 
-    // --- Delegation Methods (To keep external API identical) ---
     public void setZoomCallback(Consumer<Double> callback) {
         zoomManager.setZoomCallback(callback);
     }

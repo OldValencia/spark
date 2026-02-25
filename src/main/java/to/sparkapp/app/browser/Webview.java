@@ -1,5 +1,7 @@
 package to.sparkapp.app.browser;
 
+import com.sun.jna.Pointer;
+
 import java.io.Closeable;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -17,7 +19,6 @@ class Webview implements Closeable {
 
     private final long nativePointer;
 
-    // --- GC Shields: Prevents the JVM from destroying C++ callbacks ---
     private final Map<String, BindCallback> activeBinds = new ConcurrentHashMap<>();
     private final Set<DispatchCallback> activeDispatches = ConcurrentHashMap.newKeySet();
 
@@ -39,6 +40,17 @@ class Webview implements Closeable {
      */
     Webview(boolean debug) {
         this.nativePointer = WEBVIEW_NATIVE.webview_create(debug, null);
+    }
+
+    /**
+     * Creates a new standalone Webview instance.
+     *
+     * @param debug Enables browser developer tools/inspector if true.
+     * @param parentHandle ID родительского окна JavaFX (0 если нет)
+     */
+    Webview(boolean debug, long parentHandle) {
+        var parentPtr = parentHandle == 0 ? null : Pointer.createConstant(parentHandle);
+        this.nativePointer = WEBVIEW_NATIVE.webview_create(debug, parentPtr);
     }
 
     /**

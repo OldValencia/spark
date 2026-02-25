@@ -6,9 +6,6 @@ import to.sparkapp.app.config.AiConfiguration;
 
 import java.util.function.Consumer;
 
-/**
- * Manages URL navigation, delayed loading anti-spam, and cookie clearance.
- */
 @Slf4j
 class WebviewNavigator {
 
@@ -104,5 +101,9 @@ class WebviewNavigator {
                 }
             }, "spark-cookie-clear-" + navId).start();
         });
+    }
+
+    String getCurrentUrl() {
+        return currentUrl != null ? currentUrl : "about:blank";
     }
 }
