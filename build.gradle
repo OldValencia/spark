@@ -90,15 +90,8 @@ application {
 }
 
 dependencies {
-    implementation 'co.casterlabs.commons:platform:1.7.1'
-    implementation 'co.casterlabs.commons:io:1.7.1'
-    implementation 'co.casterlabs.commons:async:1.7.0'
-    implementation 'co.casterlabs:rson:1.17.9'
-
     implementation 'net.java.dev.jna:jna:5.14.0'
     implementation 'net.java.dev.jna:jna-platform:5.14.0'
-
-    implementation 'com.github.weisj:jsvg:2.0.0'
     implementation "com.formdev:flatlaf:$flatLafVersion"
     implementation "com.formdev:flatlaf-extras:$flatLafVersion"
     implementation 'org.slf4j:slf4j-api:2.0.17'

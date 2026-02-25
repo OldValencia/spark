@@ -16,7 +16,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import to.sparkapp.app.browser.NativeWebViewBridge;
+import to.sparkapp.app.browser.WebviewManager;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.topbar.components.AiDock;
@@ -28,7 +28,7 @@ import java.util.function.Consumer;
 @Slf4j
 public class FxWebViewPane extends StackPane {
 
-    private final NativeWebViewBridge bridge;
+    private final WebviewManager bridge;
     private final AppPreferences appPreferences;
     private final Runnable onToggleSettings;
     private final String startUrl;
@@ -83,7 +83,7 @@ public class FxWebViewPane extends StackPane {
 
         this.getChildren().add(loadingOverlay);
 
-        bridge = new NativeWebViewBridge(appPreferences);
+        bridge = new WebviewManager(appPreferences);
 
         bridge.setOnReadyCallback(() -> Platform.runLater(() -> {
             syncBounds();
@@ -220,24 +220,24 @@ public class FxWebViewPane extends StackPane {
         if (!bridgeStarted || getScene() == null || getScene().getWindow() == null || bridge == null) return;
 
         var window = getScene().getWindow();
-        var screenBounds = getBoundsInScreen();
-        if (screenBounds == null) return;
+        var scene = getScene();
+        var boundsInScene = localToScene(getBoundsInLocal());
+        if (boundsInScene == null) return;
 
         int w, h, x, y;
 
         if (SystemUtils.isWindows()) {
             double scaleX = window.getOutputScaleX();
             double scaleY = window.getOutputScaleY();
-            // Возвращаем оригинальную, на 100% работающую логику отступов
-            x = (int) Math.round((screenBounds.getMinX() - window.getX()) * scaleX);
-            y = (int) Math.round((screenBounds.getMinY() - window.getY()) * scaleY);
-            w = (int) Math.round(screenBounds.getWidth() * scaleX);
-            h = (int) Math.round(screenBounds.getHeight() * scaleY);
+            x = (int) Math.round((boundsInScene.getMinX() + scene.getX()) * scaleX);
+            y = (int) Math.round((boundsInScene.getMinY() + scene.getY()) * scaleY);
+            w = (int) Math.round(boundsInScene.getWidth() * scaleX);
+            h = (int) Math.round(boundsInScene.getHeight() * scaleY);
         } else {
-            x = (int) Math.round(screenBounds.getMinX());
-            y = (int) Math.round(screenBounds.getMinY());
-            w = (int) Math.round(screenBounds.getWidth());
-            h = (int) Math.round(screenBounds.getHeight());
+            x = (int) Math.round(boundsInScene.getMinX() + scene.getX());
+            y = (int) Math.round(boundsInScene.getMinY() + scene.getY());
+            w = (int) Math.round(boundsInScene.getWidth());
+            h = (int) Math.round(boundsInScene.getHeight());
         }
 
         bridge.updateBounds(x, y, w, h);
@@ -255,11 +255,7 @@ public class FxWebViewPane extends StackPane {
         }
 
         var image = AiDock.ICON_CACHE.get(config.icon());
-        if (image != null) {
-            loadingIcon.setImage(image);
-        } else {
-            loadingIcon.setImage(null);
-        }
+        loadingIcon.setImage(image);
 
         loadingOverlay.toFront();
         loadingOverlay.setVisible(true);
