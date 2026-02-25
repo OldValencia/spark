@@ -2,7 +2,7 @@ package to.sparkapp.app.windows;
 
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
-import to.sparkapp.app.ui.FxWebViewPane;
+import to.sparkapp.app.ui.webview.FxWebViewPane;
 import to.sparkapp.app.ui.Theme;
 import to.sparkapp.app.ui.settings.SettingsPanel;
 import to.sparkapp.app.ui.topbar.TopBarArea;

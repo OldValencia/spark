@@ -2,7 +2,7 @@ package to.sparkapp.app.ui.topbar;
 
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
-import to.sparkapp.app.ui.FxWebViewPane;
+import to.sparkapp.app.ui.webview.FxWebViewPane;
 import to.sparkapp.app.ui.topbar.components.GradientPanel;
 import to.sparkapp.app.windows.SettingsWindow;
 import javafx.scene.paint.Color;

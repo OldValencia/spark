@@ -1,0 +1,258 @@
+package to.sparkapp.app.ui.webview;
+
+import javafx.animation.PauseTransition;
+import javafx.application.Platform;
+import javafx.geometry.Insets;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.stage.Stage;
+import javafx.util.Duration;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import to.sparkapp.app.browser.WebviewManager;
+import to.sparkapp.app.config.AiConfiguration;
+import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.ui.Theme;
+import to.sparkapp.app.ui.topbar.components.AiDock;
+import to.sparkapp.app.utils.NativeWindowUtils;
+import to.sparkapp.app.utils.SystemUtils;
+
+import java.util.function.Consumer;
+
+/**
+ * The main JavaFX pane that hosts the native WebView browser.
+ *
+ * <p>The native webview is a separate OS window that is parented and positioned
+ * to perfectly overlap this pane. A {@link WebViewLoadingOverlay} is shown
+ * above while navigation is in progress.
+ */
+@Slf4j
+public class FxWebViewPane extends StackPane {
+
+    private final WebviewManager bridge;
+    private final AppPreferences appPreferences;
+    private final String startUrl;
+
+    private final WebViewLoadingOverlay overlay;
+
+    private boolean bridgeStarted = false;
+
+    @Setter
+    private Consumer<Double> zoomCallback;
+    @Setter
+    private Consumer<Boolean> onAuthPageDetected;
+
+    public FxWebViewPane(String startUrl, AppPreferences appPreferences, Runnable onToggleSettings) {
+        this.startUrl = startUrl;
+        this.appPreferences = appPreferences;
+
+        setPadding(Insets.EMPTY);
+        setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+        setStyle("-fx-background-color: " + Theme.toHex(Theme.BG_DEEP) + ";");
+
+        overlay = new WebViewLoadingOverlay();
+        getChildren().add(overlay);
+
+        bridge = new WebviewManager(appPreferences);
+        setupBridgeCallbacks();
+        setupLayoutListeners();
+    }
+
+    private void setupBridgeCallbacks() {
+        bridge.setOnReadyCallback(() -> Platform.runLater(() -> {
+            syncBounds();
+            bridge.setVisible(true);
+            // If the overlay is still showing (e.g. from initial setCurrentConfig
+            // call before the bridge had started), dismiss it now.
+            if (overlay.isActive()) {
+                overlay.deactivate();
+            }
+        }));
+
+        bridge.setZoomCallback(pct -> {
+            if (zoomCallback != null) zoomCallback.accept(pct);
+        });
+
+        bridge.setOnUrlChanged(url -> {
+            checkIfAuthPage(url);
+            if (appPreferences.isRememberLastAi()) {
+                appPreferences.setLastUrl(url);
+            }
+        });
+    }
+
+    private void setupLayoutListeners() {
+        // Trigger initial start once we have a scene and the window is showing.
+        boundsInLocalProperty().addListener((obs, o, n) -> {
+            if (!bridgeStarted) startBridgeIfReady();
+            else syncBounds();
+        });
+
+        // Reposition when the window moves (important on macOS).
+        localToSceneTransformProperty().addListener((obs, o, n) -> syncBounds());
+
+        sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene == null) return;
+            newScene.windowProperty().addListener((wObs, oldWin, newWin) -> {
+                if (newWin == null) return;
+
+                if (SystemUtils.isMac()) {
+                    newWin.xProperty().addListener((o, old, v) -> syncBounds());
+                    newWin.yProperty().addListener((o, old, v) -> syncBounds());
+                }
+
+                newWin.showingProperty().addListener((o, old, isShowing) -> {
+                    if (isShowing) {
+                        if (!bridgeStarted) startBridgeIfReady();
+                        else wakeupBridge();
+                    } else if (bridgeStarted) {
+                        bridge.hibernate();
+                    }
+                });
+            });
+        });
+    }
+
+    private synchronized void startBridgeIfReady() {
+        if (bridgeStarted) return;
+        var scene = getScene();
+        if (scene == null) return;
+        var window = scene.getWindow();
+        if (window == null || !window.isShowing()) return;
+
+        long parentHandle = resolveParentHandle(window);
+        if (parentHandle == 0L && SystemUtils.isWindows()) {
+            retryStartBridge();
+            return;
+        }
+
+        bridgeStarted = true;
+        bridge.init(startUrl, parentHandle, 0, 0, 10, 10);
+        Platform.runLater(this::syncBounds);
+    }
+
+    private long resolveParentHandle(javafx.stage.Window window) {
+        if (!SystemUtils.isWindows() || !(window instanceof Stage stage)) return 0L;
+
+        var title = stage.getTitle();
+        boolean tempTitle = title == null || title.isEmpty();
+        if (tempTitle) {
+            title = "SparkMainWindow-" + System.nanoTime();
+            stage.setTitle(title);
+        }
+
+        long handle = NativeWindowUtils.getJavaFXWindowHandle(title);
+
+        if (tempTitle) stage.setTitle("");
+        return handle;
+    }
+
+    private void retryStartBridge() {
+        var t = new PauseTransition(Duration.millis(50));
+        t.setOnFinished(e -> startBridgeIfReady());
+        t.play();
+    }
+
+    private void wakeupBridge() {
+        var window = getScene() != null ? getScene().getWindow() : null;
+        if (window == null || !window.isShowing()) return;
+
+        long parentHandle = resolveParentHandle(window);
+        if (parentHandle == 0L && SystemUtils.isWindows()) {
+            var t = new PauseTransition(Duration.millis(50));
+            t.setOnFinished(e -> wakeupBridge());
+            t.play();
+            return;
+        }
+
+        bridge.wakeup(parentHandle);
+        syncBounds();
+    }
+
+    void syncBounds() {
+        if (!bridgeStarted || getScene() == null || getScene().getWindow() == null) return;
+
+        var window = getScene().getWindow();
+        var scene = getScene();
+        var bounds = localToScene(getBoundsInLocal());
+        if (bounds == null) return;
+
+        int x, y, w, h;
+        if (SystemUtils.isWindows()) {
+            double sx = window.getOutputScaleX();
+            double sy = window.getOutputScaleY();
+            x = (int) Math.round(bounds.getMinX() * sx);
+            y = (int) Math.round(bounds.getMinY() * sy);
+            w = (int) Math.round(bounds.getWidth() * sx);
+            h = (int) Math.round(bounds.getHeight() * sy);
+        } else {
+            x = (int) Math.round(bounds.getMinX() + scene.getX());
+            y = (int) Math.round(bounds.getMinY() + scene.getY());
+            w = (int) Math.round(bounds.getWidth());
+            h = (int) Math.round(bounds.getHeight());
+        }
+
+        bridge.updateBounds(x, y, w, h);
+    }
+
+    /**
+     * Navigates the webview to the given AI provider.
+     * Shows a loading overlay while the page transitions.
+     */
+    public void setCurrentConfig(AiConfiguration.AiConfig config) {
+        var icon = AiDock.ICON_CACHE.get(config.icon());
+
+        if (!bridgeStarted) {
+            // Bridge hasn't initialised yet — just show the overlay until
+            // onReadyCallback fires; the bridge will load startUrl naturally.
+            overlay.activate(icon, 0, null);
+            bridge.setCurrentConfig(config); // queue for when bridge is ready
+            return;
+        }
+
+        // Bridge is running: hide the webview, navigate, reveal after 1200 ms.
+        bridge.setVisible(false);
+        overlay.activate(icon, 1200, () -> {
+            syncBounds();
+            bridge.setVisible(true);
+        });
+
+        bridge.setCurrentConfig(config);
+    }
+
+    public void clearCookies() {
+        bridge.clearCookies();
+    }
+
+    public void resetZoom() {
+        bridge.resetZoom();
+    }
+
+    public void restart() {
+        var url = appPreferences.getLastUrl() != null ? appPreferences.getLastUrl() : startUrl;
+        bridge.navigate(url);
+    }
+
+    public void shutdown(Runnable onComplete) {
+        bridge.shutdown(() -> Platform.runLater(() -> {
+            onComplete.run();
+            System.exit(0);
+        }));
+    }
+
+    private void checkIfAuthPage(String url) {
+        if (url == null) return;
+        var lower = url.toLowerCase();
+        boolean isAuth = lower.contains("accounts.google.com")
+                || lower.contains("appleid.apple.com")
+                || lower.contains("github.com/login")
+                || lower.contains("oauth")
+                || lower.contains("signin")
+                || lower.contains("login");
+
+        if (onAuthPageDetected != null) {
+            Platform.runLater(() -> onAuthPageDetected.accept(isAuth));
+        }
+    }
+}

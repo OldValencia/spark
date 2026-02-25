@@ -1,6 +1,6 @@
 package to.sparkapp.app.ui.topbar;
 
-import to.sparkapp.app.ui.FxWebViewPane;
+import to.sparkapp.app.ui.webview.FxWebViewPane;
 import to.sparkapp.app.ui.Theme;
 import to.sparkapp.app.ui.topbar.components.AnimatedIconButton;
 import to.sparkapp.app.ui.topbar.components.ZoomButton;

@@ -9,7 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPaths;
 import to.sparkapp.app.config.AppPreferences;
-import to.sparkapp.app.ui.FxWebViewPane;
+import to.sparkapp.app.ui.webview.FxWebViewPane;
 import to.sparkapp.app.ui.Theme;
 import to.sparkapp.app.ui.topbar.utils.AiDockIconUtils;
 import to.sparkapp.app.ui.topbar.utils.AiDockOrderUtils;
