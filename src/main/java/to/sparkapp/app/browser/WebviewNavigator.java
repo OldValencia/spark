@@ -4,6 +4,9 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 @Slf4j
@@ -14,6 +17,13 @@ class WebviewNavigator {
 
     private volatile long currentNavId = 0L;
     private volatile String currentUrl;
+
+    private final ScheduledExecutorService scheduler =
+            Executors.newSingleThreadScheduledExecutor(r -> {
+                var t = new Thread(r, "spark-nav-scheduler");
+                t.setDaemon(true);
+                return t;
+            });
 
     @Setter
     private Consumer<String> onUrlChanged;
@@ -36,74 +46,68 @@ class WebviewNavigator {
 
     void navigate(String url) {
         this.currentUrl = url;
-        long navId = System.currentTimeMillis();
+        final long navId = System.currentTimeMillis();
         this.currentNavId = navId;
 
+        // Шаг 1: about:blank
         bridge.dispatch(() -> {
             if (currentNavId == navId) {
-                log.debug("WebviewNavigator: Soft cease triggered (about:blank) for [Nav-{}]", navId);
+                log.debug("WebviewNavigator: Blanking for [Nav-{}]", navId);
                 bridge.loadURL("about:blank");
             }
         });
 
-        new Thread(() -> {
-            try {
-                Thread.sleep(150);
-            } catch (InterruptedException ignored) {
-            }
-
-            if (navId == this.currentNavId) {
-                bridge.dispatch(() -> {
-                    if (currentNavId == navId) {
-                        log.info("WebviewNavigator: Loading actual URL: {} [Nav-{}]", url, navId);
-                        bridge.loadURL(url);
-                    }
-                });
-
-                try {
-                    Thread.sleep(800);
-                } catch (InterruptedException ignored) {
+        // Шаг 2: real url URL after 150 ms
+        schedule(150, () -> {
+            if (navId != currentNavId) return;
+            bridge.dispatch(() -> {
+                if (currentNavId == navId) {
+                    log.info("WebviewNavigator: Loading {} [Nav-{}]", url, navId);
+                    bridge.loadURL(url);
                 }
+            });
 
-                if (navId == this.currentNavId) {
+            // Шаг 3: zoom after 800 ms after URL loaded
+            schedule(800, () -> {
+                if (navId == currentNavId) {
                     bridge.dispatch(zoomManager::applyZoomCss);
                 }
-            }
-        }, "spark-navigate-" + navId).start();
+            });
+        });
     }
 
     void clearCookies() {
         log.info("WebviewNavigator: Clearing cookies...");
-        var returnUrl = currentUrl != null ? currentUrl : "about:blank";
-        var navId = System.currentTimeMillis();
+        final String returnUrl = currentUrl != null ? currentUrl : "about:blank";
+        final long navId = System.currentTimeMillis();
         this.currentNavId = navId;
 
         bridge.dispatch(() -> {
-            if (currentNavId == navId) {
-                bridge.eval("""
-                        (function() {
-                            document.cookie.split(';').forEach(function(c) {
-                                document.cookie = c.trim().split('=')[0] +
-                                    '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-                            });
-                        })();
-                        """);
-                bridge.loadURL("about:blank");
-            }
+            if (currentNavId != navId) return;
 
-            new Thread(() -> {
-                try {
-                    Thread.sleep(400);
-                } catch (InterruptedException ignored) {
-                }
+            bridge.eval("""
+                    (function() {
+                        document.cookie.split(';').forEach(function(c) {
+                            document.cookie = c.trim().split('=')[0] +
+                                '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
+                        });
+                    })();
+                    """);
+            bridge.loadURL("about:blank");
+
+            schedule(400, () -> {
                 if (currentNavId == navId) {
                     bridge.dispatch(() -> bridge.loadURL(returnUrl));
                 }
-            }, "spark-cookie-clear-" + navId).start();
+            });
         });
     }
 
     String getCurrentUrl() {
         return currentUrl != null ? currentUrl : "about:blank";
+    }
+
+    private void schedule(long delayMs, Runnable task) {
+        scheduler.schedule(task, delayMs, TimeUnit.MILLISECONDS);
     }
 }

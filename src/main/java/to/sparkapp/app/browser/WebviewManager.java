@@ -81,6 +81,7 @@ public class WebviewManager {
                 ready.set(false);
 
                 webview = new Webview(false);
+                log.info("WebView version: {}", Webview.getVersion());
                 this.nativeHandle = webview.getNativeWindowPointer();
 
                 if (nativeHandle != 0) {
