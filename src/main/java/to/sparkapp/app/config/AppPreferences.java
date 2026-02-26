@@ -3,7 +3,6 @@ package to.sparkapp.app.config;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import to.sparkapp.app.utils.AutoStartManager;
-import to.sparkapp.app.utils.SystemUtils;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -11,6 +10,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class AppPreferences {
@@ -20,6 +23,13 @@ public class AppPreferences {
 
     private final ObjectMapper mapper = new ObjectMapper();
     private AppConfig config;
+
+    private final ScheduledExecutorService saveScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        var t = new Thread(r, "preferences-save");
+        t.setDaemon(true);
+        return t;
+    });
+    private volatile ScheduledFuture<?> pendingDebouncedSave;
 
     public AppPreferences() {
         mapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
@@ -86,6 +96,9 @@ public class AppPreferences {
         }
     }
 
+    /**
+     * Immediate, synchronous write — used for settings that change rarely.
+     */
     private void save() {
         new File(AppPaths.DIR).mkdirs();
         try {
@@ -95,10 +108,24 @@ public class AppPreferences {
         }
     }
 
+    /**
+     * Deferred write — coalesces multiple rapid calls into one disk write
+     * 500 ms after the last mutation.  Used for values that can change very
+     * frequently (current URL, zoom level).
+     */
+    private void saveDebounced() {
+        if (pendingDebouncedSave != null) {
+            pendingDebouncedSave.cancel(false);
+        }
+        pendingDebouncedSave = saveScheduler.schedule(this::save, 500, TimeUnit.MILLISECONDS);
+    }
+
+    // Last-URL — debounced because the webview fires a URL-change event for
+    // every in-app navigation (e.g. chatgpt.com → chatgpt.com/c/<uuid>).
     public void setLastUrl(String url) {
         if (Boolean.TRUE.equals(config.rememberLastAi)) {
             config.lastUrl = url;
-            save();
+            saveDebounced();
         }
     }
 
@@ -122,7 +149,7 @@ public class AppPreferences {
     public void setLastZoomValue(Double zoomValue) {
         if (Boolean.TRUE.equals(config.zoomEnabled)) {
             config.lastZoomValue = zoomValue;
-            save();
+            saveDebounced();
         }
     }
 

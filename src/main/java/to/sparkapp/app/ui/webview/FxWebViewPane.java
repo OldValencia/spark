@@ -42,7 +42,7 @@ public class FxWebViewPane extends StackPane {
     @Setter
     private Consumer<Boolean> onAuthPageDetected;
 
-    public FxWebViewPane(String startUrl, AppPreferences appPreferences, Runnable onToggleSettings) {
+    public FxWebViewPane(String startUrl, AppPreferences appPreferences) {
         this.startUrl = startUrl;
         this.appPreferences = appPreferences;
 
@@ -63,8 +63,6 @@ public class FxWebViewPane extends StackPane {
         bridge.setOnReadyCallback(() -> Platform.runLater(() -> {
             syncBounds();
             bridge.setVisible(true);
-            // If the overlay is still showing (e.g. from initial setCurrentConfig
-            // call before the bridge had started), dismiss it now.
             if (overlay.isActive()) {
                 overlay.deactivate();
             }
@@ -83,13 +81,11 @@ public class FxWebViewPane extends StackPane {
     }
 
     private void setupLayoutListeners() {
-        // Trigger initial start once we have a scene and the window is showing.
         boundsInLocalProperty().addListener((obs, o, n) -> {
             if (!bridgeStarted) startBridgeIfReady();
             else syncBounds();
         });
 
-        // Reposition when the window moves (important on macOS).
         localToSceneTransformProperty().addListener((obs, o, n) -> syncBounds());
 
         sceneProperty().addListener((obs, oldScene, newScene) -> {
@@ -105,13 +101,30 @@ public class FxWebViewPane extends StackPane {
                 newWin.showingProperty().addListener((o, old, isShowing) -> {
                     if (isShowing) {
                         if (!bridgeStarted) startBridgeIfReady();
-                        else wakeupBridge();
                     } else if (bridgeStarted) {
                         bridge.hibernate();
                     }
                 });
             });
         });
+    }
+
+    /**
+     * Call after the host window becomes visible (tray restore or hotkey show).
+     * Deferred 100 ms so the Win32 HWND is fully activated before FindWindow.
+     */
+    public void onWindowRestored() {
+        var delay = new PauseTransition(Duration.millis(100));
+        delay.setOnFinished(e -> doWakeupBridge());
+        delay.play();
+    }
+
+    /**
+     * Call when the host window is hidden (tray hide or hotkey hide).
+     * Belt-and-suspenders alongside the showingProperty listener.
+     */
+    public void onWindowHidden() {
+        bridge.hibernate();
     }
 
     private synchronized void startBridgeIfReady() {
@@ -154,19 +167,24 @@ public class FxWebViewPane extends StackPane {
         t.play();
     }
 
-    private void wakeupBridge() {
+    private void doWakeupBridge() {
         var window = getScene() != null ? getScene().getWindow() : null;
         if (window == null || !window.isShowing()) return;
 
         long parentHandle = resolveParentHandle(window);
         if (parentHandle == 0L && SystemUtils.isWindows()) {
             var t = new PauseTransition(Duration.millis(50));
-            t.setOnFinished(e -> wakeupBridge());
+            t.setOnFinished(e -> doWakeupBridge());
             t.play();
             return;
         }
 
+        log.info("FxWebViewPane: Waking up bridge with parentHandle=0x{}", Long.toHexString(parentHandle));
         bridge.wakeup(parentHandle);
+
+        var root = getScene().getRoot();
+        root.applyCss();
+        root.layout();
         syncBounds();
     }
 
@@ -204,14 +222,11 @@ public class FxWebViewPane extends StackPane {
         var icon = AiDock.ICON_CACHE.get(config.icon());
 
         if (!bridgeStarted) {
-            // Bridge hasn't initialised yet — just show the overlay until
-            // onReadyCallback fires; the bridge will load startUrl naturally.
             overlay.activate(icon, 0, null);
-            bridge.setCurrentConfig(config); // queue for when bridge is ready
+            bridge.setCurrentConfig(config);
             return;
         }
 
-        // Bridge is running: hide the webview, navigate, reveal after 1200 ms.
         bridge.setVisible(false);
         overlay.activate(icon, 1200, () -> {
             syncBounds();

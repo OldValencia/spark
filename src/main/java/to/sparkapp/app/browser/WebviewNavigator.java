@@ -44,35 +44,26 @@ class WebviewNavigator {
         navigate(config.url());
     }
 
+    /**
+     * Navigates directly to the target URL.
+     */
     void navigate(String url) {
         this.currentUrl = url;
         final long navId = System.currentTimeMillis();
         this.currentNavId = navId;
 
-        // Шаг 1: about:blank
         bridge.dispatch(() -> {
             if (currentNavId == navId) {
-                log.debug("WebviewNavigator: Blanking for [Nav-{}]", navId);
-                bridge.loadURL("about:blank");
+                log.info("WebviewNavigator: Loading {} [Nav-{}]", url, navId);
+                bridge.loadURL(url);
             }
         });
 
-        // Шаг 2: real url URL after 150 ms
-        schedule(150, () -> {
-            if (navId != currentNavId) return;
-            bridge.dispatch(() -> {
-                if (currentNavId == navId) {
-                    log.info("WebviewNavigator: Loading {} [Nav-{}]", url, navId);
-                    bridge.loadURL(url);
-                }
-            });
-
-            // Шаг 3: zoom after 800 ms after URL loaded
-            schedule(800, () -> {
-                if (navId == currentNavId) {
-                    bridge.dispatch(zoomManager::applyZoomCss);
-                }
-            });
+        // Apply zoom after the page has had time to load.
+        schedule(500, () -> {
+            if (navId == currentNavId) {
+                bridge.dispatch(zoomManager::applyZoomCss);
+            }
         });
     }
 

@@ -8,6 +8,9 @@ import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.utils.NativeWindowUtils;
 import to.sparkapp.app.utils.SystemUtils;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -21,11 +24,19 @@ public class WebviewManager {
     private final AtomicBoolean ready = new AtomicBoolean(false);
     private final AtomicBoolean disposed = new AtomicBoolean(false);
     private final AtomicBoolean isStarting = new AtomicBoolean(false);
+    private volatile boolean isFirstStart = true;
 
     private volatile int nativeX, nativeY, nativeW, nativeH;
 
     private final WebviewZoomManager zoomManager;
     private final WebviewNavigator navigator;
+
+    private final ScheduledExecutorService dispatchWaitScheduler =
+            Executors.newSingleThreadScheduledExecutor(r -> {
+                var t = new Thread(r, "webview-dispatch-waiter");
+                t.setDaemon(true);
+                return t;
+            });
 
     @Setter
     private Runnable onReadyCallback;
@@ -80,14 +91,27 @@ public class WebviewManager {
                 log.info("WebviewManager: Starting webview event loop...");
                 ready.set(false);
 
-                webview = new Webview(false);
+                // On the very first start pass parentHandle directly to webview_create
+                // so the native window is born as WS_CHILD and never flashes as a
+                // standalone white popup.
+                //
+                // On auto-heal restarts we must NOT pass the stored parentHandle:
+                // after hide/show the JavaFX HWND may have changed, and passing a
+                // stale pointer to webview_create causes "Invalid memory access"
+                // inside the C++ library.  Instead we create without a parent and
+                // call setParent() afterwards once we have confirmed the HWND.
+                boolean firstStart = isFirstStart;
+                isFirstStart = false;
+
+                webview = firstStart ? new Webview(false, parentHandle) : new Webview(false);
                 log.info("WebView version: {}", Webview.getVersion());
                 this.nativeHandle = webview.getNativeWindowPointer();
 
-                if (nativeHandle != 0) {
-                    NativeWindowUtils.setBounds(nativeHandle, -15000, -15000, 10, 10);
+                if (nativeHandle != 0 && !firstStart) {
+                    // Auto-heal path: hide immediately, then re-parent in the
+                    // dispatch callback below once the event loop is running.
                     NativeWindowUtils.setVisible(nativeHandle, false);
-
+                    NativeWindowUtils.setBounds(nativeHandle, -15000, -15000, 10, 10);
                     if (parentHandle != 0) {
                         NativeWindowUtils.setParent(nativeHandle, parentHandle);
                     }
@@ -162,28 +186,27 @@ public class WebviewManager {
                 }
             });
         } else {
-            new Thread(() -> {
-                int waits = 0;
-                while (!ready.get() && !disposed.get() && waits < 100) {
-                    try {
-                        Thread.sleep(50);
-                        waits++;
-                    } catch (InterruptedException ignored) {
-                        return;
-                    }
-                }
-
-                if (webview != null && ready.get()) {
-                    webview.dispatch(() -> {
-                        try {
-                            action.run();
-                        } catch (Exception e) {
-                            log.error("WebviewManager: Task failed", e);
-                        }
-                    });
-                }
-            }, "webview-dispatch-waiter-" + System.currentTimeMillis()).start();
+            scheduleDispatchRetry(action, 0);
         }
+    }
+
+    private void scheduleDispatchRetry(Runnable action, int attempt) {
+        if (disposed.get() || attempt > 100) return;
+
+        dispatchWaitScheduler.schedule(() -> {
+            if (disposed.get()) return;
+            if (ready.get() && webview != null) {
+                webview.dispatch(() -> {
+                    try {
+                        action.run();
+                    } catch (Exception e) {
+                        log.error("WebviewManager: Deferred task failed", e);
+                    }
+                });
+            } else {
+                scheduleDispatchRetry(action, attempt + 1);
+            }
+        }, 50, TimeUnit.MILLISECONDS);
     }
 
     public void eval(String js) {
@@ -215,30 +238,49 @@ public class WebviewManager {
         }
     }
 
+    /**
+     * Hides the webview while the main window is hidden to tray.
+     * The window stays a Win32 child throughout — no unparenting.
+     */
     public void hibernate() {
         if (!ready.get() || nativeHandle == 0 || !SystemUtils.isWindows()) return;
 
-        NativeWindowUtils.unparent(nativeHandle);
         NativeWindowUtils.setVisible(nativeHandle, false);
         NativeWindowUtils.setBounds(nativeHandle, -15000, -15000, 10, 10);
+        log.debug("WebviewManager: Hibernated (child window hidden, parenting unchanged).");
     }
 
+    /**
+     * Restores the webview after the main window returns from the tray.
+     *
+     * <p><b>parentHandle is only updated when the caller provides a non-zero
+     * value.</b>  A transient 0 from a FindWindow race must not overwrite the
+     * valid HWND stored during {@link #init}, otherwise the webview restarts
+     * unparented and appears as a floating window.
+     */
     public void wakeup(long parentHandle) {
-        this.parentHandle = parentHandle;
+        if (parentHandle != 0) {
+            this.parentHandle = parentHandle;
+        }
+
         if (disposed.get() || !SystemUtils.isWindows()) return;
 
         if (!ready.get() || nativeHandle == 0 || webview == null) {
-            log.info("WebviewManager: Webview suspended. Reviving...");
+            log.info("WebviewManager: Webview not alive after wakeup — reviving with url={}, parentHandle=0x{}",
+                    navigator.getCurrentUrl(), Long.toHexString(this.parentHandle));
             startWebviewThread(navigator.getCurrentUrl());
         } else {
-            NativeWindowUtils.setParent(nativeHandle, parentHandle);
+            NativeWindowUtils.setParent(nativeHandle, this.parentHandle);
             NativeWindowUtils.setBounds(nativeHandle, nativeX, nativeY, nativeW, nativeH);
             NativeWindowUtils.setVisible(nativeHandle, true);
+            log.debug("WebviewManager: Woke up — webview restored at ({},{}) {}x{}",
+                    nativeX, nativeY, nativeW, nativeH);
         }
     }
 
     public void shutdown(Runnable onComplete) {
         if (disposed.getAndSet(true)) return;
+        dispatchWaitScheduler.shutdownNow();
         if (webview != null && ready.get()) {
             dispatch(() -> {
                 try {

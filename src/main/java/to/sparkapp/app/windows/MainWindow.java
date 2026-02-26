@@ -52,7 +52,6 @@ public class MainWindow extends Stage {
         this.setHeight(HEIGHT);
         this.centerOnScreen();
 
-        // Prevents JavaFX runtime from stopping when the main window is closed (keeps tray alive)
         Platform.setImplicitExit(false);
 
         this.focusedProperty().addListener((obs, oldVal, newVal) -> {
@@ -68,33 +67,23 @@ public class MainWindow extends Stage {
         });
 
         this.setOnCloseRequest(e -> {
-            if (settingsWindow != null) {
-                settingsWindow.close();
-            }
+            if (settingsWindow != null) settingsWindow.close();
         });
 
         this.iconifiedProperty().addListener((obs, oldVal, isIconified) -> {
-            if (isIconified && settingsWindow != null) {
-                settingsWindow.close();
-            }
+            if (isIconified && settingsWindow != null) settingsWindow.close();
         });
 
         this.showingProperty().addListener((obs, oldVal, isShowing) -> {
-            if (!isShowing && settingsWindow != null) {
-                settingsWindow.close();
-            }
+            if (!isShowing && settingsWindow != null) settingsWindow.close();
         });
 
         this.xProperty().addListener((obs, oldVal, newVal) -> {
-            if (settingsWindow != null) {
-                settingsWindow.close();
-            }
+            if (settingsWindow != null) settingsWindow.close();
         });
 
         this.yProperty().addListener((obs, oldVal, newVal) -> {
-            if (settingsWindow != null) {
-                settingsWindow.close();
-            }
+            if (settingsWindow != null) settingsWindow.close();
         });
     }
 
@@ -107,6 +96,35 @@ public class MainWindow extends Stage {
         if (!isAuth && !this.isAlwaysOnTop()) {
             this.setAlwaysOnTop(true);
         }
+    }
+
+    /**
+     * Shows the main window and wakes up the webview.
+     * Public so that both the tray action and GlobalHotkeyManager can use it.
+     */
+    public void showMainWindow() {
+        this.show();
+        this.setIconified(false);
+        this.toFront();
+        this.requestFocus();
+
+        if (fxWebViewPane != null) {
+            fxWebViewPane.onWindowRestored();
+        }
+    }
+
+    /**
+     * Hides the main window and hibernates the webview.
+     * Public so that GlobalHotkeyManager can use it alongside showMainWindow().
+     */
+    public void hideMainWindow() {
+        if (settingsWindow != null && settingsWindow.isOpen()) {
+            settingsWindow.close();
+        }
+        if (fxWebViewPane != null) {
+            fxWebViewPane.onWindowHidden();
+        }
+        this.hide();
     }
 
     private void handleProvidersChanged() {
@@ -126,7 +144,7 @@ public class MainWindow extends Stage {
             rootPane.setTop(null);
 
             var newTopBarArea = new TopBarArea(aiConfiguration, fxWebViewPane, this, settingsWindow, appPreferences,
-                    this::toggleSettings, this::closeWindow);
+                    this::toggleSettings, this::hideMainWindow);
 
             rootPane.setTop(newTopBarArea);
             log.info("TopBar reloaded with {} providers", aiConfiguration.getConfigurations().size());
@@ -134,15 +152,11 @@ public class MainWindow extends Stage {
     }
 
     private void setupTray() {
-        if (!SystemTray.isSupported()) {
-            return;
-        }
+        if (!SystemTray.isSupported()) return;
 
         var tray = SystemTray.getSystemTray();
         var iconUrl = getClass().getResource("/app-icons/icon.png");
-        if (iconUrl == null) {
-            iconUrl = getClass().getResource("/app-icons/icon.ico");
-        }
+        if (iconUrl == null) iconUrl = getClass().getResource("/app-icons/icon.ico");
 
         Image image;
         try {
@@ -175,31 +189,16 @@ public class MainWindow extends Stage {
         }
     }
 
-    private void showMainWindow() {
-        this.show();
-        this.setIconified(false);
-        this.toFront();
-        this.requestFocus();
-    }
-
     private void toggleSettings() {
         if (settingsWindow.isOpen() && !settingsWindow.isShowing()) {
             settingsWindow.open();
             return;
         }
-
         if (settingsWindow.isOpen()) {
             settingsWindow.close();
         } else {
             settingsWindow.open();
         }
-    }
-
-    private void closeWindow() {
-        if (settingsWindow != null && settingsWindow.isOpen()) {
-            settingsWindow.close();
-        }
-        this.hide();
     }
 
     private void performShutdown() {
@@ -237,9 +236,7 @@ public class MainWindow extends Stage {
             Scene scene = new Scene(rootPane, WIDTH, HEIGHT, Color.TRANSPARENT);
             this.setScene(scene);
 
-            if (splashScreen != null) {
-                splashScreen.updateStatus("Initializing browser engine...");
-            }
+            if (splashScreen != null) splashScreen.updateStatus("Initializing browser engine...");
 
             fxWebViewPane = getFxWebViewPane();
             rootPane.setCenter(fxWebViewPane);
@@ -260,7 +257,7 @@ public class MainWindow extends Stage {
             settingsWindow = new SettingsWindow(this, settingsPanel);
 
             var topBarArea = new TopBarArea(aiConfiguration, fxWebViewPane, this, settingsWindow, appPreferences,
-                    this::toggleSettings, this::closeWindow);
+                    this::toggleSettings, this::hideMainWindow);
             rootPane.setTop(topBarArea);
 
             setupTray();
@@ -270,21 +267,15 @@ public class MainWindow extends Stage {
                 @Override
                 public void run() {
                     Platform.runLater(() -> {
-                        if (splashScreen != null) {
-                            splashScreen.hideSplash();
-                        }
-                        if (!appPreferences.isStartApplicationHiddenEnabled()) {
-                            show();
-                        }
+                        if (splashScreen != null) splashScreen.hideSplash();
+                        if (!appPreferences.isStartApplicationHiddenEnabled()) show();
                     });
                 }
             }, 500);
 
         } catch (Exception e) {
             log.error("Failed to initialize application", e);
-            if (splashScreen != null) {
-                splashScreen.hideSplash();
-            }
+            if (splashScreen != null) splashScreen.hideSplash();
             System.exit(1);
         }
     }
@@ -314,7 +305,7 @@ public class MainWindow extends Stage {
             startUrl = "https://chatgpt.com";
         }
 
-        var pane = new FxWebViewPane(startUrl, appPreferences, this::toggleSettings);
+        var pane = new FxWebViewPane(startUrl, appPreferences);
         pane.setOnAuthPageDetected(this::setAuthMode);
 
         return pane;

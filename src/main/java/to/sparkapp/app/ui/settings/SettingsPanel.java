@@ -30,8 +30,6 @@ public class SettingsPanel extends VBox {
     @Setter
     private Runnable onProvidersChanged;
     @Setter
-    private Consumer<Boolean> onZoomEnabledChanged;
-    @Setter
     private Consumer<Boolean> onAutoUpdateChanged;
 
     private final AppPreferences appPreferences;
@@ -146,13 +144,7 @@ public class SettingsPanel extends VBox {
     private void buildBrowserSection() {
         addSectionHeader("Browser");
 
-        addToggleRow("Zoom enabled",
-                appPreferences.isZoomEnabled(),
-                val -> {
-                    if (onZoomEnabledChanged != null) {
-                        onZoomEnabledChanged.accept(val);
-                    }
-                });
+        addToggleRow("Zoom enabled", appPreferences.isZoomEnabled(), appPreferences::setZoomEnabled);
 
         addToggleRow("Try to request dark mode from websites (restart required)",
                 appPreferences.isDarkModeEnabled(),

@@ -6,18 +6,14 @@ import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 import com.github.kwhat.jnativehook.mouse.NativeMouseEvent;
 import com.github.kwhat.jnativehook.mouse.NativeMouseInputListener;
+import javafx.application.Platform;
+import lombok.Getter;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.windows.MainWindow;
 import to.sparkapp.app.windows.SettingsWindow;
-import javafx.application.Platform;
-import lombok.Getter;
 
-import javax.swing.Timer; // Timer from Swing is ok here for background logical ticks, or use java.util.Timer
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import javax.swing.Timer;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -129,13 +125,10 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
             settingsWindow.close();
         }
 
-        if (mainWindow.isShowing() && mainWindow.isFocused()) {
-            mainWindow.hide();
+        if (mainWindow.isShowing()) {
+            mainWindow.hideMainWindow();
         } else {
-            mainWindow.show();
-            mainWindow.setIconified(false);
-            mainWindow.toFront();
-            mainWindow.requestFocus();
+            mainWindow.showMainWindow();
         }
     }
 
@@ -196,7 +189,8 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
         if (recording) {
             var simpleClick = false;
             synchronized (pressedKeys) {
-                simpleClick = pressedKeys.size() == 1 && (pressedKeys.contains(MOUSE_OFFSET + 1) || pressedKeys.contains(MOUSE_OFFSET + 2));
+                simpleClick = pressedKeys.size() == 1
+                        && (pressedKeys.contains(MOUSE_OFFSET + 1) || pressedKeys.contains(MOUSE_OFFSET + 2));
             }
 
             if (!pressedKeys.isEmpty() && !simpleClick) {
