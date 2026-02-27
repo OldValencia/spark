@@ -76,7 +76,7 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 application {
-    mainClass = 'to.sparkapp.app.SparkApplication'
+    mainClass = 'to.sparkapp.app.Launcher'
     applicationName = 'Spark'
     applicationDefaultJvmArgs = javaOpts
 }
