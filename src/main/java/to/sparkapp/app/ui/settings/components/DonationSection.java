@@ -13,10 +13,12 @@ public class DonationSection extends HBox {
         this.setMaxWidth(Double.MAX_VALUE);
 
         var coffeeColor = Color.rgb(255, 200, 0);
-        var bmcBtn = new ColorfulButton("☕ Buy me a coffee", coffeeColor, () -> UrlUtils.openLink("https://buymeacoffee.com/oldvalencia"));
+        var bmcBtn = new ColorfulButton("☕ Buy me a coffee", coffeeColor,
+                () -> UrlUtils.openLink("https://buymeacoffee.com/oldvalencia"));
 
         var kofiColor = Color.rgb(255, 94, 91);
-        var kofiBtn = new ColorfulButton("❤️ Ko-Fi", kofiColor, () -> UrlUtils.openLink("https://ko-fi.com/oldvalencia"));
+        var kofiBtn = new ColorfulButton("❤ Ko-Fi", kofiColor,
+                () -> UrlUtils.openLink("https://ko-fi.com/oldvalencia"));
 
         this.getChildren().addAll(bmcBtn, kofiBtn);
     }

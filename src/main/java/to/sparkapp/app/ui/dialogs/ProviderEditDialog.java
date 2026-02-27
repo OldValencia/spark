@@ -80,6 +80,10 @@ public class ProviderEditDialog extends Stage {
         alert.setTitle("Validation Error");
         alert.setHeaderText(null);
         alert.setContentText(message);
+
+        var stage = (Stage) alert.getDialogPane().getScene().getWindow();
+        stage.setAlwaysOnTop(true);
+
         alert.showAndWait();
     }
 

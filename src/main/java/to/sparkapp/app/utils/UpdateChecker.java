@@ -11,32 +11,48 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class UpdateChecker {
 
     private static final String REPO_URL = "https://api.github.com/repos/oldvalencia/spark/releases/latest";
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(8))
+            .build();
 
     public static void check(Window parentWindow) {
-        new Thread(() -> {
-            try (var client = HttpClient.newHttpClient()) {
-                var request = HttpRequest.newBuilder()
-                        .uri(URI.create(REPO_URL))
-                        .build();
+        var request = HttpRequest.newBuilder()
+                .uri(URI.create(REPO_URL))
+                .timeout(Duration.ofSeconds(10))
+                .build();
 
-                var response = client.send(request, HttpResponse.BodyHandlers.ofString());
-                if (response.statusCode() == 200) {
-                    var json = JsonParser.parseString(response.body()).getAsJsonObject();
-                    var latestTag = json.get("tag_name").getAsString();
-
-                    if (isNewerVersion(latestTag)) {
-                        Platform.runLater(() -> showUpdateDialog(parentWindow, latestTag, json.get("html_url").getAsString()));
+        CompletableFuture
+                .supplyAsync(() -> {
+                    try {
+                        return HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
                     }
-                }
-            } catch (Exception e) {
-                log.error("Error while checking new version", e);
-            }
-        }).start();
+                })
+                .thenAccept(response -> {
+                    if (response.statusCode() != 200) return;
+                    try {
+                        var json = JsonParser.parseString(response.body()).getAsJsonObject();
+                        var latestTag = json.get("tag_name").getAsString();
+                        var htmlUrl = json.get("html_url").getAsString();
+                        if (isNewerVersion(latestTag)) {
+                            Platform.runLater(() -> showUpdateDialog(parentWindow, latestTag, htmlUrl));
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to parse GitHub release response", e);
+                    }
+                })
+                .exceptionally(e -> {
+                    log.debug("Update check failed: {}", e.getMessage());
+                    return null;
+                });
     }
 
     private static boolean isNewerVersion(String latest) {
@@ -45,7 +61,6 @@ public class UpdateChecker {
             var c = SystemUtils.VERSION.replace("v", "").replace("Dev-Build", "0.0.0").trim();
             var lParts = l.split("\\.");
             var cParts = c.split("\\.");
-
             int length = Math.max(lParts.length, cParts.length);
             for (int i = 0; i < length; i++) {
                 int lVal = i < lParts.length ? Integer.parseInt(lParts[i]) : 0;
@@ -60,14 +75,11 @@ public class UpdateChecker {
     }
 
     private static void showUpdateDialog(Window parent, String version, String url) {
-        var shouldUpdate = UpdateDialog.show(version, parent);
-
-        if (shouldUpdate) {
-            try {
-                Desktop.getDesktop().browse(new URI(url));
-            } catch (Exception ex) {
-                log.error("Error while opening browser", ex);
-            }
+        if (!UpdateDialog.show(version, parent)) return;
+        try {
+            Desktop.getDesktop().browse(new URI(url));
+        } catch (Exception e) {
+            log.error("Error opening browser for update", e);
         }
     }
 }

@@ -1,5 +1,6 @@
 package to.sparkapp.app.ui.settings.components;
 
+import javafx.stage.Stage;
 import to.sparkapp.app.config.AiConfiguration;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
@@ -34,6 +35,9 @@ public class ResetProvidersPanel extends HBox {
         alert.setTitle("Reset Configuration");
         alert.setHeaderText(null);
         alert.setContentText("Are you sure? This will delete all custom providers and icons.");
+
+        var stage = (Stage) alert.getDialogPane().getScene().getWindow();
+        stage.setAlwaysOnTop(true);
 
         var result = alert.showAndWait();
         if (result.isPresent()) {

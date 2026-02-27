@@ -10,6 +10,7 @@ import javafx.util.Duration;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.browser.WebviewManager;
+import to.sparkapp.app.browser.WebviewNavigator;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.Theme;
@@ -257,14 +258,11 @@ public class FxWebViewPane extends StackPane {
     }
 
     private void checkIfAuthPage(String url) {
-        if (url == null) return;
-        var lower = url.toLowerCase();
-        boolean isAuth = lower.contains("accounts.google.com")
-                || lower.contains("appleid.apple.com")
-                || lower.contains("github.com/login")
-                || lower.contains("oauth")
-                || lower.contains("signin")
-                || lower.contains("login");
+        var isAuth = WebviewNavigator.isAuthUrl(url);
+
+        if (isAuth == null) {
+            return;
+        }
 
         if (onAuthPageDetected != null) {
             Platform.runLater(() -> onAuthPageDetected.accept(isAuth));

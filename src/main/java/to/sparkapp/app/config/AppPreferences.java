@@ -2,9 +2,9 @@ package to.sparkapp.app.config;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import to.sparkapp.app.utils.AutoStartManager;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import to.sparkapp.app.utils.AutoStartManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -55,15 +55,15 @@ public class AppPreferences {
         boolean changed = false;
 
         if (config.rememberLastAi == null) {
-            config.rememberLastAi = true;
+            config.rememberLastAi = Boolean.parseBoolean(AppPreferencesKeys.REMEMBER_LAST_AI.getDefaultValue());
             changed = true;
         }
         if (config.lastZoomValue == null) {
-            config.lastZoomValue = 0.0;
+            config.lastZoomValue = Double.parseDouble(AppPreferencesKeys.LAST_ZOOM_VALUE.getDefaultValue());
             changed = true;
         }
         if (config.zoomEnabled == null) {
-            config.zoomEnabled = true;
+            config.zoomEnabled = Boolean.parseBoolean(AppPreferencesKeys.ZOOM_ENABLED.getDefaultValue());
             changed = true;
         }
         if (config.aiOrder == null) {
@@ -71,15 +71,15 @@ public class AppPreferences {
             changed = true;
         }
         if (config.checkUpdatesOnStartup == null) {
-            config.checkUpdatesOnStartup = true;
+            config.checkUpdatesOnStartup = Boolean.parseBoolean(AppPreferencesKeys.CHECK_UPDATES_ON_STARTUP.getDefaultValue());
             changed = true;
         }
         if (config.autoStartEnabled == null) {
-            config.autoStartEnabled = true;
+            config.autoStartEnabled = Boolean.parseBoolean(AppPreferencesKeys.AUTO_START_ENABLED.getDefaultValue());
             changed = true;
         }
         if (config.startApplicationHiddenEnabled == null) {
-            config.startApplicationHiddenEnabled = false;
+            config.startApplicationHiddenEnabled = Boolean.parseBoolean(AppPreferencesKeys.START_APPLICATION_HIDDEN_ENABLED.getDefaultValue());
             changed = true;
         }
         if (config.hotkeyToStartApplication == null) {
@@ -87,7 +87,7 @@ public class AppPreferences {
             changed = true;
         }
         if (config.darkModeEnabled == null) {
-            config.darkModeEnabled = true;
+            config.darkModeEnabled = Boolean.parseBoolean(AppPreferencesKeys.DARK_MODE_ENABLED.getDefaultValue());
             changed = true;
         }
 
@@ -197,8 +197,8 @@ public class AppPreferences {
         return Boolean.TRUE.equals(config.autoStartEnabled);
     }
 
-    public void setStartApplicationHiddenEnabled(boolean autoStartEnabled) {
-        config.startApplicationHiddenEnabled = autoStartEnabled;
+    public void setStartApplicationHiddenEnabled(boolean enabled) {
+        config.startApplicationHiddenEnabled = enabled;
         save();
     }
 
@@ -212,8 +212,9 @@ public class AppPreferences {
     }
 
     public List<Integer> getHotkeyToStartApplication() {
-        return config.hotkeyToStartApplication != null ?
-                new ArrayList<>(config.hotkeyToStartApplication) : new ArrayList<>();
+        return config.hotkeyToStartApplication != null
+                ? new ArrayList<>(config.hotkeyToStartApplication)
+                : new ArrayList<>();
     }
 
     public void setDarkModeEnabled(boolean darkModeEnabled) {

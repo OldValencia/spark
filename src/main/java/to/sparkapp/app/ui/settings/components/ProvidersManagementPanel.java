@@ -1,5 +1,6 @@
 package to.sparkapp.app.ui.settings.components;
 
+import javafx.stage.Stage;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.CustomAiProvidersManager;
 import to.sparkapp.app.windows.FrameUtils;
@@ -88,6 +89,9 @@ public class ProvidersManagementPanel extends VBox {
         alert.setTitle("Confirm Deletion");
         alert.setHeaderText(null);
         alert.setContentText("Are you sure you want to delete \"" + provider.name() + "\"?");
+
+        var stage = (Stage) alert.getDialogPane().getScene().getWindow();
+        stage.setAlwaysOnTop(true);
 
         var result = alert.showAndWait();
         if (result.isPresent()) {

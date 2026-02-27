@@ -3,6 +3,7 @@ package to.sparkapp.app;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.utils.LogSetup;
+import to.sparkapp.app.utils.SingleInstanceLock;
 import to.sparkapp.app.windows.MainWindow;
 import javafx.application.Application;
 import javafx.stage.Stage;
@@ -22,9 +23,17 @@ public class SparkApplication extends Application {
     public static void main(String[] args) {
         LogSetup.init();
         initLog = LoggerFactory.getLogger(SparkApplication.class);
+
+        if (!SingleInstanceLock.tryAcquire()) {
+            initLog.info("Another instance is already running — exiting");
+            System.exit(0);
+            return;
+        }
+
         Thread.setDefaultUncaughtExceptionHandler(new GlobalExceptionHandler());
         setupCookies();
         launch(args);
+        SingleInstanceLock.release();
     }
 
     @Override
@@ -33,8 +42,10 @@ public class SparkApplication extends Application {
             var appPreferences = new AppPreferences();
             var aiConfiguration = new AiConfiguration(appPreferences);
             var mainWindow = new MainWindow(aiConfiguration, appPreferences);
-            mainWindow.showWindow();
 
+            SingleInstanceLock.setOnActivate(mainWindow::showMainWindow);
+
+            mainWindow.showWindow();
             initLog.info("Main window displayed.");
         } catch (Exception e) {
             initLog.error("Failed to show main window", e);
