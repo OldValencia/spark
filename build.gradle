@@ -106,7 +106,10 @@ tasks.withType(Test).configureEach {
 
 if (project.hasProperty('generateCds')) {
     tasks.named('run') {
-        dependsOn installDist
+        dependsOn jar, installDist
+
+        classpath = files(jar.archiveFile) + classpath.filter { it.isFile() && it.name.endsWith('.jar') }
+
         jvmArgs("-XX:ArchiveClassesAtExit=${layout.buildDirectory.get().asFile}/install/Spark/lib/spark-classes.jsa")
         jvmArgs("-Dspark.cds.generate=true")
     }
