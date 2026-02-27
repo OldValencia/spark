@@ -106,16 +106,13 @@ tasks.withType(Test).configureEach {
 
 // Run once after install: ./gradlew generateCdsArchive
 tasks.register('generateCdsArchive', JavaExec) {
-    dependsOn installDist
-    group = 'build'
-    description = 'Generates AppCDS archive into the build directory'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = application.mainClass
-    jvmArgs = [
-            "-XX:ArchiveClassesAtExit=${layout.buildDirectory.get().asFile}/install/Spark/lib/spark-classes.jsa",
-            '-Xshare:off',
-            '-Dspark.cds.generate=true'
-    ]
+    if (project.hasProperty('generateCds')) {
+        tasks.named('run') {
+            dependsOn installDist
+            jvmArgs("-XX:ArchiveClassesAtExit=${layout.buildDirectory.get().asFile}/install/Spark/lib/spark-classes.jsa")
+            jvmArgs("-Dspark.cds.generate=true")
+        }
+    }
 }
 
 tasks.register('createInstaller', Exec) {

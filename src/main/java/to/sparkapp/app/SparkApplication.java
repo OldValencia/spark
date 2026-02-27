@@ -1,5 +1,6 @@
 package to.sparkapp.app;
 
+import javafx.application.Platform;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.utils.LogSetup;
@@ -43,6 +44,8 @@ public class SparkApplication extends Application {
     @Override
     public void start(Stage primaryStage) {
         if (Boolean.getBoolean("spark.cds.generate")) {
+            System.out.println("CDS Archive successfully generated. Exiting...");
+            Platform.exit();
             System.exit(0);
         }
 
