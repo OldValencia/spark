@@ -52,9 +52,8 @@ Access your favorite AI services in one place. Pre-configured with:
 1. Download `Spark-Windows-Installer.exe` from [Releases](https://github.com/OldValencia/ai-panel/releases).
 2. Run the installer.
 
-### macOS
-1. Download `Spark-macOS-Installer.dmg` from [Releases](https://github.com/OldValencia/ai-panel/releases).
-2. Drag to Applications.
+### macOS & Linux
+*(Planned for future releases, but not currently supported)*
 
 ## Configuration
 
@@ -73,7 +72,7 @@ You no longer need to edit configuration files manually.
 ### Data Location
 Application data is stored in your user directory:
 - **Windows**: `C:\Users\<User>\Documents\OldValencia\Spark\`
-- **macOS/Linux**: `~/Library/Application Support/OldValencia/Spark/`
+- **macOS/Linux**: `~/Library/Application Support/OldValencia/Spark/` *(Planned)*
 
 Contains:
 - `app-config.json` — General preferences.
@@ -95,5 +94,5 @@ cd spark
 # Run locally
 ./gradlew run
 
-# Build installers (depending on your OS)
+# Build installers
 ./gradlew clean build createInstaller
