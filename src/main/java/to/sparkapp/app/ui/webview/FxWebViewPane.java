@@ -113,13 +113,6 @@ public class FxWebViewPane extends StackPane {
                         bridge.hibernate();
                     }
                 });
-
-                // macOS: the webview is a floating NSWindow — sync position whenever
-                // the JavaFX window moves, because there is no parent-child relationship.
-                if (SystemUtils.isMac()) {
-                    newWin.xProperty().addListener((o, ov, nv) -> syncBounds());
-                    newWin.yProperty().addListener((o, ov, nv) -> syncBounds());
-                }
             });
         });
     }
