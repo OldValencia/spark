@@ -104,14 +104,11 @@ tasks.withType(Test).configureEach {
     useJUnitPlatform()
 }
 
-// Run once after install: ./gradlew generateCdsArchive
-tasks.register('generateCdsArchive', JavaExec) {
-    if (project.hasProperty('generateCds')) {
-        tasks.named('run') {
-            dependsOn installDist
-            jvmArgs("-XX:ArchiveClassesAtExit=${layout.buildDirectory.get().asFile}/install/Spark/lib/spark-classes.jsa")
-            jvmArgs("-Dspark.cds.generate=true")
-        }
+if (project.hasProperty('generateCds')) {
+    tasks.named('run') {
+        dependsOn installDist
+        jvmArgs("-XX:ArchiveClassesAtExit=${layout.buildDirectory.get().asFile}/install/Spark/lib/spark-classes.jsa")
+        jvmArgs("-Dspark.cds.generate=true")
     }
 }
 
