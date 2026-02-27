@@ -20,7 +20,7 @@ processResources {
 
 javafx {
     version = "21.0.2"
-    modules = [ 'javafx.controls', 'javafx.web', 'javafx.swing' ]
+    modules = [ 'javafx.controls', 'javafx.swing' ]
 }
 
 def junitVersion = '5.10.2'

@@ -6,6 +6,7 @@ import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.utils.UrlUtils;
 
 import java.net.URI;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -20,6 +21,37 @@ public class WebviewNavigator {
     private volatile long currentNavId = 0L;
     private volatile String currentUrl;
     private volatile String configBaseUrl;
+
+    private static final List<String> AUTH_DOMAINS = List.of(
+            "accounts.google.",
+            "consent.google.",
+            "appleid.apple.com",
+            "idmsa.apple.com",
+            "login.microsoftonline.com",
+            "login.live.com",
+            "login.windows.net",
+            "account.microsoft.com",
+            "login.facebook.com",
+            "www.facebook.com/login",
+            "github.com/login",
+            "github.com/session",
+            "github.com/oauth",
+            "challenges.cloudflare.com",
+            "cloudflare.com/cdn-cgi/challenge"
+    );
+
+    private static final List<String> AUTH_PATH_PATTERNS = List.of(
+            "/oauth",
+            "/oauth2",
+            "/auth/",
+            "/authorize",
+            "/sso/",
+            "/saml/",
+            "/signin",
+            "/login",
+            "/callback?code=",
+            "/oidc/"
+    );
 
     private final ScheduledExecutorService scheduler =
             Executors.newSingleThreadScheduledExecutor(r -> {
@@ -41,7 +73,7 @@ public class WebviewNavigator {
 
         if (onUrlChanged != null) onUrlChanged.accept(url);
 
-        if (configBaseUrl != null && isAuthUrl(url) == false && !isSameHost(url, configBaseUrl)) {
+        if (configBaseUrl != null && !isAuthUrl(url) && !isSameHost(url, configBaseUrl)) {
             log.info("WebviewNavigator: External URL detected [{}], opening in browser", url);
             UrlUtils.openLink(url);
             final long navId = currentNavId;
@@ -123,21 +155,23 @@ public class WebviewNavigator {
         return host.startsWith("www.") ? host.substring(4) : host;
     }
 
-    public static Boolean isAuthUrl(String url) {
+    public static boolean isAuthUrl(String url) {
         if (url == null) {
-            return null;
+            return false;
         }
-
         var lower = url.toLowerCase();
-        return lower.contains("accounts.google.com")
-                || lower.contains("appleid.apple.com")
-                || lower.contains("github.com/login")
-                || lower.contains("github.com/session")
-                || lower.contains("oauth")
-                || lower.contains("/auth/")
-                || lower.contains("/sso/")
-                || lower.contains("signin")
-                || lower.contains("login");
+
+        for (var domain : AUTH_DOMAINS) {
+            if (lower.contains(domain)) {
+                return true;
+            }
+        }
+        for (var pattern : AUTH_PATH_PATTERNS) {
+            if (lower.contains(pattern)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void schedule(long delayMs, Runnable task) {
