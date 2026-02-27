@@ -25,6 +25,7 @@ public class WebviewNavigator {
     private static final List<String> AUTH_DOMAINS = List.of(
             "accounts.google.",
             "consent.google.",
+            "auth.openai.",
             "appleid.apple.com",
             "idmsa.apple.com",
             "login.microsoftonline.com",
