@@ -33,7 +33,6 @@ public class FxWebViewPane extends StackPane {
     private final WebviewManager bridge;
     private final AppPreferences appPreferences;
     private final String startUrl;
-
     private final WebViewLoadingOverlay overlay;
 
     private boolean bridgeStarted = false;
@@ -46,6 +45,7 @@ public class FxWebViewPane extends StackPane {
     public FxWebViewPane(String startUrl, AppPreferences appPreferences) {
         this.startUrl = startUrl;
         this.appPreferences = appPreferences;
+        this.bridge = new WebviewManager(appPreferences);
 
         setPadding(Insets.EMPTY);
         setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
@@ -55,7 +55,6 @@ public class FxWebViewPane extends StackPane {
         overlay = new WebViewLoadingOverlay();
         getChildren().add(overlay);
 
-        bridge = new WebviewManager(appPreferences);
         setupBridgeCallbacks();
         setupLayoutListeners();
     }
@@ -70,11 +69,15 @@ public class FxWebViewPane extends StackPane {
         }));
 
         bridge.setZoomCallback(pct -> {
-            if (zoomCallback != null) zoomCallback.accept(pct);
+            if (zoomCallback != null) {
+                zoomCallback.accept(pct);
+            }
         });
 
         bridge.setOnUrlChanged(url -> {
-            checkIfAuthPage(url);
+            if (onAuthPageDetected != null) {
+                Platform.runLater(() -> onAuthPageDetected.accept(WebviewNavigator.isAuthUrl(url)));
+            }
             if (appPreferences.isRememberLastAi()) {
                 appPreferences.setLastUrl(url);
             }
@@ -83,29 +86,40 @@ public class FxWebViewPane extends StackPane {
 
     private void setupLayoutListeners() {
         boundsInLocalProperty().addListener((obs, o, n) -> {
-            if (!bridgeStarted) startBridgeIfReady();
-            else syncBounds();
+            if (!bridgeStarted) {
+                startBridgeIfReady();
+            } else {
+                syncBounds();
+            }
         });
 
         localToSceneTransformProperty().addListener((obs, o, n) -> syncBounds());
 
         sceneProperty().addListener((obs, oldScene, newScene) -> {
-            if (newScene == null) return;
+            if (newScene == null) {
+                return;
+            }
             newScene.windowProperty().addListener((wObs, oldWin, newWin) -> {
-                if (newWin == null) return;
-
-                if (SystemUtils.isMac()) {
-                    newWin.xProperty().addListener((o, old, v) -> syncBounds());
-                    newWin.yProperty().addListener((o, old, v) -> syncBounds());
+                if (newWin == null) {
+                    return;
                 }
 
                 newWin.showingProperty().addListener((o, old, isShowing) -> {
                     if (isShowing) {
-                        if (!bridgeStarted) startBridgeIfReady();
+                        if (!bridgeStarted) {
+                            startBridgeIfReady();
+                        }
                     } else if (bridgeStarted) {
                         bridge.hibernate();
                     }
                 });
+
+                // macOS: the webview is a floating NSWindow — sync position whenever
+                // the JavaFX window moves, because there is no parent-child relationship.
+                if (SystemUtils.isMac()) {
+                    newWin.xProperty().addListener((o, ov, nv) -> syncBounds());
+                    newWin.yProperty().addListener((o, ov, nv) -> syncBounds());
+                }
             });
         });
     }
@@ -116,7 +130,7 @@ public class FxWebViewPane extends StackPane {
      */
     public void onWindowRestored() {
         var delay = new PauseTransition(Duration.millis(100));
-        delay.setOnFinished(e -> doWakeupBridge());
+        delay.setOnFinished(e -> doWakeup());
         delay.play();
     }
 
@@ -129,15 +143,21 @@ public class FxWebViewPane extends StackPane {
     }
 
     private synchronized void startBridgeIfReady() {
-        if (bridgeStarted) return;
+        if (bridgeStarted) {
+            return;
+        }
         var scene = getScene();
-        if (scene == null) return;
+        if (scene == null) {
+            return;
+        }
         var window = scene.getWindow();
-        if (window == null || !window.isShowing()) return;
+        if (window == null || !window.isShowing()) {
+            return;
+        }
 
         long parentHandle = resolveParentHandle(window);
         if (parentHandle == 0L && SystemUtils.isWindows()) {
-            retryStartBridge();
+            scheduleRetryStart();
             return;
         }
 
@@ -147,60 +167,64 @@ public class FxWebViewPane extends StackPane {
     }
 
     private long resolveParentHandle(javafx.stage.Window window) {
-        if (!SystemUtils.isWindows() || !(window instanceof Stage stage)) return 0L;
-
+        if (!SystemUtils.isWindows() || !(window instanceof Stage stage)) {
+            return 0L;
+        }
         var title = stage.getTitle();
-        boolean tempTitle = title == null || title.isEmpty();
-        if (tempTitle) {
+        boolean temporary = title == null || title.isEmpty();
+        if (temporary) {
             title = "SparkMainWindow-" + System.nanoTime();
             stage.setTitle(title);
         }
 
         long handle = NativeWindowUtils.getJavaFXWindowHandle(title);
-
-        if (tempTitle) stage.setTitle("");
+        if (temporary) {
+            stage.setTitle("");
+        }
         return handle;
     }
 
-    private void retryStartBridge() {
+    private void scheduleRetryStart() {
         var t = new PauseTransition(Duration.millis(50));
         t.setOnFinished(e -> startBridgeIfReady());
         t.play();
     }
 
-    private void doWakeupBridge() {
+    private void doWakeup() {
         var window = getScene() != null ? getScene().getWindow() : null;
-        if (window == null || !window.isShowing()) return;
-
+        if (window == null || !window.isShowing()) {
+            return;
+        }
         long parentHandle = resolveParentHandle(window);
         if (parentHandle == 0L && SystemUtils.isWindows()) {
             var t = new PauseTransition(Duration.millis(50));
-            t.setOnFinished(e -> doWakeupBridge());
+            t.setOnFinished(e -> doWakeup());
             t.play();
             return;
         }
 
         log.info("FxWebViewPane: Waking up bridge with parentHandle=0x{}", Long.toHexString(parentHandle));
         bridge.wakeup(parentHandle);
-
-        var root = getScene().getRoot();
-        root.applyCss();
-        root.layout();
+        getScene().getRoot().applyCss();
+        getScene().getRoot().layout();
         syncBounds();
     }
 
     void syncBounds() {
-        if (!bridgeStarted || getScene() == null || getScene().getWindow() == null) return;
-
+        if (!bridgeStarted || getScene() == null || getScene().getWindow() == null) {
+            return;
+        }
         var window = getScene().getWindow();
         var scene = getScene();
         var bounds = localToScene(getBoundsInLocal());
-        if (bounds == null) return;
+        if (bounds == null) {
+            return;
+        }
 
         int x, y, w, h;
         if (SystemUtils.isWindows()) {
-            double sx = window.getOutputScaleX();
-            double sy = window.getOutputScaleY();
+            var sx = window.getOutputScaleX();
+            var sy = window.getOutputScaleY();
             x = (int) Math.round(bounds.getMinX() * sx);
             y = (int) Math.round(bounds.getMinY() * sy);
             w = (int) Math.round(bounds.getWidth() * sx);
@@ -255,17 +279,5 @@ public class FxWebViewPane extends StackPane {
             onComplete.run();
             System.exit(0);
         }));
-    }
-
-    private void checkIfAuthPage(String url) {
-        var isAuth = WebviewNavigator.isAuthUrl(url);
-
-        if (isAuth == null) {
-            return;
-        }
-
-        if (onAuthPageDetected != null) {
-            Platform.runLater(() -> onAuthPageDetected.accept(isAuth));
-        }
     }
 }
