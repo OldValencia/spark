@@ -27,7 +27,6 @@ def junitVersion = '5.10.2'
 def lombokVersion = '1.18.42'
 def flatLafVersion = '3.7'
 
-// Mirrors AppPreferences.DIR logic exactly
 def userHome = System.getProperty("user.home")
 def isMacBuild = org.gradle.internal.os.OperatingSystem.current().isMacOsX()
 def sparkDataDir = isMacBuild
@@ -71,6 +70,15 @@ def javaOpts = [
         '--add-opens=java.desktop/sun.awt=ALL-UNNAMED',
         '--add-opens=java.desktop/sun.lwawt=ALL-UNNAMED',
         '--add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED',
+
+        // Required for JavaFX WebView JS bridge (JSObject.setMember) on macOS
+        '--add-opens=javafx.web/com.sun.webkit=ALL-UNNAMED',
+]
+
+// macOS needs to allow JSObject access for WebEngine JS ↔ Java bridge
+def macOpts = [
+        '--add-exports=javafx.web/com.sun.webkit=ALL-UNNAMED',
+        '--add-opens=javafx.web/com.sun.webkit.network=ALL-UNNAMED',
 ]
 
 java {
@@ -86,7 +94,7 @@ tasks.withType(JavaCompile).configureEach {
 application {
     mainClass = 'to.sparkapp.app.SparkApplication'
     applicationName = 'Spark'
-    applicationDefaultJvmArgs = javaOpts
+    applicationDefaultJvmArgs = isMacBuild ? (javaOpts + macOpts) : javaOpts
 }
 
 dependencies {
@@ -183,7 +191,7 @@ tasks.register('createInstaller', Exec) {
             '--add-modules', 'java.desktop,jdk.unsupported,java.logging,java.naming,java.management,jdk.crypto.ec',
     *winOptions,
     *macOptions,
-    *javaOpts.collectMany { ['--java-options', it] }
+    *(isMacBuild ? (javaOpts + macOpts) : javaOpts).collectMany { ['--java-options', it] }
 
     doFirst {
         println "Building installer using: $jpackage"

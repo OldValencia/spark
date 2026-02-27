@@ -9,6 +9,7 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import to.sparkapp.app.browser.MacOsWebviewBridge;
 import to.sparkapp.app.browser.WebviewManager;
 import to.sparkapp.app.browser.WebviewNavigator;
 import to.sparkapp.app.config.AiConfiguration;
@@ -20,20 +21,14 @@ import to.sparkapp.app.utils.SystemUtils;
 
 import java.util.function.Consumer;
 
-/**
- * The main JavaFX pane that hosts the native WebView browser.
- *
- * <p>The native webview is a separate OS window that is parented and positioned
- * to perfectly overlap this pane. A {@link WebViewLoadingOverlay} is shown
- * above while navigation is in progress.
- */
 @Slf4j
 public class FxWebViewPane extends StackPane {
 
-    private final WebviewManager bridge;
+    private WebviewManager bridge;
+    private MacOsWebviewBridge macBridge;
+
     private final AppPreferences appPreferences;
     private final String startUrl;
-
     private final WebViewLoadingOverlay overlay;
 
     private boolean bridgeStarted = false;
@@ -55,12 +50,62 @@ public class FxWebViewPane extends StackPane {
         overlay = new WebViewLoadingOverlay();
         getChildren().add(overlay);
 
+        if (SystemUtils.isMac()) {
+            initMacBridge();
+        } else {
+            initWindowsBridge();
+        }
+    }
+
+    private void initMacBridge() {
+        macBridge = new MacOsWebviewBridge(appPreferences);
+
+        macBridge.setOnReadyCallback(() -> Platform.runLater(() -> {
+            if (overlay.isActive()) overlay.deactivate();
+        }));
+
+        macBridge.setZoomCallback(pct -> {
+            if (zoomCallback != null) zoomCallback.accept(pct);
+        });
+
+        macBridge.setOnUrlChangedCallback(url -> {
+            if (appPreferences.isRememberLastAi()) {
+                appPreferences.setLastUrl(url);
+            }
+        });
+
+        macBridge.setOnAuthPageDetected(isAuth -> {
+            if (onAuthPageDetected != null) onAuthPageDetected.accept(isAuth);
+        });
+
+        macBridge.registerZoomBridge();
+
+        var webViewNode = macBridge.getWebView();
+        webViewNode.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        getChildren().add(0, webViewNode);
+
+        bridgeStarted = true;
+
+        sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene == null) return;
+            newScene.windowProperty().addListener((wObs, oldWin, newWin) -> {
+                if (newWin == null) return;
+                newWin.showingProperty().addListener((o, old, isShowing) -> {
+                    if (isShowing) {
+                        macBridge.init(startUrl);
+                    }
+                });
+            });
+        });
+    }
+
+    private void initWindowsBridge() {
         bridge = new WebviewManager(appPreferences);
-        setupBridgeCallbacks();
+        setupWindowsBridgeCallbacks();
         setupLayoutListeners();
     }
 
-    private void setupBridgeCallbacks() {
+    private void setupWindowsBridgeCallbacks() {
         bridge.setOnReadyCallback(() -> Platform.runLater(() -> {
             syncBounds();
             bridge.setVisible(true);
@@ -93,12 +138,6 @@ public class FxWebViewPane extends StackPane {
             if (newScene == null) return;
             newScene.windowProperty().addListener((wObs, oldWin, newWin) -> {
                 if (newWin == null) return;
-
-                if (SystemUtils.isMac()) {
-                    newWin.xProperty().addListener((o, old, v) -> syncBounds());
-                    newWin.yProperty().addListener((o, old, v) -> syncBounds());
-                }
-
                 newWin.showingProperty().addListener((o, old, isShowing) -> {
                     if (isShowing) {
                         if (!bridgeStarted) startBridgeIfReady();
@@ -110,26 +149,26 @@ public class FxWebViewPane extends StackPane {
         });
     }
 
-    /**
-     * Call after the host window becomes visible (tray restore or hotkey show).
-     * Deferred 100 ms so the Win32 HWND is fully activated before FindWindow.
-     */
     public void onWindowRestored() {
+        if (SystemUtils.isMac()) {
+            return;
+        }
         var delay = new PauseTransition(Duration.millis(100));
         delay.setOnFinished(e -> doWakeupBridge());
         delay.play();
     }
 
-    /**
-     * Call when the host window is hidden (tray hide or hotkey hide).
-     * Belt-and-suspenders alongside the showingProperty listener.
-     */
     public void onWindowHidden() {
+        if (SystemUtils.isMac()) {
+            return;
+        }
         bridge.hibernate();
     }
 
     private synchronized void startBridgeIfReady() {
-        if (bridgeStarted) return;
+        if (bridgeStarted || bridge == null) {
+            return;
+        }
         var scene = getScene();
         if (scene == null) return;
         var window = scene.getWindow();
@@ -147,18 +186,19 @@ public class FxWebViewPane extends StackPane {
     }
 
     private long resolveParentHandle(javafx.stage.Window window) {
-        if (!SystemUtils.isWindows() || !(window instanceof Stage stage)) return 0L;
-
+        if (!SystemUtils.isWindows() || !(window instanceof Stage stage)) {
+            return 0L;
+        }
         var title = stage.getTitle();
         boolean tempTitle = title == null || title.isEmpty();
         if (tempTitle) {
             title = "SparkMainWindow-" + System.nanoTime();
             stage.setTitle(title);
         }
-
         long handle = NativeWindowUtils.getJavaFXWindowHandle(title);
-
-        if (tempTitle) stage.setTitle("");
+        if (tempTitle) {
+            stage.setTitle("");
+        }
         return handle;
     }
 
@@ -170,8 +210,9 @@ public class FxWebViewPane extends StackPane {
 
     private void doWakeupBridge() {
         var window = getScene() != null ? getScene().getWindow() : null;
-        if (window == null || !window.isShowing()) return;
-
+        if (window == null || !window.isShowing()) {
+            return;
+        }
         long parentHandle = resolveParentHandle(window);
         if (parentHandle == 0L && SystemUtils.isWindows()) {
             var t = new PauseTransition(Duration.millis(50));
@@ -190,8 +231,9 @@ public class FxWebViewPane extends StackPane {
     }
 
     void syncBounds() {
-        if (!bridgeStarted || getScene() == null || getScene().getWindow() == null) return;
-
+        if (bridge == null || !bridgeStarted || getScene() == null || getScene().getWindow() == null) {
+            return;
+        }
         var window = getScene().getWindow();
         var scene = getScene();
         var bounds = localToScene(getBoundsInLocal());
@@ -215,12 +257,14 @@ public class FxWebViewPane extends StackPane {
         bridge.updateBounds(x, y, w, h);
     }
 
-    /**
-     * Navigates the webview to the given AI provider.
-     * Shows a loading overlay while the page transitions.
-     */
     public void setCurrentConfig(AiConfiguration.AiConfig config) {
         var icon = AiDock.ICON_CACHE.get(config.icon());
+
+        if (SystemUtils.isMac()) {
+            overlay.activate(icon, 1000, null);
+            macBridge.setCurrentConfig(config);
+            return;
+        }
 
         if (!bridgeStarted) {
             overlay.activate(icon, 0, null);
@@ -233,28 +277,46 @@ public class FxWebViewPane extends StackPane {
             syncBounds();
             bridge.setVisible(true);
         });
-
         bridge.setCurrentConfig(config);
     }
 
     public void clearCookies() {
-        bridge.clearCookies();
+        if (SystemUtils.isMac()) {
+            macBridge.clearCookies();
+        } else {
+            bridge.clearCookies();
+        }
     }
 
     public void resetZoom() {
-        bridge.resetZoom();
+        if (SystemUtils.isMac()) {
+            macBridge.resetZoom();
+        } else {
+            bridge.resetZoom();
+        }
     }
 
     public void restart() {
         var url = appPreferences.getLastUrl() != null ? appPreferences.getLastUrl() : startUrl;
-        bridge.navigate(url);
+        if (SystemUtils.isMac()) {
+            macBridge.navigate(url);
+        } else {
+            bridge.navigate(url);
+        }
     }
 
     public void shutdown(Runnable onComplete) {
-        bridge.shutdown(() -> Platform.runLater(() -> {
-            onComplete.run();
-            System.exit(0);
-        }));
+        if (SystemUtils.isMac()) {
+            macBridge.shutdown(() -> Platform.runLater(() -> {
+                onComplete.run();
+                System.exit(0);
+            }));
+        } else {
+            bridge.shutdown(() -> Platform.runLater(() -> {
+                onComplete.run();
+                System.exit(0);
+            }));
+        }
     }
 
     private void checkIfAuthPage(String url) {

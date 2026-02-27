@@ -1,6 +1,11 @@
 package to.sparkapp.app.browser;
 
-import com.sun.jna.*;
+import com.sun.jna.Callback;
+import com.sun.jna.Library;
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
+import com.sun.jna.Structure;
+import to.sparkapp.app.utils.SystemUtils;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -9,12 +14,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * JNA Wrapper for the underlying C/C++ webview library.
- */
 interface WebviewNative extends Library {
 
-    WebviewNative WEBVIEW_NATIVE = runSetup();
+    WebviewNative WEBVIEW_NATIVE = SystemUtils.isMac() ? null : runSetup();
 
     private static WebviewNative runSetup() {
         var osName = System.getProperty("os.name").toLowerCase();
@@ -23,9 +25,6 @@ interface WebviewNative extends Library {
 
         if (osName.contains("win")) {
             libPath = "/webview/natives/x86_64/windows_nt/webview.dll";
-        } else if (osName.contains("mac")) {
-            boolean isArm = osArch.contains("aarch64") || osArch.contains("arm");
-            libPath = "/webview/natives/" + (isArm ? "aarch64" : "x86_64") + "/macos/libwebview.dylib";
         } else {
             libPath = "/webview/natives/x86_64/linux/gnu/libwebview.so";
         }

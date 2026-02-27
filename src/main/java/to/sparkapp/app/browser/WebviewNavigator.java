@@ -41,7 +41,7 @@ public class WebviewNavigator {
 
         if (onUrlChanged != null) onUrlChanged.accept(url);
 
-        if (configBaseUrl != null && isAuthUrl(url) == false && !isSameHost(url, configBaseUrl)) {
+        if (configBaseUrl != null && !isAuthUrl(url) && !isSameHost(url, configBaseUrl)) {
             log.info("WebviewNavigator: External URL detected [{}], opening in browser", url);
             UrlUtils.openLink(url);
             final long navId = currentNavId;
@@ -129,7 +129,7 @@ public class WebviewNavigator {
         }
 
         var lower = url.toLowerCase();
-        return lower.contains("accounts.google.com")
+        return lower.contains("accounts.google.com") || lower.contains("consent.google.com")
                 || lower.contains("appleid.apple.com")
                 || lower.contains("github.com/login")
                 || lower.contains("github.com/session")
