@@ -228,6 +228,17 @@ public class AppPreferences {
 
     public void cleanupLastUrlIfNeeded(List<String> validUrls) {
         if (config.lastUrl != null && !validUrls.contains(config.lastUrl)) {
+
+            if (config.lastUrl.endsWith("/")) {
+                var fixedUrl = config.lastUrl.substring(0, config.lastUrl.length() - 1);
+                if (validUrls.contains(fixedUrl)) {
+                    log.info("Fixing lastUrl trailing slash: {} -> {}", config.lastUrl, fixedUrl);
+                    config.lastUrl = fixedUrl;
+                    save();
+                    return;
+                }
+            }
+
             log.info("Removing invalid lastUrl: {}", config.lastUrl);
             config.lastUrl = null;
             save();
