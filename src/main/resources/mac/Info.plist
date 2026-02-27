@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>Loom</string>
+    <string>Spark</string>
     <key>CFBundleDisplayName</key>
-    <string>Loom</string>
+    <string>Spark</string>
     <key>CFBundleIdentifier</key>
-    <string>io.loom.app</string>
+    <string>to.sparkapp.app</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>
-    <string>Loom</string>
+    <string>Spark</string>
     <key>CFBundleIconFile</key>
-    <string>Loom.icns</string>
+    <string>Spark.icns</string>
 
     <!-- Permissions -->
     <key>NSBluetoothAlwaysUsageDescription</key>

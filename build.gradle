@@ -1,66 +1,76 @@
 plugins {
     id 'java'
     id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
 }
 
-group = 'io.loom'
+group = 'to.sparkapp'
 version = project.findProperty('app.version')
 
 repositories {
     mavenCentral()
+    maven { url 'https://repo.casterlabs.co/maven' }
 }
 
 processResources {
     filesMatching('app.properties') {
-        expand(version: project.findProperty('app.version'))
+        expand(project.properties)
     }
+}
+
+javafx {
+    version = "21.0.2"
+    modules = [ 'javafx.controls', 'javafx.swing' ]
 }
 
 def junitVersion = '5.10.2'
 def lombokVersion = '1.18.42'
 def flatLafVersion = '3.7'
-def javaOpts = [
-        '-Xms32m',
-        '-Xmx384m',
-        '-Xss1m',
 
-        // Metaspace settings
-        '-XX:MaxMetaspaceSize=96m',
-        '-XX:MetaspaceSize=24m',
-        '-XX:CompressedClassSpaceSize=12m',
+// Mirrors AppPreferences.DIR logic exactly
+def userHome = System.getProperty("user.home")
+def isMacBuild = org.gradle.internal.os.OperatingSystem.current().isMacOsX()
+def sparkDataDir = isMacBuild
+        ? "${userHome}/Library/Application Support/OldValencia/Spark"
+        : "${userHome}/OldValencia/Spark"
+
+def javaOpts = [
+        '-Xms24m',
+        '-Xmx96m',
+        '-Xss512k',
+
+        '-XX:MaxMetaspaceSize=64m',
+        '-XX:MetaspaceSize=16m',
+        '-XX:CompressedClassSpaceSize=8m',
 
         '-XX:+UseG1GC',
         '-XX:MinHeapFreeRatio=5',
-        '-XX:MaxHeapFreeRatio=25',
-        '-XX:GCTimeRatio=19',
+        '-XX:MaxHeapFreeRatio=15',
+        '-XX:GCTimeRatio=4',
         '-XX:G1HeapRegionSize=1m',
-        '-XX:InitiatingHeapOccupancyPercent=35',
+        '-XX:InitiatingHeapOccupancyPercent=25',
+        '-XX:G1ReservePercent=5',
 
-        // String optimization
         '-XX:+UseStringDeduplication',
-        '-XX:StringTableSize=60013',
+        '-XX:StringTableSize=40009',
 
-        // Compilation settings
         '-XX:+TieredCompilation',
-        '-XX:TieredStopAtLevel=1',
-
-        // Experimental optimizations
         '-XX:+OptimizeStringConcat',
         '-XX:+UseCompressedOops',
         '-XX:+UseCompressedClassPointers',
 
-        // Graphics settings
-        '-Dsun.java2d.noddraw=true',
-        '-Dsun.java2d.d3d=false',
-        '-Dsun.java2d.opengl=false',
+        '-XX:ReservedCodeCacheSize=32m',
+        '-XX:InitialCodeCacheSize=4m',
 
-        // Module access
+        // JVM silently ignores this if the file doesn't exist yet
+        "-XX:SharedArchiveFile=${sparkDataDir}/spark-classes.jsa",
+
         '--add-exports=java.base/java.lang=ALL-UNNAMED',
         '--add-exports=java.desktop/sun.awt=ALL-UNNAMED',
         '--add-exports=java.desktop/sun.java2d=ALL-UNNAMED',
         '--add-opens=java.desktop/sun.awt=ALL-UNNAMED',
         '--add-opens=java.desktop/sun.lwawt=ALL-UNNAMED',
-        '--add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED'
+        '--add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED',
 ]
 
 java {
@@ -74,21 +84,20 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 application {
-    mainClass = 'io.loom.app.LoomApplication'
-    applicationName = 'Loom'
+    mainClass = 'to.sparkapp.app.SparkApplication'
+    applicationName = 'Spark'
     applicationDefaultJvmArgs = javaOpts
 }
 
 dependencies {
-    implementation 'me.friwi:jcefmaven:141.0.10'
-    implementation 'com.github.weisj:jsvg:2.0.0'
+    implementation 'net.java.dev.jna:jna:5.14.0'
+    implementation 'net.java.dev.jna:jna-platform:5.14.0'
     implementation "com.formdev:flatlaf:$flatLafVersion"
     implementation "com.formdev:flatlaf-extras:$flatLafVersion"
     implementation 'org.slf4j:slf4j-api:2.0.17'
     implementation 'ch.qos.logback:logback-classic:1.5.27'
     implementation 'org.apache.commons:commons-collections4:4.5.0'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.21.0'
-
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'com.github.kwhat:jnativehook:2.2.2'
 
@@ -101,6 +110,19 @@ dependencies {
 
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
+}
+
+// Run once after install: ./gradlew generateCdsArchive
+tasks.register('generateCdsArchive', JavaExec) {
+    dependsOn installDist
+    group = 'build'
+    description = 'Generates AppCDS archive — run once, saves ~30 MB RSS on every launch'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = application.mainClass
+    jvmArgs = [
+            "-XX:ArchiveClassesAtExit=${sparkDataDir}/spark-classes.jsa",
+            '-Xshare:off',
+    ]
 }
 
 tasks.register('createInstaller', Exec) {
@@ -135,32 +157,9 @@ tasks.register('createInstaller', Exec) {
         installerType = "dmg"
         iconPath = "src/main/resources/app-icons/icon.icns"
 
-        // CRITICAL macOS-specific JVM flags for CEF/JOGL native libraries
-        javaOpts += [
-                // macOS rendering
-                '-Dsun.java2d.opengl=true',
-                '-Dsun.java2d.renderer=sun.java2d.marlin.MarlinRenderingEngine',
-
-                // macOS application identity
-                '-Dapple.awt.application.name=Loom',
-                '-Dapple.laf.useScreenMenuBar=false',
-                '-Djava.awt.headless=false',
-
-                // JOGL macOS fixes - CRITICAL for NSWindow threading
-                '-Djogl.disable.openglarbcontext=1',
-                '-Dnativewindow.awt.nohidpi=false',
-                '-Dnewt.window.icons=null',
-
-                // JNA settings
-                '-Djna.nosys=false',
-
-                // macOS main thread for AWT (helps with native interop)
-                '-Dapple.awt.application.appearance=system'
-        ]
-
         macOptions = [
-                '--mac-package-identifier', 'io.loom.app',
-                '--mac-package-name', 'Loom',
+                '--mac-package-identifier', 'to.sparkapp.app',
+                '--mac-package-name', 'Spark',
                 '--mac-entitlements', 'src/main/resources/mac/entitlements.plist',
                 '--resource-dir', 'src/main/resources/mac'
         ]
@@ -174,17 +173,16 @@ tasks.register('createInstaller', Exec) {
     commandLine jpackage,
             '--type', installerType,
             '--dest', 'build/installer',
-            '--name', 'Loom',
+            '--name', 'Spark',
             '--vendor', 'OldValencia',
             '--app-version', appVersion,
             '--icon', iconPath,
-            '--input', 'build/install/Loom/lib',
-            '--main-jar', "Loom-${version}.jar",
+            '--input', 'build/install/Spark/lib',
+            '--main-jar', "Spark-${version}.jar",
             '--main-class', application.mainClass.get(),
             '--add-modules', 'java.desktop,jdk.unsupported,java.logging,java.naming,java.management,jdk.crypto.ec',
     *winOptions,
     *macOptions,
-
     *javaOpts.collectMany { ['--java-options', it] }
 
     doFirst {

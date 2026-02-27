@@ -1,0 +1,40 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="bg_dark" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#111113"/>
+            <stop offset="100%" stop-color="#1A1A1D"/>
+        </linearGradient>
+
+        <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.08"/>
+            <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+        </linearGradient>
+
+        <linearGradient id="fold_bright" x1="0" y1="0" x2="1" y2="1">
+            <stop stop-color="#FBBF24"/>
+            <stop offset="1" stop-color="#F87171"/>
+        </linearGradient>
+
+        <linearGradient id="fold_mid" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop stop-color="#F43F5E"/>
+            <stop offset="1" stop-color="#A855F7"/>
+        </linearGradient>
+
+        <linearGradient id="fold_shadow" x1="1" y1="0" x2="0" y2="1">
+            <stop stop-color="#8B5CF6"/>
+            <stop offset="1" stop-color="#4F46E5"/>
+        </linearGradient>
+    </defs>
+
+    <rect width="512" height="512" rx="120" fill="url(#bg_dark)"/>
+    <rect width="512" height="512" rx="120" fill="url(#edge)"/>
+
+    <g>
+        <path d="M256 256L190 190L256 40L322 190L256 256Z" fill="url(#fold_bright)"/>
+        <path d="M256 256L256 40L190 190Z" fill="#FFFFFF" opacity="0.15"/>
+        <path d="M256 256L322 190L472 256L322 322L256 256Z" fill="url(#fold_mid)"/>
+        <path d="M256 256L190 322L40 256L190 190L256 256Z" fill="url(#fold_mid)"/>
+        <path d="M256 256L322 322L256 472L190 322L256 256Z" fill="url(#fold_shadow)"/>
+        <path d="M256 256L256 472L322 322Z" fill="#000000" opacity="0.1"/>
+    </g>
+</svg>

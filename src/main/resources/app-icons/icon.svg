@@ -1,1 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><defs><linearGradient id="loomGradient" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#7c7cff"/><stop offset="100%" stop-color="#4a4aff"/></linearGradient><filter id="softGlow" width="200%" height="200%" x="-50%" y="-50%"><feGaussianBlur result="blur" stdDeviation="12"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><rect width="512" height="512" fill="#0e1020" rx="120"/><path fill="#6b6bff" d="M192 136v224c0 22 18 40 40 40h120v-80h-88V136Z" filter="url(#softGlow)" opacity=".35"/><path fill="url(#loomGradient)" d="M192 136v224c0 22 18 40 40 40h120v-80h-88V136Z"/></svg>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="fold_bright" x1="0" y1="0" x2="1" y2="1">
+            <stop stop-color="#FBBF24"/>
+            <stop offset="1" stop-color="#F87171"/>
+        </linearGradient>
+
+        <linearGradient id="fold_mid" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop stop-color="#F43F5E"/>
+            <stop offset="1" stop-color="#A855F7"/>
+        </linearGradient>
+
+        <linearGradient id="fold_shadow" x1="1" y1="0" x2="0" y2="1">
+            <stop stop-color="#8B5CF6"/>
+            <stop offset="1" stop-color="#4F46E5"/>
+        </linearGradient>
+    </defs>
+
+    <g>
+        <path d="M256 256L190 190L256 40L322 190L256 256Z" fill="url(#fold_bright)"/>
+        <path d="M256 256L256 40L190 190Z" fill="#FFFFFF" opacity="0.15"/>
+        <path d="M256 256L322 190L472 256L322 322L256 256Z" fill="url(#fold_mid)"/>
+        <path d="M256 256L190 322L40 256L190 190L256 256Z" fill="url(#fold_mid)"/>
+        <path d="M256 256L322 322L256 472L190 322L256 256Z" fill="url(#fold_shadow)"/>
+        <path d="M256 256L256 472L322 322Z" fill="#000000" opacity="0.1"/>
+    </g>
+</svg>
