@@ -141,7 +141,6 @@ tasks.register('createInstaller', Exec) {
                 '--win-menu',
                 '--win-shortcut-prompt',
                 '--win-per-user-install',
-                '--win-console',
                 '--win-upgrade-uuid', 'f3c4e5d6-a7b8-9c0d-1e2f-3a4b5c6d7e8f'
         ]
     } else if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
