@@ -6,6 +6,7 @@ import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.utils.UrlUtils;
 
 import java.net.URI;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -13,6 +14,45 @@ import java.util.function.Consumer;
 
 @Slf4j
 public class WebviewNavigator {
+
+    /**
+     * Domains where ALL navigation should stay in-app.
+     * Supports suffix matching — "accounts.google." covers .com, .pl, .co.uk etc.
+     */
+    private static final List<String> AUTH_DOMAINS = List.of(
+            "accounts.google.",
+            "consent.google.",
+            "appleid.apple.com",
+            "idmsa.apple.com",
+            "login.microsoftonline.com",
+            "login.live.com",
+            "login.windows.net",
+            "account.microsoft.com",
+            "login.facebook.com",
+            "www.facebook.com/login",
+            "github.com/login",
+            "github.com/session",
+            "github.com/oauth",
+            // Cloudflare Turnstile / challenge pages (used by Claude.ai, etc.)
+            "challenges.cloudflare.com",
+            "cloudflare.com/cdn-cgi/challenge"
+    );
+
+    /**
+     * Path/query fragments that indicate an auth flow on any domain.
+     */
+    private static final List<String> AUTH_PATH_PATTERNS = List.of(
+            "/oauth",
+            "/oauth2",
+            "/auth/",
+            "/authorize",
+            "/sso/",
+            "/saml/",
+            "/signin",
+            "/login",
+            "/callback?code=",
+            "/oidc/"
+    );
 
     private final WebviewManager bridge;
     private final WebviewZoomManager zoomManager;
@@ -37,10 +77,12 @@ public class WebviewNavigator {
     }
 
     void handleUrlChange(String url) {
-        if (url.isBlank() || url.equals("about:blank")) return;
-
-        if (onUrlChanged != null) onUrlChanged.accept(url);
-
+        if (url.isBlank() || url.equals("about:blank")) {
+            return;
+        }
+        if (onUrlChanged != null) {
+            onUrlChanged.accept(url);
+        }
         if (configBaseUrl != null && !isAuthUrl(url) && !isSameHost(url, configBaseUrl)) {
             log.info("WebviewNavigator: External URL detected [{}], opening in browser", url);
             UrlUtils.openLink(url);
@@ -85,7 +127,9 @@ public class WebviewNavigator {
         this.currentNavId = navId;
 
         bridge.dispatch(() -> {
-            if (currentNavId != navId) return;
+            if (currentNavId != navId) {
+                return;
+            }
             bridge.eval("""
                     (function() {
                         document.cookie.split(';').forEach(function(c) {
@@ -107,11 +151,32 @@ public class WebviewNavigator {
         return currentUrl != null ? currentUrl : "about:blank";
     }
 
+    public static boolean isAuthUrl(String url) {
+        if (url == null) {
+            return false;
+        }
+        var lower = url.toLowerCase();
+
+        for (var domain : AUTH_DOMAINS) {
+            if (lower.contains(domain)) {
+                return true;
+            }
+        }
+        for (var pattern : AUTH_PATH_PATTERNS) {
+            if (lower.contains(pattern)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean isSameHost(String url, String baseUrl) {
         try {
             var host1 = normalizeHost(URI.create(url).getHost());
             var host2 = normalizeHost(URI.create(baseUrl).getHost());
-            if (host1 == null || host2 == null) return true;
+            if (host1 == null || host2 == null) {
+                return true;
+            }
             return host1.equals(host2) || host1.endsWith("." + host2) || host2.endsWith("." + host1);
         } catch (Exception e) {
             return true;
@@ -119,25 +184,10 @@ public class WebviewNavigator {
     }
 
     private static String normalizeHost(String host) {
-        if (host == null) return null;
-        return host.startsWith("www.") ? host.substring(4) : host;
-    }
-
-    public static Boolean isAuthUrl(String url) {
-        if (url == null) {
+        if (host == null) {
             return null;
         }
-
-        var lower = url.toLowerCase();
-        return lower.contains("accounts.google.com") || lower.contains("consent.google.com")
-                || lower.contains("appleid.apple.com")
-                || lower.contains("github.com/login")
-                || lower.contains("github.com/session")
-                || lower.contains("oauth")
-                || lower.contains("/auth/")
-                || lower.contains("/sso/")
-                || lower.contains("signin")
-                || lower.contains("login");
+        return host.startsWith("www.") ? host.substring(4) : host;
     }
 
     private void schedule(long delayMs, Runnable task) {
