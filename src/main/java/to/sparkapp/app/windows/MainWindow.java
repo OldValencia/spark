@@ -221,8 +221,13 @@ public class MainWindow extends Stage {
         AiDock.clearIconCache();
 
         if (fxWebViewPane != null) {
-            fxWebViewPane.shutdown(() -> log.info("Webview shutdown complete"));
+            fxWebViewPane.shutdown(() -> {
+                log.info("Webview shutdown complete");
+                Platform.exit();
+                System.exit(0);
+            });
         } else {
+            Platform.exit();
             System.exit(0);
         }
     }
