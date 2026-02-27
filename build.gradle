@@ -27,13 +27,6 @@ def junitVersion = '5.10.2'
 def lombokVersion = '1.18.42'
 def flatLafVersion = '3.7'
 
-// Mirrors AppPreferences.DIR logic exactly
-def userHome = System.getProperty("user.home")
-def isMacBuild = org.gradle.internal.os.OperatingSystem.current().isMacOsX()
-def sparkDataDir = isMacBuild
-        ? "${userHome}/Library/Application Support/OldValencia/Spark"
-        : "${userHome}/OldValencia/Spark"
-
 def javaOpts = [
         '-Xms24m',
         '-Xmx96m',
@@ -62,8 +55,7 @@ def javaOpts = [
         '-XX:ReservedCodeCacheSize=32m',
         '-XX:InitialCodeCacheSize=4m',
 
-        // JVM silently ignores this if the file doesn't exist yet
-        "-XX:SharedArchiveFile=${sparkDataDir}/spark-classes.jsa",
+        "-XX:SharedArchiveFile=\$APPDIR/spark-classes.jsa",
 
         '--add-exports=java.base/java.lang=ALL-UNNAMED',
         '--add-exports=java.desktop/sun.awt=ALL-UNNAMED',
@@ -116,12 +108,13 @@ tasks.withType(Test).configureEach {
 tasks.register('generateCdsArchive', JavaExec) {
     dependsOn installDist
     group = 'build'
-    description = 'Generates AppCDS archive — run once, saves ~30 MB RSS on every launch'
+    description = 'Generates AppCDS archive into the build directory'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = application.mainClass
     jvmArgs = [
-            "-XX:ArchiveClassesAtExit=${sparkDataDir}/spark-classes.jsa",
+            "-XX:ArchiveClassesAtExit=${layout.buildDirectory.get().asFile}/install/Spark/lib/spark-classes.jsa",
             '-Xshare:off',
+            '-Dspark.cds.generate=true'
     ]
 }
 

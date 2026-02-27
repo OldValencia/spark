@@ -21,6 +21,10 @@ public class SparkApplication extends Application {
     private static Logger initLog;
 
     public static void main(String[] args) {
+        if (Boolean.getBoolean("spark.cds.generate")) {
+            System.exit(0);
+        }
+
         LogSetup.init();
         initLog = LoggerFactory.getLogger(SparkApplication.class);
 
@@ -38,6 +42,10 @@ public class SparkApplication extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        if (Boolean.getBoolean("spark.cds.generate")) {
+            System.exit(0);
+        }
+
         try {
             var appPreferences = new AppPreferences();
             var aiConfiguration = new AiConfiguration(appPreferences);
