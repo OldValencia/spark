@@ -33,7 +33,6 @@ Access your favorite AI services in one place. Pre-configured with:
 
 ### ⚡ Performance
 - **Lightweight** — Optimized JVM settings (~150-400MB RAM).
-- **JCEF Integration** — Powered by a full Chromium browser engine for compatibility.
 
 ## Screenshots
 
@@ -60,7 +59,6 @@ Access your favorite AI services in one place. Pre-configured with:
 Access the **Settings Panel** via the gear icon (⚙) in the top-right corner.
 
 ### Managing AI Services
-You no longer need to edit configuration files manually.
 1. Go to **Settings** -> **Providers**.
 2. Click **Add Provider**.
 3. Enter the Name, URL, and choose an icon/color.
