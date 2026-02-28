@@ -32,7 +32,7 @@ Access your favorite AI services in one place. Pre-configured with:
 - **Clean UI** — Minimalist design with a focus on content.
 
 ### ⚡ Performance
-- **Lightweight** — Optimized JVM settings (~150-400MB RAM).
+- **Lightweight** — Optimized JVM settings (~120-140MB RAM).
 
 ## Screenshots
 
