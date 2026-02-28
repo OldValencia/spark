@@ -38,7 +38,7 @@ Access your favorite AI services in one place. Pre-configured with:
 ## Screenshots
 
 ### Application Interface
-![Spark Interface](docs/application_interface.png)
+![Spark Interface](docs/application_main_window.png)
 
 ### Settings & Provider Management
 ![Spark Settings](docs/application_settings.png)
