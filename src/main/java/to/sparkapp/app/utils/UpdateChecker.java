@@ -1,6 +1,6 @@
 package to.sparkapp.app.utils;
 
-import com.google.gson.JsonParser;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import to.sparkapp.app.ui.dialogs.UpdateDialog;
 import javafx.application.Platform;
 import javafx.stage.Window;
@@ -21,6 +21,7 @@ public class UpdateChecker {
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(8))
             .build();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     public static void check(Window parentWindow) {
         var request = HttpRequest.newBuilder()
@@ -39,10 +40,10 @@ public class UpdateChecker {
                 .thenAccept(response -> {
                     if (response.statusCode() != 200) return;
                     try {
-                        var json = JsonParser.parseString(response.body()).getAsJsonObject();
-                        var latestTag = json.get("tag_name").getAsString();
-                        var htmlUrl = json.get("html_url").getAsString();
-                        if (isNewerVersion(latestTag)) {
+                        var json = OBJECT_MAPPER.readTree(response.body());
+                        var latestTag = json.path("tag_name").asText("");
+                        var htmlUrl = json.path("html_url").asText("");
+                        if (!latestTag.isEmpty() && isNewerVersion(latestTag)) {
                             Platform.runLater(() -> showUpdateDialog(parentWindow, latestTag, htmlUrl));
                         }
                     } catch (Exception e) {

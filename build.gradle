@@ -88,9 +88,7 @@ dependencies {
     implementation "com.formdev:flatlaf-extras:$flatLafVersion"
     implementation 'org.slf4j:slf4j-api:2.0.17'
     implementation 'ch.qos.logback:logback-classic:1.5.27'
-    implementation 'org.apache.commons:commons-collections4:4.5.0'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.21.0'
-    implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'com.github.kwhat:jnativehook:2.2.2'
 
     compileOnly "org.projectlombok:lombok:$lombokVersion"
