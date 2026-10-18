@@ -1,7 +1,7 @@
 package to.sparkapp.app.browser;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonParser;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import javafx.application.Platform;
 import lombok.extern.slf4j.Slf4j;
 
@@ -12,7 +12,8 @@ import java.util.function.Consumer;
 @Slf4j
 class SparkJsApi {
 
-    private final Map<String, Consumer<JsonArray>> handlers = new ConcurrentHashMap<>();
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private final Map<String, Consumer<ArrayNode>> handlers = new ConcurrentHashMap<>();
 
     SparkJsApi(Webview webview) {
         webview.bind("sparkCall", (String rawArgs) -> {
@@ -21,18 +22,18 @@ class SparkJsApi {
                     return null;
                 }
 
-                var args = JsonParser.parseString(rawArgs).getAsJsonArray();
-                if (args.isEmpty()) {
+                var root = MAPPER.readTree(rawArgs);
+                if (!root.isArray() || root.isEmpty()) {
                     return null;
                 }
 
-                var command = args.get(0).getAsString();
+                var command = root.get(0).asText();
                 var handler = handlers.get(command);
 
                 if (handler != null) {
-                    var payload = new JsonArray();
-                    for (int i = 1; i < args.size(); i++) {
-                        payload.add(args.get(i));
+                    var payload = MAPPER.createArrayNode();
+                    for (int i = 1; i < root.size(); i++) {
+                        payload.add(root.get(i));
                     }
 
                     Platform.runLater(() -> handler.accept(payload));
@@ -46,7 +47,7 @@ class SparkJsApi {
         });
     }
 
-    void on(String command, Consumer<JsonArray> action) {
+    void on(String command, Consumer<ArrayNode> action) {
         handlers.put(command, action);
     }
 }

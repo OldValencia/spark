@@ -208,25 +208,25 @@ public class WebviewManager {
 
         api.on("zoom", args -> {
             if (!args.isEmpty()) {
-                zoomManager.handleZoomCommand(args.get(0).getAsString());
+                zoomManager.handleZoomCommand(args.get(0).asText());
             }
         });
 
         api.on("urlChanged", args -> {
             if (!args.isEmpty()) {
-                navigator.handleUrlChange(args.get(0).getAsString());
+                navigator.handleUrlChange(args.get(0).asText());
             }
         });
 
         api.on("linkClicked", args -> {
             if (!args.isEmpty()) {
-                navigator.handleLinkClicked(args.get(0).getAsString());
+                navigator.handleLinkClicked(args.get(0).asText());
             }
         });
 
         api.on("middleClicked", args -> {
             if (!args.isEmpty()) {
-                to.sparkapp.app.utils.UrlUtils.openLink(args.get(0).getAsString());
+                to.sparkapp.app.utils.UrlUtils.openLink(args.get(0).asText());
             }
         });
     }

@@ -60,21 +60,21 @@ public class AiDockIconUtils {
         });
     }
 
-    private static javafx.scene.image.Image renderSvgToFx(com.formdev.flatlaf.extras.FlatSVGIcon icon) {
+    private static Image renderSvgToFx(FlatSVGIcon icon) {
         int padding = 2 * RENDER_SCALE;
         int innerSize = RENDER_SIZE - padding * 2;
 
         var scaledIcon = icon.derive(innerSize, innerSize);
-        var img = new java.awt.image.BufferedImage(RENDER_SIZE, RENDER_SIZE, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        var img = new BufferedImage(RENDER_SIZE, RENDER_SIZE, BufferedImage.TYPE_INT_ARGB);
         var g = img.createGraphics();
 
-        g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY);
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
         scaledIcon.paintIcon(null, g, padding, padding);
         g.dispose();
 
-        return javafx.embed.swing.SwingFXUtils.toFXImage(img, null);
+        return SwingFXUtils.toFXImage(img, null);
     }
 
     private static Image resizeToFx(BufferedImage img) {
