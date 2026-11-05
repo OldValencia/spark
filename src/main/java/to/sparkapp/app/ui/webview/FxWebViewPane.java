@@ -9,6 +9,16 @@ import javafx.geometry.Insets;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import javafx.stage.Window;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import java.util.UUID;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.concurrent.atomic.AtomicInteger;
 import javafx.util.Duration;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +27,6 @@ import to.sparkapp.app.browser.WebviewNavigator;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.Theme;
-import to.sparkapp.app.ui.topbar.components.AiDock;
 import to.sparkapp.app.utils.NativeWindowUtils;
 import to.sparkapp.app.utils.SystemUtils;
 
@@ -33,7 +42,17 @@ import java.util.function.Consumer;
 @Slf4j
 public class FxWebViewPane extends StackPane {
 
-    private final WebviewManager bridge;
+    private WebviewManager bridge;
+    private final Map<String, WebviewManager> sessions = new HashMap<>();
+    private final Map<WebviewManager, AiConfiguration.AiConfig> sites = new HashMap<>();
+    private final Set<WebviewManager> started = new HashSet<>();
+    private boolean initialBrowserUnused = true;
+    private boolean clearingData;
+    private boolean disposed;
+    private long restoreStarted;
+    private final PauseTransition wakeupRetry = new PauseTransition(Duration.millis(30));
+    private int wakeupAttempts;
+    private final PauseTransition loadTimeout = new PauseTransition(Duration.seconds(20));
     private final AppPreferences appPreferences;
     private final String startUrl;
     private final WebViewLoadingOverlay overlay;
@@ -86,28 +105,60 @@ public class FxWebViewPane extends StackPane {
     }
 
     private void setupBridgeCallbacks() {
-        bridge.setOnReadyCallback(() -> Platform.runLater(() -> {
+        var source = bridge;
+        source.setOnReadyCallback(() -> Platform.runLater(() -> {
+            if (disposed || bridge != source) return;
+            syncBounds();
+            showLoadState();
+        }));
+        source.setOnLoadingChanged(loading -> {
+            if (!disposed && bridge == source) showLoadState();
+        });
+        source.setOnLoadError(error -> {
+            if (!disposed && bridge == source) showLoadState();
+        });
+        source.setZoomCallback(pct -> {
+            if (bridge == source && zoomCallback != null) zoomCallback.accept(pct);
+        });
+        source.setOnUrlChanged(url -> {
+            if (disposed) return;
+            boolean auth = WebviewNavigator.isAuthUrl(url);
+            if (bridge == source && onAuthPageDetected != null) onAuthPageDetected.accept(auth);
+            var site = sites.get(source);
+            if (site != null && !auth) appPreferences.rememberSitePage(site, url, bridge == source);
+        });
+    }
+
+    private boolean windowVisible() {
+        return !disposed && getScene() != null && getScene().getWindow() != null
+                && getScene().getWindow().isShowing();
+    }
+
+    private void showLoadState() {
+        loadTimeout.stop();
+        if (!windowVisible()) return;
+        if (bridge.getLoadError() != null) {
+            bridge.setVisible(false);
+            overlay.showError(bridge.getLoadError(), this::retryPage);
+        } else if (bridge.isLoading()) {
+            bridge.setVisible(false);
+            overlay.activate(null, 0, null);
+            loadTimeout.setOnFinished(e -> {
+                if (!windowVisible() || !bridge.isLoading()) return;
+                overlay.showError("Loading is taking longer than expected. You can retry or show the page.",
+                        this::retryPage, () -> { overlay.deactivate(); bridge.setVisible(true); bridge.focusBrowser(); });
+            });
+            loadTimeout.playFromStart();
+        } else {
+            overlay.deactivate();
             syncBounds();
             bridge.setVisible(true);
-            if (overlay.isActive()) {
-                overlay.deactivate();
-            }
-        }));
+            bridge.focusBrowser();
+        }
+    }
 
-        bridge.setZoomCallback(pct -> {
-            if (zoomCallback != null) {
-                zoomCallback.accept(pct);
-            }
-        });
-
-        bridge.setOnUrlChanged(url -> {
-            if (onAuthPageDetected != null) {
-                Platform.runLater(() -> onAuthPageDetected.accept(WebviewNavigator.isAuthUrl(url)));
-            }
-            if (appPreferences.isRememberLastAi() && !WebviewNavigator.isAuthUrl(url)) {
-                appPreferences.setLastUrl(url);
-            }
-        });
+    private void retryPage() {
+        bridge.reload();
     }
 
     private void setupLayoutListeners() {
@@ -137,8 +188,8 @@ public class FxWebViewPane extends StackPane {
         });
     }
 
-    private void attachWindowListeners(javafx.stage.Window window) {
-        if (window == null || windowListenersAttached) {
+    private void attachWindowListeners(Window window) {
+        if (disposed || window == null || windowListenersAttached) {
             return;
         }
         windowListenersAttached = true;
@@ -148,14 +199,11 @@ public class FxWebViewPane extends StackPane {
                 if (!bridgeStarted) {
                     startBridgeIfReady();
                 } else {
-                    resyncBounds();
+                    onWindowRestored();
                 }
                 startHostGeometryWatchdog();
             } else {
-                hostGeometryWatchdog.stop();
-                if (bridgeStarted) {
-                    bridge.hibernate();
-                }
+                onWindowHidden();
             }
         });
 
@@ -226,27 +274,28 @@ public class FxWebViewPane extends StackPane {
 
     /**
      * Call after the host window becomes visible (tray restore or hotkey show).
-     * Deferred 100 ms so the Win32 HWND is fully activated before FindWindow.
+     * Reuses the known HWND immediately; retries only if the host is not available.
      */
-    public void onWindowRestored() {
-        var delay = new PauseTransition(Duration.millis(100));
-        delay.setOnFinished(e -> doWakeup());
-        delay.play();
+    public void onWindowRestored() { onWindowRestored(System.nanoTime()); }
+
+    public void onWindowRestored(long requestedAt) {
+        restoreStarted = requestedAt;
+        wakeupAttempts = 0;
+        wakeupRetry.stop();
+        doWakeup();
     }
 
-    /**
-     * Call when the host window is hidden (tray hide or hotkey hide).
-     * Belt-and-suspenders alongside the showingProperty listener.
-     */
     public void onWindowHidden() {
+        overlay.pauseAnimation();
+        wakeupRetry.stop();
+        loadTimeout.stop();
         hostGeometryWatchdog.stop();
         bridge.hibernate();
+        parentHandle = 0L;
     }
 
     private synchronized void startBridgeIfReady() {
-        if (bridgeStarted) {
-            return;
-        }
+        if (disposed || bridgeStarted) return;
         var scene = getScene();
         if (scene == null) {
             return;
@@ -265,18 +314,20 @@ public class FxWebViewPane extends StackPane {
 
         int[] initialBounds = calculateCurrentBounds();
         bridgeStarted = true;
+        started.add(bridge);
         bridge.init(startUrl, handle, initialBounds[0], initialBounds[1], initialBounds[2], initialBounds[3]);
+        bridge.wakeup(handle);
         resyncBounds();
         startHostGeometryWatchdog();
     }
 
-    private long resolveParentHandle(javafx.stage.Window window) {
+    private long resolveParentHandle(Window window) {
         if (!SystemUtils.isWindows() || !(window instanceof Stage stage)) {
             return 0L;
         }
         
         var originalTitle = stage.getTitle();
-        var uniqueTitle = "SparkWindow-" + java.util.UUID.randomUUID();
+        var uniqueTitle = "SparkWindow-" + UUID.randomUUID();
         stage.setTitle(uniqueTitle);
         
         long handle = NativeWindowUtils.getJavaFXWindowHandle(uniqueTitle);
@@ -293,14 +344,16 @@ public class FxWebViewPane extends StackPane {
 
     private void doWakeup() {
         var window = getScene() != null ? getScene().getWindow() : null;
-        if (window == null || !window.isShowing()) {
+        if (disposed || window == null || !window.isShowing()) {
             return;
         }
-        long handle = resolveParentHandle(window);
+        if (!bridgeStarted) { startBridgeIfReady(); return; }
+        long handle = parentHandle != 0 ? parentHandle : resolveParentHandle(window);
         if (handle == 0L && SystemUtils.isWindows()) {
-            var t = new PauseTransition(Duration.millis(50));
-            t.setOnFinished(e -> doWakeup());
-            t.play();
+            if (++wakeupAttempts <= 20) {
+                wakeupRetry.setOnFinished(e -> doWakeup());
+                wakeupRetry.playFromStart();
+            }
             return;
         }
         this.parentHandle = handle;
@@ -311,6 +364,12 @@ public class FxWebViewPane extends StackPane {
         getScene().getRoot().layout();
         resyncBounds();
         startHostGeometryWatchdog();
+        showLoadState();
+        long requestedAt = restoreStarted;
+        bridge.focusBrowser(accepted -> log.info("Browser native focus completed in {} ms (accepted={})",
+                (System.nanoTime() - requestedAt) / 1_000_000, accepted));
+        log.info("Browser restore dispatched in {} ms (warm={})",
+                (System.nanoTime() - restoreStarted) / 1_000_000, !bridge.isLoading());
     }
 
     void syncBounds() {
@@ -368,7 +427,7 @@ public class FxWebViewPane extends StackPane {
      * different scale factor, so the host window's real client size wins when the
      * two disagree.
      */
-    private double[] resolveHostScale(javafx.stage.Window window) {
+    private double[] resolveHostScale(Window window) {
         var sx = window.getOutputScaleX();
         var sy = window.getOutputScaleY();
 
@@ -396,33 +455,96 @@ public class FxWebViewPane extends StackPane {
      * transitions.
      */
     public void setCurrentConfig(AiConfiguration.AiConfig config, String targetUrl) {
-        var icon = AiDock.ICON_CACHE.get(config.icon());
-
-        if (!bridgeStarted) {
-            overlay.activate(icon, 0, null);
-            bridge.setCurrentConfig(config, targetUrl);
-            return;
+        if (disposed || clearingData) return;
+        var existing = sessions.get(config.id());
+        var previousConfig = existing == null ? null : sites.get(existing);
+        if (previousConfig != null && !previousConfig.url().equals(config.url())) {
+            existing.shutdown(() -> {});
+            started.remove(existing);
+            sites.remove(existing);
+            sessions.remove(config.id());
+            existing = null;
         }
+        if (existing == bridge) return;
+        bridge.hibernate();
+        if (existing == null) {
+            if (!initialBrowserUnused) bridge = new WebviewManager(appPreferences);
+            initialBrowserUnused = false;
+            sessions.put(config.id(), bridge);
+            sites.put(bridge, config);
+            setupBridgeCallbacks();
+            var remembered = targetUrl != null ? targetUrl : appPreferences.getSiteUrl(config);
+            bridge.setCurrentConfig(config, remembered);
+        } else {
+            bridge = existing;
+        }
+        bridgeStarted = started.contains(bridge);
+        var url = targetUrl != null ? targetUrl : appPreferences.getSiteUrl(config);
+        appPreferences.rememberSitePage(config, url != null ? url : config.url(), true);
+        if (windowVisible()) {
+            if (!bridgeStarted) startBridgeIfReady();
+            else onWindowRestored();
+            showLoadState();
+        }
+    }
 
-        bridge.setVisible(false);
-        overlay.activate(icon, 1200, () -> {
-            syncBounds();
-            bridge.setVisible(true);
+    public void reconcileSites(List<AiConfiguration.AiConfig> configurations) {
+        sessions.entrySet().removeIf(entry -> {
+            var site = sites.get(entry.getValue());
+            boolean removed = configurations.stream().noneMatch(config -> config.id().equals(entry.getKey())
+                    && config.url().equals(site.url()));
+            if (removed) {
+                var browser = entry.getValue();
+                browser.hibernate();
+                browser.shutdown(() -> {});
+                sites.remove(browser);
+                started.remove(browser);
+            }
+            return removed;
         });
-
-        bridge.setCurrentConfig(config, targetUrl);
     }
 
     public void clearCookies() {
-        bridge.clearCookies();
+        if (clearingData || !bridgeStarted || disposed) return;
+        var confirmation = new Alert(Alert.AlertType.CONFIRMATION,
+                "Clear cookies and website storage for all sites in Spark? This signs you out and reloads open sites. Unsent text will be lost.",
+                ButtonType.CANCEL, ButtonType.OK);
+        confirmation.initOwner(getScene().getWindow());
+        confirmation.setTitle("Clear site data");
+        confirmation.setHeaderText("Sign out of all sites");
+        if (confirmation.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) return;
+        clearingData = true;
+        sessions.values().forEach(WebviewManager::stopLoading);
+        bridge.clearBrowsingData(success -> {
+            clearingData = false;
+            if (disposed) return;
+            if (success) {
+                appPreferences.clearSiteHistory();
+                sessions.values().forEach(WebviewManager::reload);
+            }
+            var result = new Alert(success ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR);
+            result.initOwner(getScene().getWindow());
+            result.setTitle("Clear site data");
+            result.setHeaderText(success ? "Site data cleared" : "Site data could not be cleared");
+            result.setContentText(success ? "Cookies and stored website data have been cleared for the Spark browser profile."
+                    : "Your data has not been reported as cleared. Please try again or check the application log.");
+            result.show();
+        });
     }
 
-    public void resetZoom() {
-        bridge.resetZoom();
-    }
+    public void resetZoom() { bridge.resetZoom(); }
 
     public void shutdown(Runnable onComplete) {
+        overlay.deactivate();
+        disposed = true;
+        wakeupRetry.stop();
+        loadTimeout.stop();
         hostGeometryWatchdog.stop();
-        bridge.shutdown(() -> Platform.runLater(onComplete));
+        var browsers = new HashSet<>(sessions.values());
+        browsers.add(bridge);
+        var remaining = new AtomicInteger(browsers.size());
+        browsers.forEach(browser -> browser.shutdown(() -> {
+            if (remaining.decrementAndGet() == 0) Platform.runLater(onComplete);
+        }));
     }
 }

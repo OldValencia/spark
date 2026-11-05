@@ -8,9 +8,9 @@ import to.sparkapp.app.utils.NativeWindowUtils;
 import to.sparkapp.app.utils.SystemUtils;
 import to.sparkapp.app.utils.UrlUtils;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import javafx.application.Platform;
+import java.util.ArrayDeque;
+import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -26,6 +26,7 @@ public class WebviewManager {
     private final AtomicBoolean disposed = new AtomicBoolean(false);
     private final AtomicBoolean isStarting = new AtomicBoolean(false);
     private volatile boolean isHibernated = false;
+    private volatile long visibilityGeneration;
 
     private volatile int nativeX;
     private volatile int nativeY;
@@ -35,11 +36,20 @@ public class WebviewManager {
     private final WebviewZoomManager zoomManager;
     private final WebviewNavigator navigator;
 
-    private final ScheduledExecutorService dispatchWaitScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-        var t = new Thread(r, "webview-dispatch-waiter");
-        t.setDaemon(true);
-        return t;
-    });
+    private final Queue<Runnable> pending = new ArrayDeque<>();
+    private volatile boolean loading = true;
+    private volatile String loadError;
+    private long navigationId;
+    @Setter private Consumer<Boolean> onLoadingChanged;
+    @Setter private Consumer<String> onLoadError;
+
+    public boolean isLoading() { return loading; }
+    public String getLoadError() { return loadError; }
+
+    private void loadingChanged(boolean value) {
+        loading = value;
+        if (onLoadingChanged != null) Platform.runLater(() -> onLoadingChanged.accept(value));
+    }
 
     @Setter
     private Runnable onReadyCallback;
@@ -98,6 +108,9 @@ public class WebviewManager {
                     }
                 });
             
+                document.addEventListener('DOMContentLoaded', function() {
+                    window.sparkCall('documentReady', window.location.href);
+                }, {once: true});
                 window.sparkCall('urlChanged', window.location.href);
                 var _push = history.pushState;
                 history.pushState = function() { _push.apply(this, arguments); window.sparkCall('urlChanged', window.location.href); };
@@ -146,7 +159,6 @@ public class WebviewManager {
                 if (nativeHandle != 0) {
                     if (isHibernated) {
                         NativeWindowUtils.setVisible(nativeHandle, false);
-                        NativeWindowUtils.setBounds(nativeHandle, 15000, 15000, 10, 10);
                         NativeWindowUtils.unparent(nativeHandle);
                     } else if (parentHandle != 0) {
                         NativeWindowUtils.setParent(nativeHandle, parentHandle);
@@ -157,11 +169,31 @@ public class WebviewManager {
                     }
                 }
 
+                if (SystemUtils.isWindows()) {
+                    webview.windows().observe(id -> {
+                        navigationId = id;
+                        loadError = null;
+                        loadingChanged(true);
+                    }, (id, success) -> {
+                        if (id != navigationId) return;
+                        var url = webview.windows().source();
+                        if ("about:blank".equals(url)) return;
+                        Platform.runLater(() -> navigator.handleUrlChange(url));
+                        zoomManager.applyZoomCss();
+                        if (!success) {
+                            loadError = "This page could not be loaded. Check your connection and try again.";
+                            if (onLoadError != null) Platform.runLater(() -> onLoadError.accept(loadError));
+                        }
+                        loadingChanged(false);
+                    });
+                }
                 setupJsApi();
                 webview.setInitScript(INIT_SCRIPTS);
 
                 var urlToLoad = initialUrl != null ? initialUrl : "about:blank";
-                webview.loadURL(urlToLoad);
+                synchronized (this) {
+                    if (pending.isEmpty()) webview.loadURL(urlToLoad);
+                }
 
                 webview.dispatch(() -> {
                     synchronized (this) {
@@ -171,17 +203,18 @@ public class WebviewManager {
                         }
                         ready.set(true);
                     }
+                    Runnable task;
+                    while ((task = pollPending()) != null) task.run();
                     zoomManager.applyZoomCss();
 
                     if (nativeHandle != 0) {
                         if (isHibernated) {
                             NativeWindowUtils.setVisible(nativeHandle, false);
-                            NativeWindowUtils.setBounds(nativeHandle, 15000, 15000, 10, 10);
                             NativeWindowUtils.unparent(nativeHandle);
                         } else if (parentHandle != 0) {
                             NativeWindowUtils.setParent(nativeHandle, parentHandle);
                             NativeWindowUtils.setBounds(nativeHandle, nativeX, nativeY, nativeW, nativeH);
-                            NativeWindowUtils.setVisible(nativeHandle, true);
+                            NativeWindowUtils.setVisible(nativeHandle, !loading && loadError == null);
                         }
                     }
 
@@ -194,7 +227,13 @@ public class WebviewManager {
 
             } catch (Throwable t) {
                 log.error("WebviewManager: Webview thread encountered an error", t);
+                loadError = "The browser could not start. Try opening the site again.";
+                loadingChanged(false);
+                if (onLoadError != null) Platform.runLater(() -> onLoadError.accept(loadError));
             } finally {
+                var active = webview;
+                try { if (active != null) active.destroy(); }
+                catch (Throwable failure) { log.error("Could not dispose the native browser", failure); }
                 Runnable complete;
                 synchronized (this) {
                     ready.set(false);
@@ -219,6 +258,9 @@ public class WebviewManager {
 
         var api = new SparkJsApi(webview);
 
+        api.on("documentReady", args -> {
+            if (!SystemUtils.isWindows()) loadingChanged(false);
+        });
         api.on("zoom", args -> {
             if (!args.isEmpty()) {
                 zoomManager.handleZoomCommand(args.get(0).asText());
@@ -244,49 +286,21 @@ public class WebviewManager {
         });
     }
 
-    public void dispatch(Runnable action) {
-        if (disposed.get()) {
+    private synchronized Runnable pollPending() { return pending.poll(); }
+
+    public synchronized void dispatch(Runnable action) {
+        if (disposed.get()) return;
+        var active = webview;
+        if (!ready.get() || active == null) {
+            pending.add(action);
             return;
         }
-
-        if (!ready.get() && webview == null) {
-            startWebviewThread(navigator.getCurrentUrl());
-        }
-
-        if (ready.get() && webview != null) {
-            webview.dispatch(() -> {
-                try {
-                    action.run();
-                } catch (Exception e) {
-                    log.error("WebviewManager: Task failed", e);
-                }
-            });
-        } else {
-            scheduleDispatchRetry(action, 0);
-        }
-    }
-
-    private void scheduleDispatchRetry(Runnable action, int attempt) {
-        if (disposed.get() || attempt > 100) {
-            return;
-        }
-
-        dispatchWaitScheduler.schedule(() -> {
-            if (disposed.get()) {
-                return;
+        active.dispatch(() -> {
+            if (!disposed.get()) {
+                try { action.run(); }
+                catch (Exception failure) { log.error("Browser task failed", failure); }
             }
-            if (ready.get() && webview != null) {
-                webview.dispatch(() -> {
-                    try {
-                        action.run();
-                    } catch (Exception e) {
-                        log.error("WebviewManager: Deferred task failed", e);
-                    }
-                });
-            } else {
-                scheduleDispatchRetry(action, attempt + 1);
-            }
-        }, 50, TimeUnit.MILLISECONDS);
+        });
     }
 
     public void eval(String js) {
@@ -328,6 +342,7 @@ public class WebviewManager {
     }
 
     public void hibernate() {
+        visibilityGeneration++;
         isHibernated = true;
 
         if (!SystemUtils.isWindows() || nativeHandle == 0) {
@@ -335,11 +350,14 @@ public class WebviewManager {
         }
 
         NativeWindowUtils.setVisible(nativeHandle, false);
-        NativeWindowUtils.setBounds(nativeHandle, 15000, 15000, 10, 10);
+        // JavaFX may destroy its HWND when hidden. Detach the browser first so
+        // destroying the host cannot destroy the live browser child window.
+        // Preserve the viewport: shrinking it would reflow the page and lose scroll.
         NativeWindowUtils.unparent(nativeHandle);
     }
 
     public void wakeup(long parentHandle) {
+        visibilityGeneration++;
         if (parentHandle != 0) {
             this.parentHandle = parentHandle;
         }
@@ -353,18 +371,26 @@ public class WebviewManager {
         if (!ready.get() || nativeHandle == 0 || webview == null) {
             startWebviewThread(navigator.getCurrentUrl());
         } else {
-            NativeWindowUtils.setParent(nativeHandle, this.parentHandle);
+            if (!NativeWindowUtils.isChildOf(nativeHandle, this.parentHandle))
+                NativeWindowUtils.setParent(nativeHandle, this.parentHandle);
             NativeWindowUtils.setBounds(nativeHandle, nativeX, nativeY, nativeW, nativeH);
-            NativeWindowUtils.setVisible(nativeHandle, true);
+            NativeWindowUtils.setVisible(nativeHandle, !loading && loadError == null);
         }
     }
 
     public synchronized void shutdown(Runnable onComplete) {
         if (disposed.getAndSet(true)) {
+            if (isStarting.get()) {
+                var previous = shutdownCallback;
+                shutdownCallback = () -> {
+                    try { if (previous != null) previous.run(); }
+                    finally { onComplete.run(); }
+                };
+            } else onComplete.run();
             return;
         }
 
-        dispatchWaitScheduler.shutdownNow();
+        pending.clear();
         navigator.shutdown();
         if (isStarting.get()) {
             shutdownCallback = onComplete;
@@ -388,8 +414,44 @@ public class WebviewManager {
         navigator.setCurrentConfig(config, targetUrl);
     }
 
-    public void clearCookies() {
-        navigator.clearCookies();
+    public void clearBrowsingData(Consumer<Boolean> completed) {
+        dispatch(() -> {
+            try {
+                webview.windows().clearBrowsingData(success -> Platform.runLater(() -> completed.accept(success)));
+            } catch (Exception failure) {
+                log.error("Could not clear browser data", failure);
+                Platform.runLater(() -> completed.accept(false));
+            }
+        });
+    }
+
+    public void stopLoading() {
+        dispatch(() -> { if (SystemUtils.isWindows()) webview.windows().stop(); });
+    }
+
+    public void focusBrowser() { focusBrowser(null); }
+
+    public void focusBrowser(Consumer<Boolean> completed) {
+        long generation = visibilityGeneration;
+        dispatch(() -> {
+            if (generation == visibilityGeneration && !isHibernated && !loading
+                    && loadError == null && SystemUtils.isWindows()) {
+                boolean accepted = webview.windows().focus();
+                if (!accepted) log.debug("Focus skipped because the host is changing visibility");
+                if (completed != null) completed.accept(accepted);
+            }
+        });
+    }
+
+    public void reload() {
+        if (!isStarting.get() && !disposed.get()) {
+            synchronized (this) { pending.clear(); }
+            loadError = null;
+            loadingChanged(true);
+            startWebviewThread(navigator.getCurrentUrl());
+        } else {
+            dispatch(() -> webview.loadURL(navigator.getCurrentUrl()));
+        }
     }
 
     public void resetZoom() {

@@ -11,6 +11,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -20,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 public class AppPreferences {
 
     private static final String FILE_NAME = "app-config.json";
-    private static final File FILE = new File(AppPaths.DIR, FILE_NAME);
+    private final File file;
 
     private final ObjectMapper mapper = new ObjectMapper();
     private AppConfig config;
@@ -33,19 +35,24 @@ public class AppPreferences {
     private volatile ScheduledFuture<?> pendingDebouncedSave;
 
     public AppPreferences() {
+        this(new File(AppPaths.DIR, FILE_NAME));
+    }
+
+    AppPreferences(File file) {
+        this.file = file;
         mapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
         load();
         initDefaults();
     }
 
     private void load() {
-        if (!FILE.exists() && !new File(FILE + ".bak").exists()) {
+        if (!file.exists() && !new File(file + ".bak").exists()) {
             config = new AppConfig();
             return;
         }
 
         try {
-            config = JsonFiles.read(FILE, mapper.readerFor(AppConfig.class));
+            config = JsonFiles.read(file, mapper.readerFor(AppConfig.class));
             if (config == null) config = new AppConfig();
         } catch (IOException e) {
             log.error("Failed to load application preferences", e);
@@ -102,9 +109,9 @@ public class AppPreferences {
      * Immediate, synchronous write — used for settings that change rarely.
      */
     private synchronized void save() {
-        new File(AppPaths.DIR).mkdirs();
+        file.getAbsoluteFile().getParentFile().mkdirs();
         try {
-            JsonFiles.write(FILE, mapper, config);
+            JsonFiles.write(file, mapper, config);
         } catch (IOException e) {
             log.error("Failed to save application preferences", e);
         }
@@ -143,6 +150,40 @@ public class AppPreferences {
         }
     }
 
+    public synchronized String getLastSiteId() { return config.lastSiteId; }
+
+    public synchronized String getSiteUrl(AiConfiguration.AiConfig site) {
+        if (!isRememberLastAi() || config.siteUrls == null) return null;
+        var url = config.siteUrls.get(site.id());
+        return UrlUtils.isSameHost(url, site.url()) ? url : null;
+    }
+
+    public synchronized void rememberSitePage(AiConfiguration.AiConfig site, String url, boolean active) {
+        if (!isRememberLastAi() || !UrlUtils.isSameHost(url, site.url())) return;
+        if (config.siteUrls == null) config.siteUrls = new HashMap<>();
+        config.siteUrls.put(site.id(), url);
+        if (active) {
+            config.lastSiteId = site.id();
+            config.lastUrl = url;
+        }
+        saveDebounced();
+    }
+
+    public synchronized void clearSiteHistory() {
+        config.siteUrls = new HashMap<>();
+        config.lastSiteId = null;
+        config.lastUrl = null;
+        save();
+    }
+
+    public synchronized void pruneSiteHistory(List<AiConfiguration.AiConfig> sites) {
+        if (config.siteUrls == null) return;
+        config.siteUrls.entrySet().removeIf(entry -> sites.stream().noneMatch(site ->
+                site.id().equals(entry.getKey()) && UrlUtils.isSameHost(entry.getValue(), site.url())));
+        if (sites.stream().noneMatch(site -> site.id().equals(config.lastSiteId))) config.lastSiteId = null;
+        saveDebounced();
+    }
+
     public synchronized String getLastUrl() {
         return config.lastUrl;
     }
@@ -152,6 +193,8 @@ public class AppPreferences {
         save();
         if (!remember) {
             config.lastUrl = null;
+            config.lastSiteId = null;
+            config.siteUrls = new HashMap<>();
             save();
         }
     }
@@ -263,6 +306,8 @@ public class AppPreferences {
     @Data
     private static class AppConfig {
         private String lastUrl;
+        private String lastSiteId;
+        private Map<String, String> siteUrls;
         private Boolean rememberLastAi;
         private Double lastZoomValue;
         private Boolean zoomEnabled;

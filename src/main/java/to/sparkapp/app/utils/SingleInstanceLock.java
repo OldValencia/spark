@@ -14,6 +14,12 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
+import java.nio.file.StandardOpenOption;
+import javafx.application.Platform;
 
 @Slf4j
 public class SingleInstanceLock {
@@ -25,15 +31,50 @@ public class SingleInstanceLock {
     private static final int HANDSHAKE_TIMEOUT_MS = 700;
     private static ServerSocket serverSocket;
     private static final AtomicReference<Runnable> onActivate = new AtomicReference<>();
+    private static final AtomicBoolean activationPending = new AtomicBoolean();
+    private static FileChannel lockChannel;
+    private static FileLock processLock;
 
     public static void setOnActivate(Runnable callback) {
         onActivate.set(callback);
+        deliverActivation();
     }
 
-    public static boolean tryAcquire() {
+    public static synchronized boolean tryAcquire() {
+        // The lock file is stable: deleting it would allow two processes to lock
+        // different filesystem objects under the same pathname.
+        FileChannel candidate = null;
+        try {
+            candidate = FileChannel.open(new File(AppPaths.DATA_DIR, "instance.lock").toPath(),
+                    StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            FileLock acquired;
+            try { acquired = candidate.tryLock(); }
+            catch (OverlappingFileLockException alreadyHeld) { acquired = null; }
+            if (acquired == null) {
+                candidate.close();
+                for (int attempt = 0; attempt < 20; attempt++) {
+                    int port = readPort();
+                    if (port > 0 && signalExistingInstance(port)) return false;
+                    try { Thread.sleep(50); }
+                    catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); break; }
+                }
+                log.warn("Spark is already starting; no second instance will be created");
+                return false;
+            }
+            lockChannel = candidate;
+            processLock = acquired;
+        } catch (IOException failure) {
+            if (candidate != null) try { candidate.close(); } catch (IOException ignored) {}
+            log.error("Could not acquire the application lock", failure);
+            return false;
+        }
         int existingPort = readPort();
         if (existingPort > 0) {
             if (signalExistingInstance(existingPort)) {
+                try { processLock.release(); lockChannel.close(); }
+                catch (IOException failure) { log.warn("Could not release the startup lock", failure); }
+                processLock = null;
+                lockChannel = null;
                 return false; // Another instance handled the signal
             }
         }
@@ -50,35 +91,43 @@ public class SingleInstanceLock {
         }
     }
 
-    public static void release() {
+    public static synchronized void release() {
         try {
             if (serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close();
             }
-            if (PORT_FILE.exists()) {
+            if (processLock != null && PORT_FILE.exists()) {
                 PORT_FILE.delete();
             }
+            if (processLock != null) processLock.release();
+            if (lockChannel != null) lockChannel.close();
+            processLock = null;
+            lockChannel = null;
         } catch (IOException ignored) {
         }
     }
 
     private static void startListenerThread() {
+        var listeningSocket = serverSocket;
         var thread = new Thread(() -> {
-            while (!serverSocket.isClosed()) {
-                try (var client = serverSocket.accept()) {
+            while (!listeningSocket.isClosed()) {
+                try (var client = listeningSocket.accept()) {
                     client.getOutputStream().write((HANDSHAKE + "\n").getBytes(StandardCharsets.UTF_8));
                     client.getOutputStream().flush();
 
-                    var callback = onActivate.get();
-                    if (callback != null) {
-                        javafx.application.Platform.runLater(callback);
-                    }
+                    activationPending.set(true);
+                    deliverActivation();
                 } catch (IOException ignored) {
                 }
             }
         }, "single-instance-listener");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private static void deliverActivation() {
+        var callback = onActivate.get();
+        if (callback != null && activationPending.getAndSet(false)) Platform.runLater(callback);
     }
 
     private static boolean signalExistingInstance(int port) {
@@ -115,7 +164,6 @@ public class SingleInstanceLock {
     private static void writePort(int port) {
         try {
             Files.writeString(PORT_FILE.toPath(), String.valueOf(port));
-            PORT_FILE.deleteOnExit();
         } catch (Exception e) {
             log.warn("Could not write port file", e);
         }

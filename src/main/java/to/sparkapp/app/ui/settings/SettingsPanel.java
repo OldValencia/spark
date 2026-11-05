@@ -160,13 +160,13 @@ public class SettingsPanel extends VBox {
                 appPreferences.isDarkModeEnabled(),
                 appPreferences::setDarkModeEnabled));
 
-        var clearCookiesBtn = new AnimatedSettingsButton("Clear cookies", () -> {
+        var clearCookiesBtn = new AnimatedSettingsButton("Clear site data", () -> {
             if (onClearCookies != null) {
                 onClearCookies.run();
             }
         });
-        card.addRow(new SettingsRow("Cookies",
-                "Sign out of every provider and reset sessions",
+        card.addRow(new SettingsRow("Site data",
+                "Clear cookies and website storage for all sites",
                 clearCookiesBtn));
 
         addSection("Browser", card);

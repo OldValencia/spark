@@ -152,31 +152,6 @@ public class WebviewNavigator {
         });
     }
 
-    void clearCookies() {
-        log.info("WebviewNavigator: Clearing cookies...");
-        final String returnUrl = currentUrl != null ? currentUrl : "about:blank";
-        final long navId = NAV_ID_SEQUENCE.incrementAndGet();
-        this.currentNavId = navId;
-
-        bridge.dispatch(() -> {
-            if (currentNavId != navId) return;
-            bridge.eval("""
-                    (function() {
-                        document.cookie.split(';').forEach(function(c) {
-                            document.cookie = c.trim().split('=')[0] +
-                                '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
-                        });
-                    })();
-                    """);
-            bridge.loadURL("about:blank");
-            schedule(400, () -> {
-                if (currentNavId == navId) {
-                    bridge.dispatch(() -> bridge.loadURL(returnUrl));
-                }
-            });
-        });
-    }
-
     String getCurrentUrl() {
         return currentUrl != null ? currentUrl : "about:blank";
     }

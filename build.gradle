@@ -102,6 +102,27 @@ tasks.withType(Test).configureEach {
     useJUnitPlatform()
 }
 
+tasks.named('test') {
+    useJUnitPlatform { excludeTags 'native' }
+}
+
+tasks.register('nativeTest', Test) {
+    description = 'Exercises real WebView2 using an isolated disposable browser profile.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags 'native' }
+    onlyIf { org.gradle.internal.os.OperatingSystem.current().isWindows() }
+    // Never inherit the installed application's profile or user preferences.
+    def isolated = layout.buildDirectory.dir("native-tests/${UUID.randomUUID()}").get().asFile
+    environment 'WEBVIEW2_USER_DATA_FOLDER', new File(isolated, 'browser').absolutePath
+    systemProperty 'spark.dataDir', new File(isolated, 'settings').absolutePath
+    systemProperty 'spark.nativeTests', 'true'
+    systemProperty 'spark.testRuntimeClasspath', sourceSets.test.runtimeClasspath.asPath
+    outputs.upToDateWhen { false }
+    testLogging { events 'passed', 'failed', 'standardOut', 'standardError' }
+}
+
 if (project.hasProperty('generateCds')) {
     tasks.named('run') {
         dependsOn jar, installDist

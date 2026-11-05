@@ -33,6 +33,7 @@ public class AiConfiguration {
                     .map(AiConfig::url)
                     .collect(Collectors.toList());
             appPreferences.cleanupLastUrlIfNeeded(validUrls);
+            appPreferences.pruneSiteHistory(configurations);
         }
     }
 

@@ -23,8 +23,9 @@ Access your favorite AI services in one place. Pre-configured with:
 - **Global Hotkey** — Toggle the application visibility instantly (configurable).
 - **Auto-Start** — Option to launch Spark automatically on system startup.
 - **Always On Top** — Keep your AI assistant visible while working in other apps.
-- **Session Persistence** — Remembers your last visited AI, zoom level, and window position.
-- **Privacy Focused** — Easy "Clear Cookies" button to reset sessions.
+- **Page Persistence** — Remembers the last page of each site, including sites sharing a host.
+- **Live Site Switching** — Visited sites stay loaded during the current app session, preserving drafts, scroll position, and ongoing requests when switching or hiding the window.
+- **Clear Site Data** — On Windows, clears cookies (including HttpOnly cookies) and website storage across the Spark browser profile after confirmation. Open sites reload and you may need to sign in again.
 
 ### 🎨 Modern Interface
 - **Animated Dock** — macOS-style icon dock with smooth transitions.
@@ -32,7 +33,8 @@ Access your favorite AI services in one place. Pre-configured with:
 - **Clean UI** — Minimalist design with a focus on content.
 
 ### ⚡ Performance
-- **Lightweight** — Optimized JVM settings (~120-140MB RAM).
+- Sites load on demand. Hiding preserves live state and does not suspend active requests.
+- Memory includes the JVM and WebView2 child processes and depends on the sites you open. Visited sites stay loaded until removed or until Spark exits. JVM heap limits do not represent total application RAM.
 
 ## Screenshots
 
@@ -77,7 +79,8 @@ Application data is stored in your user directory:
 
 Contains:
 - `app-config.json` — General preferences.
-- `custom-providers.json` — Your custom AI configurations.
+- `providers.json` — Your site configurations.
+- `*.json.bak` — The previous readable configuration, used for recovery.
 - `logs/` — Application logs.
 
 ## Building from Source
@@ -97,3 +100,14 @@ cd spark
 
 # Build installers
 ./gradlew clean build createInstaller
+
+# Unit and regression tests
+./gradlew test
+
+# Windows integration tests with real WebView2 and a disposable profile
+./gradlew nativeTest
+```
+
+Native tests require the WebView2 Runtime. They use a fresh `build/native-tests/` directory for browser data and preferences, local HTTP fixtures, and off-screen/hidden windows. They never use or clear installed Spark sessions. See [P1 validation notes](docs/p1-validation.md) for coverage and measurement limitations.
+
+Remembered page addresses survive a restart when enabled. Unsent drafts and running requests are live browser state and survive only while Spark is running. Clearing site data is an explicit destructive action; it is never part of hiding or ordinary startup.

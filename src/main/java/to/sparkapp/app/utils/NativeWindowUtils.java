@@ -118,8 +118,8 @@ public final class NativeWindowUtils {
     }
 
     /**
-     * Removes the webview window from its parent (used only in edge cases;
-     * normal hide-to-tray no longer calls this).
+     * Detaches a hidden browser before JavaFX can destroy the host HWND.
+     * The browser keeps its viewport and live page until it is reattached.
      */
     public static void unparent(long childHandle) {
         if (!SystemUtils.isWindows() || childHandle == 0) return;

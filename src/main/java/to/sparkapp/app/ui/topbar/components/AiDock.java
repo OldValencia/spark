@@ -159,6 +159,15 @@ public class AiDock extends StackPane {
             }
         }
 
+        if (appPreferences.isRememberLastAi() && appPreferences.getLastSiteId() != null) {
+            for (int i = 0; i < orderedConfigs.size(); i++) {
+                if (orderedConfigs.get(i).id().equals(appPreferences.getLastSiteId())) {
+                    initialIndex = i;
+                    initialUrl = appPreferences.getSiteUrl(orderedConfigs.get(i));
+                    break;
+                }
+            }
+        }
         for (var config : orderedConfigs) {
             AiDockIconUtils.preloadIcon(config, userIconsDir);
             var node = new DockItemNode(config, this);
@@ -231,9 +240,6 @@ public class AiDock extends StackPane {
         selectedNode = node;
         selectedNode.setSelected(true);
         fxWebViewPane.setCurrentConfig(node.getConfig(), targetUrl);
-        if (appPreferences != null) {
-            appPreferences.setLastUrl(targetUrl != null ? targetUrl : node.getConfig().url());
-        }
         updateTopBarColor();
     }
 

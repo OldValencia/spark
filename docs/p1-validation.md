@@ -1,0 +1,88 @@
+# P0/P1 implementation and validation
+
+## Behavior
+
+Product decisions confirmed by the user:
+
+- Automatically focusing a website's editor is optional convenience, not a P1 acceptance requirement. Clicking the field after opening Spark is acceptable.
+- Keeping visited pages alive without automatic eviction is a required workflow: write part of a message, hide Spark, find more information elsewhere, reopen it, and continue writing. Increased memory usage is an accepted cost of preserving that context. Do not add idle timers, memory-pressure eviction, or automatic unloading on hide.
+
+- Initialization queues browser work until the native loop is ready instead of polling every 50 ms.
+- On Windows, loading follows WebView2 navigation events and navigation IDs. Success reveals the page; failure offers Retry. After 20 seconds the user can retry or reveal a slow page. The fixed 1,200 ms mask is removed.
+- Hotkey timing begins on the native input callback and reaches the browser thread through the FX queue. Logs distinguish restore dispatch from a native focus request accepted by WebView2; neither guarantees that an arbitrary website focuses its editor.
+- Restore resolves the current JavaFX HWND immediately. Only an unavailable host schedules a bounded retry. There is no unconditional 100 ms wait.
+- JavaFX can destroy its HWND when hidden. Spark detaches its browser child first, preserving viewport, DOM, and requests, then attaches it to the current host on restore. Stale queued focus requests are discarded.
+- Sites load lazily and stay alive after visiting. Switching back does not navigate again. There is no automatic eviction: it could destroy unsent drafts or interrupt arbitrary websites. Removing a site releases its browser; quitting closes all browsers.
+- Page history is keyed by stable site ID, including sites sharing a host. Background sites cannot replace the active-site selection. Disabling history clears remembered addresses. History is separate from in-memory DOM state.
+- Windows clearing calls `ICoreWebView2Profile2::ClearBrowsingDataAll`, waits for completion, and reports success or failure. A confirmation explains sign-out and lost unsent text. It is not exposed to page JavaScript and never runs automatically.
+- A filesystem lock prevents concurrent launches from creating two instances. Activation before the main window callback is installed is retained for later delivery.
+
+## Validation
+
+Run with JDK 21 and, for native tests, Windows with the WebView2 Runtime:
+
+```powershell
+./gradlew.bat test nativeTest --offline --no-daemon
+```
+
+`test` excludes the native tag. `nativeTest` creates a fresh profile on every run. `spark.dataDir` redirects preferences and the process lock; `WEBVIEW2_USER_DATA_FOLDER` redirects browser storage. No test uses external sites or signed-in accounts.
+
+Coverage:
+
+- Existing URL, authentication, JSON backup, and write-failure regressions.
+- Independent per-site URLs, restoration from disk, host changes, and disabling history.
+- Native navigation and profile-wide clearing of HttpOnly cookies, localStorage, sessionStorage, and IndexedDB across localhost and 127.0.0.1.
+- A real JavaFX host with native browsers: draft, scroll, background activity, an in-flight HTTP request, live site switching, and 12 rapid hide/restore cycles without additional page navigation.
+- Failed navigation, return to a cached page, removing/recreating site browsers, second-instance activation, and repeated shutdown during native initialization.
+
+## Measurements and limits
+
+Representative local-fixture run on the development machine:
+
+| Measurement | Observed |
+| --- | --- |
+| Creating an off-screen JavaFX host through completed local navigation | 514 ms |
+| Returning from the warm show/restore call | 23 ms |
+| Summed working set of the test JVM and WebView2 descendants, one site | 510 MiB |
+| Same test process tree, two live sites | 570 MiB |
+
+These are diagnostic observations, not performance guarantees. The cold measurement excludes JVM and JavaFX toolkit startup. The warm measurement covers the call, not hardware input-to-photon or keyboard readiness. Memory includes test infrastructure and can count shared pages multiple times; it is not private memory or production AI-site usage. Tests print fresh values on each run.
+
+The Logitech mapping, foreground behavior while another app owns focus, account-specific login flows, file pickers, and mixed-DPI multi-monitor behavior still require interactive validation. The browser preserves its focused element; Spark does not assume a universal editor selector for arbitrary sites.
+
+### Class-unregister diagnostic investigation
+
+The observed message is `Failed to unregister class Chrome_WidgetWin_0. Error = 1411`. Win32 error 1411 means the window class does not exist; it is not error 1412 (a class still has windows). The message itself therefore does not establish a leaked live window.
+
+The investigation used `webview` 0.12.0 and the installed WebView2 Runtime 156.0.4314.58, isolated browser profiles, local HTTP fixtures, and captured stdout/stderr. Closing the IntelliJ application eliminated the shared-DLL extraction warning but did not eliminate this diagnostic.
+
+| Experiment | Result |
+| --- | --- |
+| Direct DLL calls from Python: one, sequential, and parallel browsers, including explicit DLL unloading | No class-unregister message observed |
+| Standalone Java: browser creation, navigation, COM events, clearing, repeated destruction | No message observed with natural JVM exit |
+| The actual native test bodies run directly through `java.exe`, with normal JavaFX shutdown | No message observed |
+| The same test bodies followed by `System.exit(0)`, including the case without JavaFX | Message 1411 reproduced |
+| Gradle test worker teardown | Message can still occur after tests have passed |
+
+This isolates a reproducible trigger to JVM termination via `System.exit` rather than authorization, clearing, or JavaFX alone. It does not identify the exact internal Chromium teardown defect. The Chromium source shows that the diagnostic comes from its window-class registrar; the application does not unregister `Chrome_WidgetWin_0` itself.
+
+The normal Spark exit path previously called `System.exit(0)` immediately after `Platform.exit()`. Its fallback thread was also non-daemon, which prevented natural process termination. The exit path now waits for browser shutdown, requests JavaFX exit, and lets the JVM terminate naturally. The named fallback thread is daemon and still forces exit if the application fails to stop within its existing timeout.
+
+The bridge also explicitly closes `ICoreWebView2Controller` before destroying the host HWNDs and releases its retained core reference in `finally`. The bundled `webview` 0.12.0 destructor releases COM references without calling controller Close explicitly. Microsoft recommends explicit Close to break reference cycles. This cleanup improvement alone did not eliminate the test-worker message and is not presented as its sole cause or fix.
+
+`ApplicationShutdownTest` launches a separate process containing the real `MainWindow`, settings, tray/hotkey setup, a local site, and the normal shutdown action. It checks exit code 0, completed browser shutdown, and the absence of both forced-exit and class-unregister messages. Existing navigation, clearing, rapid-restore, and startup-shutdown tests continue to pass. The Gradle worker can still emit the diagnostic at its own termination; output is not filtered or suppressed.
+
+References:
+
+- [Win32 error codes 1411 and 1412](https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--1300-1699-)
+- [Chromium class registrar](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/ui/gfx/win/window_impl.cc)
+- [Bundled webview 0.12.0 implementation](https://github.com/webview/webview/blob/0.12.0/core/include/webview/webview.h)
+- [Microsoft guidance for controller Close](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2controller#close)
+
+## Native API references
+
+COM interface IDs, signatures, and vtable slots follow the official Microsoft.Web.WebView2 1.0.2903.40 SDK header. Other platforms retain document-ready fallback behavior and do not claim native profile-wide clearing.
+
+- [webview native handle API](https://github.com/webview/webview/blob/master/core/include/webview/api.h)
+- [WebView2 profile clearing](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2profile2)
+- [WebView2 navigation events](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/navigation-events)

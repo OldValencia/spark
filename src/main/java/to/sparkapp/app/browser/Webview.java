@@ -1,5 +1,6 @@
 package to.sparkapp.app.browser;
 
+import to.sparkapp.app.utils.SystemUtils;
 import java.io.Closeable;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -16,6 +17,8 @@ import static to.sparkapp.app.browser.WebviewNative.*;
 class Webview implements Closeable {
 
     private final long nativePointer;
+    private boolean destroyed;
+    private WindowsBrowser windows;
 
     private final Map<String, BindCallback> activeBinds = new ConcurrentHashMap<>();
     private final Set<DispatchCallback> activeDispatches = ConcurrentHashMap.newKeySet();
@@ -38,6 +41,7 @@ class Webview implements Closeable {
      */
     Webview(boolean debug) {
         this.nativePointer = WEBVIEW_NATIVE.webview_create(debug, null);
+        if (nativePointer == 0) throw new IllegalStateException("Could not create browser");
     }
 
     /**
@@ -117,7 +121,8 @@ class Webview implements Closeable {
     /**
      * Safely dispatches a runnable to be executed on the Webview's native thread.
      */
-    void dispatch(Runnable handler) {
+    synchronized void dispatch(Runnable handler) {
+        if (destroyed) return;
         var holder = new DispatchCallback[1];
 
         holder[0] = new DispatchCallback() {
@@ -142,16 +147,38 @@ class Webview implements Closeable {
      * This is a BLOCKING call and will freeze the thread until the webview is destroyed.
      */
     void run() {
-        WEBVIEW_NATIVE.webview_run(nativePointer);
-        WEBVIEW_NATIVE.webview_destroy(nativePointer);
+        try {
+            WEBVIEW_NATIVE.webview_run(nativePointer);
+        } finally {
+            destroy();
+        }
+    }
+
+    synchronized void destroy() {
+        if (destroyed) return;
+        try {
+            if (windows != null) windows.close();
+        } finally {
+            destroyed = true;
+            WEBVIEW_NATIVE.webview_destroy(nativePointer);
+            activeDispatches.clear();
+            activeBinds.clear();
+        }
     }
 
     /**
      * Gracefully terminates the webview event loop and closes the window.
      */
     @Override
-    public void close() {
+    public synchronized void close() {
+        if (destroyed) return;
         WEBVIEW_NATIVE.webview_terminate(nativePointer);
+    }
+
+    WindowsBrowser windows() {
+        if (!SystemUtils.isWindows()) throw new UnsupportedOperationException("Native browser operations require Windows");
+        if (windows == null) windows = new WindowsBrowser(WEBVIEW_NATIVE.webview_get_native_handle(nativePointer, 2));
+        return windows;
     }
 
     private static String getStackTraceAsString(Throwable e) {

@@ -112,16 +112,17 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
         synchronized (pressedKeys) {
             if (pressedKeys.containsAll(saved)) {
                 hotkeyTriggered = true;
-                Platform.runLater(this::toggleWindow);
+                long requestedAt = System.nanoTime();
+                Platform.runLater(() -> toggleWindow(requestedAt));
             }
         }
     }
 
-    private void toggleWindow() {
+    private void toggleWindow(long requestedAt) {
         if (mainWindow.isShowing()) {
             mainWindow.hideMainWindow();
         } else {
-            mainWindow.showMainWindow();
+            mainWindow.showMainWindow(requestedAt);
         }
     }
 

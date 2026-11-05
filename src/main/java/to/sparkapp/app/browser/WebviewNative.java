@@ -79,6 +79,8 @@ interface WebviewNative extends Library {
 
     long webview_get_window(long pointer);
 
+    Pointer webview_get_native_handle(long pointer, int kind);
+
     void webview_set_html(long pointer, String html);
 
     void webview_navigate(long pointer, String url);
