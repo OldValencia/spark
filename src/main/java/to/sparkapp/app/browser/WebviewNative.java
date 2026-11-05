@@ -2,9 +2,7 @@ package to.sparkapp.app.browser;
 
 import com.sun.jna.*;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -38,31 +36,16 @@ interface WebviewNative extends Library {
         }
 
         try {
-            var tempDir = new File(System.getProperty("java.io.tmpdir"), "spark_webview_natives");
-            if (!tempDir.exists()) tempDir.mkdirs();
-
-            var targetFile = new File(tempDir, new File(libPath).getName());
-            targetFile.deleteOnExit();
-
+            byte[] library;
             try (var in = WebviewNative.class.getResourceAsStream(libPath)) {
-                if (in == null) {
-                    throw new RuntimeException("Native library not found in resources: " + libPath);
-                }
-                Files.copy(in, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            } catch (Exception e) {
-                if (!e.getMessage().contains("used by another process")) {
-                    System.err.println("Warning: Could not extract native library. " + e.getMessage());
-                }
+                if (in == null) throw new IllegalStateException("Native library not found in resources: " + libPath);
+                library = in.readAllBytes();
             }
-
-            System.setProperty("jna.library.path", tempDir.getAbsolutePath());
-            System.load(targetFile.getAbsolutePath());
-
-            return Native.load(
-                    "webview",
-                    WebviewNative.class,
-                    Collections.singletonMap(Library.OPTION_STRING_ENCODING, "UTF-8")
-            );
+            var cacheRoot = Path.of(System.getProperty("java.io.tmpdir"), "spark_webview_natives");
+            var relativeLibrary = Path.of(libPath.substring("/webview/natives/".length()));
+            var target = NativeLibraryCache.extract(cacheRoot, relativeLibrary, library);
+            return Native.load(target.toString(), WebviewNative.class,
+                    Collections.singletonMap(Library.OPTION_STRING_ENCODING, "UTF-8"));
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize Webview native library", e);

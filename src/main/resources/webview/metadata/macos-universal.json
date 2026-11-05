@@ -1,0 +1,14 @@
+{
+  "target": "macos-universal",
+  "revision": "a706ea8219c712653fd3f794259cb32a423a5243",
+  "libraries": [
+    {
+      "path": "natives/x86_64/macos/libwebview.dylib",
+      "sha256": "9a7ecc6e017f37e0a18e9c2b04774fefb8281a381bf09eaec105debd59af9621"
+    },
+    {
+      "path": "natives/aarch64/macos/libwebview.dylib",
+      "sha256": "9a7ecc6e017f37e0a18e9c2b04774fefb8281a381bf09eaec105debd59af9621"
+    }
+  ]
+}

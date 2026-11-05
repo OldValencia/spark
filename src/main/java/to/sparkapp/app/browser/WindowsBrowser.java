@@ -126,13 +126,9 @@ final class WindowsBrowser implements AutoCloseable {
             check(call(extended, 105, out));
             profile = out.getValue();
             profile2 = query(profile, "fa740d4b-5eae-4344-a8ad-74be31925397");
-            Completion invoke = (self, result) -> {
-                try { completed.accept(result >= 0); return 0; }
-                catch (Throwable failure) { return 0x80004005; }
-            };
-            var handler = new Handler("e9710a06-1d1d-49b2-8234-226f35846ae5", invoke);
-            handlers.add(handler); // Retain callbacks through Invoke and until browser disposal.
-            check(call(profile2, 12, handler.pointer));
+            try (var callback = new ClearBrowsingDataCallback(completed)) {
+                check(call(profile2, 12, callback.pointer()));
+            }
         } finally {
             release(profile2);
             release(profile);
@@ -200,7 +196,6 @@ final class WindowsBrowser implements AutoCloseable {
     private interface Query extends StdCallCallback { int invoke(Pointer self, Pointer iid, PointerByReference out); }
     private interface Ref extends StdCallCallback { int invoke(Pointer self); }
     private interface Event extends StdCallCallback { int invoke(Pointer self, Pointer sender, Pointer args); }
-    private interface Completion extends StdCallCallback { int invoke(Pointer self, int result); }
 
     /** Minimal IUnknown + Invoke layout with strongly retained JNA callbacks. */
     private static final class Handler {

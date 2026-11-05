@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Timeout;
 import to.sparkapp.app.utils.NativeWindowUtils;
 
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -62,11 +63,22 @@ class WindowsBrowserTest {
             assertEquals("other-seeded", browser.message());
             browser.eval("(()=>{const r=indexedDB.open('test-db',1);r.onupgradeneeded=()=>r.result.createObjectStore('items');r.onsuccess=()=>{r.result.close();window.probe('database-seeded')}})()");
             assertEquals("database-seeded", browser.message());
+            int retainedHandlers = retainedHandlerCount(browser);
+            int pendingClears = ClearBrowsingDataCallback.retainedCount();
             var cleared = new CountDownLatch(1);
             var success = new AtomicReference<Boolean>();
             browser.run(w -> w.windows().clearBrowsingData(ok -> {success.set(ok); cleared.countDown();}));
             assertTrue(cleared.await(20, TimeUnit.SECONDS), "Native clear must complete");
             assertTrue(success.get());
+            for (int i = 0; i < 4; i++) {
+                var repeated = new CompletableFuture<Boolean>();
+                browser.run(w -> w.windows().clearBrowsingData(repeated::complete));
+                assertTrue(repeated.get(20, TimeUnit.SECONDS));
+            }
+            assertEquals(retainedHandlers, retainedHandlerCount(browser), "Completed clears must not accumulate in event handlers");
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
+            while (ClearBrowsingDataCallback.retainedCount() != pendingClears && System.nanoTime() < deadline) Thread.sleep(10);
+            assertEquals(pendingClears, ClearBrowsingDataCallback.retainedCount(), "Native completion references must be released");
             for (String origin : new String[]{base, other}) {
                 browser.load(origin + "/check");
                 browser.eval("Promise.all([fetch('/cookie').then(r=>r.text()),Promise.resolve(localStorage.getItem('test')),Promise.resolve(sessionStorage.getItem('test')),indexedDB.databases().then(d=>d.length)]).then(v=>window.probe(JSON.stringify(v)))");
@@ -106,6 +118,40 @@ class WindowsBrowserTest {
             assertEquals("original callback survived", browser.message());
             assertEquals("null", browser.message());
         }
+    }
+
+    @Test @Timeout(30)
+    void nativeDllReportsNavigationFailureAfterControllerCloses() throws Exception {
+        assertEquals("true", System.getProperty("spark.nativeTests"));
+        try (var browser = new Harness()) {
+            var checked = new CompletableFuture<Void>();
+            browser.run(view -> {
+                try {
+                    view.windows().close();
+                    var failure = assertThrows(IllegalStateException.class,
+                            () -> view.loadURL("about:blank"));
+                    assertTrue(failure.getMessage().contains("webview_navigate failed"));
+                    checked.complete(null);
+                } catch (Throwable failure) {
+                    checked.completeExceptionally(failure);
+                }
+            });
+            checked.get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    private static int retainedHandlerCount(Harness browser) throws Exception {
+        var count = new CompletableFuture<Integer>();
+        browser.run(view -> {
+            try {
+                var field = WindowsBrowser.class.getDeclaredField("handlers");
+                field.setAccessible(true);
+                count.complete(((List<?>) field.get(view.windows())).size());
+            } catch (Throwable failure) {
+                count.completeExceptionally(failure);
+            }
+        });
+        return count.get(10, TimeUnit.SECONDS);
     }
 
     static final class Harness implements AutoCloseable {

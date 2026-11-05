@@ -87,9 +87,9 @@ Do not unload visited pages, periodically refresh sites, clear sessions automati
 
 Native visibility and background Low/Normal memory targets are now implemented. The Browser setting defaults on and can be disabled without reloading pages. Optional-interface absence falls back to normal operation, and setter failure disables memory targeting for that browser. Restoring Normal happens before controller/HWND visibility; stale presentation tasks cannot win over a newer hide.
 
-Native tests verify a chunked streaming response completing while hidden/Low, preserved drafts/scroll/live JS data, actual native target getter values, and return to Normal. The production-method synthetic probe measured 677 → 357 MiB summed working set while private bytes stayed approximately 527 MiB. This is paging/cache behavior, not a guarantee that real websites use half as much committed memory. Process-failure recovery and ABI/thread-contract follow-ups are described below. DLL loading, one-shot COM callback lifetime and navigation policy remain separate future work.
+Native tests verify a chunked streaming response completing while hidden/Low, preserved drafts/scroll/live JS data, actual native target getter values, and return to Normal. The production-method synthetic probe measured 677 → 357 MiB summed working set while private bytes stayed approximately 527 MiB. This is paging/cache behavior, not a guarantee that real websites use half as much committed memory. Process-failure recovery and ABI/thread-contract follow-ups are described below. DLL loading is covered by the follow-up below; one-shot COM callback lifetime is addressed below; navigation policy remains deferred.
 
-The subsequent ProcessFailed follow-up is now implemented and tested with actual isolated renderer and browser-process termination. Recovery requires Retry and affects the selected failed view; a browser-process failure can legitimately mark multiple shared-process views as affected. Native destruction was also moved outside the dispatch monitor to fix a reproducible recovery deadlock. See the P1 validation notes for the recovery tests and their limits. The ABI/thread-contract follow-up is described next; DLL loading, one-shot COM callback lifetime and navigation policy remain future work.
+The subsequent ProcessFailed follow-up is now implemented and tested with actual isolated renderer and browser-process termination. Recovery requires Retry and affects the selected failed view; a browser-process failure can legitimately mark multiple shared-process views as affected. Native destruction was also moved outside the dispatch monitor to fix a reproducible recovery deadlock. See the P1 validation notes for the recovery tests and their limits. The ABI/thread-contract follow-up is described next; DLL loading is covered below; one-shot COM callback lifetime is addressed below; navigation policy remains deferred.
 
 
 ### Native API and thread contracts
@@ -99,3 +99,34 @@ The JNA declarations now follow the bundled [webview 0.12.0 C header](https://gi
 Browser and COM access enforce the creating thread. Dispatch and asynchronous evaluation remain available to callers from other threads. Manager navigation goes through dispatch; queued work checks the captured view is still current, and evaluation avoids repeated volatile reads. The short destroyed-state lock and native cleanup outside it are preserved. Native library initialization is lazy so fake-API unit tests do not load a browser DLL.
 
 Validation: 17 unit tests and 5 native tests pass on Windows/JDK 21. Six new unit tests inject native errors and exercise duplicate-binding retention, failed dispatch cleanup, teardown, string IDs/JSON rejection, event-loop failure and foreign-thread access. A new real-WebView2 test verifies rejected promises, successful null results and that a rejected duplicate registration leaves the original callback usable. Existing hidden-streaming, session-clearing, rapid-restore, process-failure recovery and natural application exit tests pass. Other operating systems have not been exercised. This is a native-boundary correctness change, not a measured RAM optimization.
+
+
+### Native library extraction and loading
+
+The loader now uses an absolute cache path containing the bundled resource's architecture/platform and SHA-256 content hash. A process file lock serializes first extraction, a temporary sibling file is published with an atomic move, and existing files are verified and reused without rewriting them. A corrupt cache fails explicitly rather than loading unverified content. The loader uses only Native.load with the absolute path; it no longer calls System.load, changes jna.library.path, schedules deletion of a shared binary on exit, or interprets localized extraction errors. Cache versions remain on disk to avoid deleting binaries still in use by another process.
+
+Validation on Windows/JDK 21: 22 unit tests and 6 native tests pass. Cache tests cover unchanged-file reuse, separate versions/architectures, corruption rejection, concurrent extraction and path bounds. A subprocess test starts two independent JVMs against a fresh shared temporary directory, holds both DLLs loaded simultaneously, verifies webview 0.12.0 in each, and checks that jna.library.path stays unchanged. The full browser regression suite also passes. No user profile is opened by the DLL subprocess probe. macOS/Linux loading and filesystems without atomic-move support were not tested; unsupported atomic publication fails instead of falling back to a partial write. This improves loading reliability, not measured RAM use.
+
+
+### Native source stability follow-up
+
+The local webview checkout was updated to ddc4779, including the upstream built-in-loader version-string NUL fix and optional-storage alignment update. The Windows backend now checks dispatch posting and immediate navigation/script/HTML HRESULTs, and reports GetMessageW failure. The CI combined bundle preserves artifact directories across architectures. The rebuilt Windows x64 DLL is bundled in Spark; the Java fork checkout is unchanged. Current CI artifact provenance, validation and remaining limits are recorded in [native/README.md](native/README.md). All 19 C++ tests and Spark's 22 unit/7 native tests pass. This is a stability change; no memory saving is claimed.
+
+
+### Session-clear completion lifetime
+
+Profile-clear completions no longer accumulate in WindowsBrowser.handlers. ClearBrowsingDataCallback implements IUnknown reference counting and retains the object only while Java submission or native code holds a reference. Successful QueryInterface adds a reference; the submission scope releases its reference on success or failure. Invoke takes a temporary reference for reentrant completion/teardown and delivers its result once. Shared permanent callback trampolines keep the final native Release call safe without retaining each completed object for the lifetime of its browser.
+
+Five unit tests exercise native-reference ownership, failed submission, QueryInterface, failure/exception handling and reentrant release through actual JNA vtable calls. The native clearing regression performs five consecutive profile clears, checks that event-handler storage stays constant and completion references return to baseline, then verifies storage/cookies are cleared across origins. The complete run passes 27 unit and 7 native tests against the GitHub-built Windows x64 DLL. Persistent event handler ownership is unchanged. Reference-count behavior follows [Microsoft's COM lifetime rules](https://learn.microsoft.com/en-us/windows/win32/com/rules-for-managing-reference-counts).
+
+### Small navigator scheduler probe
+
+A temporary probe instantiated the actual WebviewNavigator scheduler with 1, 5 and 10 navigators, started each lazy worker with a no-op task, and then observed idle workers. It opened no browsers or user preferences. JDK 21 used the application's 512 KiB configured Java stack size. The temporary source and output remain under ignored build/review, not in the application.
+
+| Navigators | Live scheduler threads | Waiting threads | Aggregate CPU increase over 250 ms |
+| --- | ---: | ---: | ---: |
+| 1 | 1 | 1 | 0.000 ms |
+| 5 | 5 | 5 | 0.000 ms |
+| 10 | 10 | 10 | 0.000 ms |
+
+Native Memory Tracking's entire Thread category increased from 1,348 KiB committed / 28,756 KiB reserved at one navigator to 1,979 KiB committed / 33,391 KiB reserved at ten: approximately 631 KiB additional committed native thread memory and 4.5 MiB additional address-space reservation. These are JVM thread-category samples, not resident RAM or total application measurements; other JVM activity can affect them, and the short idle sample is not a workload benchmark. The measured scale does not justify changing scheduling immediately. Scheduler consolidation and navigation/authentication policy work remain deferred; JS bridge limits are also deferred because no observed overload problem requires them.

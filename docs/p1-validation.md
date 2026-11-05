@@ -37,6 +37,12 @@ Coverage:
 
 ## Measurements and limits
 
+### Native library loading follow-up
+
+Native binaries now live in platform/architecture and SHA-256-specific cache paths. Extraction uses a cross-process file lock and atomic publication. Existing binaries are checked and reused without replacement or deletion on exit. Native.load receives an absolute path; no global JNA search-path mutation or duplicate System.load call remains. Corruption and extraction errors fail explicitly.
+
+The Windows/JDK 21 run passed 22 unit tests and 6 native tests. Five cache tests exercise reuse, isolation, corruption, concurrency and path bounds. A new subprocess test verifies two independent JVMs loading the same fresh cached DLL simultaneously and retaining an unchanged jna.library.path. Existing browser and application-exit regressions pass. Shared cached versions intentionally remain on disk; macOS/Linux and non-atomic filesystems are not validated.
+
 ### Native API/thread contract follow-up
 
 JNA now matches the bundled webview 0.12.0 pointer, C-string, integer and error-result types. Native failures are checked, duplicate binding registration preserves the original callback reference, failed dispatch submissions release unused callbacks, and binding errors use JSON serialization. Direct native/COM access requires the browser's creating thread. Manager navigation is dispatched, while submitted tasks validate the captured view before running. Native teardown remains outside the dispatch monitor.
@@ -112,3 +118,14 @@ COM interface IDs, signatures, and vtable slots follow the official Microsoft.We
 - [webview native handle API](https://github.com/webview/webview/blob/master/core/include/webview/api.h)
 - [WebView2 profile clearing](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2profile2)
 - [WebView2 navigation events](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/navigation-events)
+
+
+## Native source rebuild follow-up
+
+Initial native-source fixes were validated against a local Windows x64 Release DLL based on native fork commit ddc4779. All 19 C++ tests and 22 unit/7 native Spark tests passed at that stage. That artifact has since been replaced by the GitHub-built archive described below; native/README.md records the current provenance. The obsolete local patch snapshot was removed.
+
+## GitHub-built libraries and completion ownership
+
+The current archive is from native fork commit a706ea8219c712653fd3f794259cb32a423a5243. All seven binary hashes/architectures match six target manifests and SHA256SUMS. Existing legacy resources outside that archive remain unchanged. See native/README.md for the current artifact provenance.
+
+Session-clear completion handlers now use real COM AddRef/Release ownership with shared permanent JNA trampolines, and are not added to the permanent browser event-handler list. Submission failure releases Java's reference, and completion temporarily retains the object across reentrant calls. Five unit tests cover these lifetime/error paths. The native regression performs five consecutive clears and requires both a stable event-handler count and release of outstanding completion references before verifying cookies/storage across origins. The full Windows/JDK 21 validation passes 27 unit and 7 native tests against the new CI DLL. No native libraries were rebuilt for this archive integration.
