@@ -1,0 +1,10 @@
+{
+  "target": "windows-aarch64",
+  "revision": "a706ea8219c712653fd3f794259cb32a423a5243",
+  "libraries": [
+    {
+      "path": "natives/aarch64/windows_nt/webview.dll",
+      "sha256": "71b6d9d13e41328c544f571ecf279526ffec573b10a83aaa46cef8093ecc61bf"
+    }
+  ]
+}

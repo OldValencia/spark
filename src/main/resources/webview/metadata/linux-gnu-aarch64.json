@@ -1,0 +1,10 @@
+{
+  "target": "linux-gnu-aarch64",
+  "revision": "a706ea8219c712653fd3f794259cb32a423a5243",
+  "libraries": [
+    {
+      "path": "natives/aarch64/linux/gnu/libwebview.so",
+      "sha256": "1252e86fe6d2ed4e4a629452dc9a179574bbc68a94cbf62e81ca2793276d8da1"
+    }
+  ]
+}

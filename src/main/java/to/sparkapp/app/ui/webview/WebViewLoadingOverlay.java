@@ -1,70 +1,101 @@
 package to.sparkapp.app.ui.webview;
 
 import javafx.animation.Animation;
+import javafx.animation.Interpolator;
 import javafx.animation.PauseTransition;
-import javafx.animation.ScaleTransition;
+import javafx.animation.RotateTransition;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.effect.DropShadow;
+import javafx.scene.Group;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Arc;
+import javafx.scene.shape.ArcType;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.StrokeLineCap;
 import javafx.util.Duration;
 import to.sparkapp.app.ui.Theme;
 
-/**
- * A fullscreen loading overlay that sits in the WebView pane while the browser
- * navigates to a new page. Shows a pulsing provider icon and blocks input.
- */
-class WebViewLoadingOverlay extends VBox {
-
-    private final ImageView iconView;
-    private final ScaleTransition pulse;
+/** Centered loading indicator with explicit recovery actions for failed navigation. */
+class WebViewLoadingOverlay extends StackPane {
+    private final StackPane indicator = new StackPane();
+    private final ImageView iconView = new ImageView();
+    private final RotateTransition rotation;
+    private final Label message = new Label();
+    private final Button retry = new Button("Retry");
+    private final Button showPage = new Button("Show page");
+    private final HBox actions = new HBox(10, retry, showPage);
     private PauseTransition activeTimer;
 
     WebViewLoadingOverlay() {
         setAlignment(Pos.CENTER);
+        setPadding(new Insets(24));
         setStyle("-fx-background-color: " + Theme.toHex(Theme.BG_DEEP) + ";");
         setVisible(false);
-        setMouseTransparent(false);
 
-        iconView = new ImageView();
-        iconView.setFitWidth(32);
-        iconView.setFitHeight(32);
+        var track = new Circle(17, Color.TRANSPARENT);
+        track.setStroke(Color.web("#ffffff", 0.08));
+        track.setStrokeWidth(2.5);
+        var arc = new Arc(0, 0, 17, 17, 35, 95);
+        arc.setType(ArcType.OPEN);
+        arc.setFill(Color.TRANSPARENT);
+        arc.setStroke(Color.web("#BFD6AB"));
+        arc.setStrokeWidth(2.5);
+        arc.setStrokeLineCap(StrokeLineCap.ROUND);
+        // Fix the rotation origin at the circle center, not the arc's partial bounds.
+        var ring = new Group(track, arc);
+        indicator.setMinSize(44, 44);
+        indicator.setPrefSize(44, 44);
+        indicator.setMaxSize(44, 44);
+        iconView.setFitWidth(16);
+        iconView.setFitHeight(16);
         iconView.setPreserveRatio(true);
-        iconView.setSmooth(true);
+        indicator.getChildren().addAll(ring, iconView);
+        rotation = new RotateTransition(Duration.millis(1100), ring);
+        rotation.setByAngle(360);
+        rotation.setInterpolator(Interpolator.LINEAR);
+        rotation.setCycleCount(Animation.INDEFINITE);
 
-        var glow = new DropShadow();
-        glow.setColor(Color.web("#FFFFFF66"));
-        glow.setRadius(15);
-        iconView.setEffect(glow);
-
-        getChildren().add(iconView);
-
-        pulse = new ScaleTransition(Duration.millis(600), iconView);
-        pulse.setFromX(0.9);
-        pulse.setFromY(0.9);
-        pulse.setToX(1.2);
-        pulse.setToY(1.2);
-        pulse.setAutoReverse(true);
-        pulse.setCycleCount(Animation.INDEFINITE);
+        message.setWrapText(true);
+        message.setAlignment(Pos.CENTER);
+        message.setMaxWidth(360);
+        message.setStyle("-fx-text-fill: #b9beb5; -fx-text-alignment: center; -fx-font-size: 13px;");
+        actions.setAlignment(Pos.CENTER);
+        retry.setStyle("-fx-background-color: #bfd6ab; -fx-text-fill: #252c25; -fx-background-radius: 7; -fx-padding: 8 18;");
+        showPage.setStyle("-fx-background-color: #30342f; -fx-text-fill: #d7dfd0; -fx-background-radius: 7; -fx-padding: 8 18;");
+        for (var node : new Region[]{indicator, message, actions, retry, showPage}) {
+            node.managedProperty().bind(node.visibleProperty());
+        }
+        var content = new VBox(18, indicator, message, actions);
+        content.setAlignment(Pos.CENTER);
+        content.setMaxWidth(380);
+        content.setMaxHeight(Region.USE_PREF_SIZE);
+        getChildren().add(content);
+        visibleProperty().addListener((observable, previous, visible) -> {
+            if (!visible) pauseAnimation();
+        });
     }
 
-    /**
-     * Activates the overlay with the given icon, hiding after {@code autoHideMs} ms.
-     * Pass {@code autoHideMs <= 0} to disable auto-hide.
-     */
     void activate(Image icon, long autoHideMs, Runnable onAutoHide) {
         cancelTimer();
-
         iconView.setImage(icon);
+        indicator.setVisible(true);
+        message.setVisible(false);
+        actions.setVisible(false);
+        setAccessibleText("Loading site");
         toFront();
         setVisible(true);
-        pulse.play();
-
+        if (rotation.getStatus() != Animation.Status.RUNNING) rotation.playFromStart();
         if (autoHideMs > 0) {
             activeTimer = new PauseTransition(Duration.millis(autoHideMs));
-            activeTimer.setOnFinished(e -> {
+            activeTimer.setOnFinished(event -> {
                 deactivate();
                 if (onAutoHide != null) onAutoHide.run();
             });
@@ -72,15 +103,31 @@ class WebViewLoadingOverlay extends VBox {
         }
     }
 
-    /** Immediately hides the overlay and stops any pending auto-hide timer. */
+    void pauseAnimation() { rotation.stop(); }
+
     void deactivate() {
         cancelTimer();
-        pulse.stop();
+        pauseAnimation();
         setVisible(false);
     }
 
-    boolean isActive() {
-        return isVisible();
+    boolean isActive() { return isVisible(); }
+
+    void showError(String text, Runnable onRetry) { showError(text, onRetry, null); }
+
+    void showError(String text, Runnable onRetry, Runnable onShowPage) {
+        cancelTimer();
+        pauseAnimation();
+        indicator.setVisible(false);
+        message.setText(text);
+        message.setVisible(true);
+        retry.setOnAction(event -> onRetry.run());
+        showPage.setVisible(onShowPage != null);
+        showPage.setOnAction(event -> { if (onShowPage != null) onShowPage.run(); });
+        actions.setVisible(true);
+        setAccessibleText(text);
+        toFront();
+        setVisible(true);
     }
 
     private void cancelTimer() {

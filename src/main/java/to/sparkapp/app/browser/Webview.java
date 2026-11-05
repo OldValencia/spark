@@ -1,5 +1,11 @@
 package to.sparkapp.app.browser;
 
+import com.fasterxml.jackson.databind.node.TextNode;
+import com.sun.jna.Pointer;
+import lombok.extern.slf4j.Slf4j;
+import to.sparkapp.app.browser.WebviewNative.BindCallback;
+import to.sparkapp.app.browser.WebviewNative.DispatchCallback;
+import to.sparkapp.app.utils.SystemUtils;
 import java.io.Closeable;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -7,15 +13,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static to.sparkapp.app.browser.WebviewNative.*;
-
 /**
- * A modern, safe Java wrapper for the native Webview library.
- * Manages the C++ pointers and protects JNA callbacks from Java Garbage Collection.
+ * Owns the native browser and keeps its callbacks alive through native teardown.
  */
+@Slf4j
 class Webview implements Closeable {
 
-    private final long nativePointer;
+    private final WebviewNative api;
+    private final Pointer nativePointer;
+    private final Thread owner = Thread.currentThread();
+    private volatile boolean destroyed;
+    private WindowsBrowser windows;
 
     private final Map<String, BindCallback> activeBinds = new ConcurrentHashMap<>();
     private final Set<DispatchCallback> activeDispatches = ConcurrentHashMap.newKeySet();
@@ -37,7 +45,13 @@ class Webview implements Closeable {
      * @param debug Enables browser developer tools/inspector if true.
      */
     Webview(boolean debug) {
-        this.nativePointer = WEBVIEW_NATIVE.webview_create(debug, null);
+        this(debug, WebviewNative.instance());
+    }
+
+    Webview(boolean debug, WebviewNative api) {
+        this.api = api;
+        this.nativePointer = api.webview_create(debug ? 1 : 0, null);
+        if (nativePointer == null) throw new IllegalStateException("Could not create browser");
     }
 
     /**
@@ -46,7 +60,8 @@ class Webview implements Closeable {
      * @return The native window pointer.
      */
     long getNativeWindowPointer() {
-        return WEBVIEW_NATIVE.webview_get_window(nativePointer);
+        requireOwner();
+        return Pointer.nativeValue(api.webview_get_window(nativePointer));
     }
 
     /**
@@ -55,7 +70,8 @@ class Webview implements Closeable {
      * @param url The target URL (e.g., "https://google.com").
      */
     void loadURL(String url) {
-        WEBVIEW_NATIVE.webview_navigate(nativePointer, url != null ? url : "about:blank");
+        requireOwner();
+        check("navigate", api.webview_navigate(nativePointer, url != null ? url : "about:blank"));
     }
 
     /**
@@ -64,11 +80,12 @@ class Webview implements Closeable {
      * @param script The JavaScript code to inject.
      */
     void setInitScript(String script) {
+        requireOwner();
         String safeScript = String.format(
                 "(() => { try { %s } catch (e) { console.error('[Webview] Init Script Error:', e); } })();",
                 script
         );
-        WEBVIEW_NATIVE.webview_init(nativePointer, safeScript);
+        check("init", api.webview_init(nativePointer, safeScript));
     }
 
     /**
@@ -82,7 +99,7 @@ class Webview implements Closeable {
                     "try { %s } catch (e) { console.error('[Webview] Eval Error:', e); }",
                     script
             );
-            WEBVIEW_NATIVE.webview_eval(nativePointer, safeScript);
+            check("eval", api.webview_eval(nativePointer, safeScript));
         });
     }
 
@@ -94,37 +111,49 @@ class Webview implements Closeable {
      * @param callback The Java code to execute when JS calls the function.
      */
     void bind(String name, JsCallback callback) {
-        BindCallback nativeCallback = new BindCallback() {
-            @Override
-            public void callback(long seq, String req, long arg) {
-                try {
-                    var result = callback.apply(req);
-                    WEBVIEW_NATIVE.webview_return(nativePointer, seq, false, result != null ? result : "null");
-                } catch (Throwable e) {
-                    e.printStackTrace();
-                    var stackTrace = getStackTraceAsString(e);
-                    // Return the error safely to the JS Promise
-                    WEBVIEW_NATIVE.webview_return(nativePointer, seq, true, "\"" + stackTrace.replace("\"", "\\\"").replace("\n", "\\n") + "\"");
-                }
+        requireOwner();
+        BindCallback nativeCallback = (seq, req, arg) -> {
+            String result;
+            int status;
+            try {
+                result = callback.apply(req);
+                if (result == null) result = "null";
+                status = 0;
+            } catch (Throwable failure) {
+                log.error("JavaScript binding failed: {}", name, failure);
+                result = TextNode.valueOf(getStackTraceAsString(failure)).toString();
+                status = 1;
+            }
+            try {
+                check("return", api.webview_return(nativePointer, seq, status, result));
+            } catch (RuntimeException failure) {
+                log.error("Could not complete JavaScript binding: {}", name, failure);
             }
         };
-
-        // Shield the callback from GC!
+        int result = api.webview_bind(nativePointer, name, nativeCallback, null);
+        // DUPLICATE is positive, but the original native callback remains registered.
+        if (result != 0) throw nativeFailure("bind " + name, result);
         activeBinds.put(name, nativeCallback);
-        WEBVIEW_NATIVE.webview_bind(nativePointer, name, nativeCallback, 0);
     }
 
     /**
      * Safely dispatches a runnable to be executed on the Webview's native thread.
      */
-    void dispatch(Runnable handler) {
+    synchronized void dispatch(Runnable handler) {
+        if (destroyed) return;
         var holder = new DispatchCallback[1];
 
         holder[0] = new DispatchCallback() {
             @Override
-            public void callback(long pointer, long arg) {
+            public void callback(Pointer pointer, Pointer arg) {
                 try {
-                    handler.run();
+                    if (!destroyed) {
+                        requireOwner();
+                        handler.run();
+                    }
+                } catch (Throwable failure) {
+                    // Java exceptions must not escape through the native callback boundary.
+                    log.error("Dispatched browser task failed", failure);
                 } finally {
                     // Remove self from GC shield after execution
                     activeDispatches.remove(holder[0]);
@@ -134,7 +163,12 @@ class Webview implements Closeable {
 
         // Shield the callback from GC!
         activeDispatches.add(holder[0]);
-        WEBVIEW_NATIVE.webview_dispatch(nativePointer, holder[0], 0);
+        try {
+            check("dispatch", api.webview_dispatch(nativePointer, holder[0], null));
+        } catch (RuntimeException | Error failure) {
+            activeDispatches.remove(holder[0]);
+            throw failure;
+        }
     }
 
     /**
@@ -142,8 +176,32 @@ class Webview implements Closeable {
      * This is a BLOCKING call and will freeze the thread until the webview is destroyed.
      */
     void run() {
-        WEBVIEW_NATIVE.webview_run(nativePointer);
-        WEBVIEW_NATIVE.webview_destroy(nativePointer);
+        requireOwner();
+        try {
+            check("run", api.webview_run(nativePointer));
+        } finally {
+            destroy();
+        }
+    }
+
+    void destroy() {
+        requireOwnerThread();
+        synchronized (this) {
+            if (destroyed) return;
+            destroyed = true;
+        }
+        // Native teardown can synchronously message the FX host or pump queued
+        // callbacks. Never hold the dispatch monitor while waiting for that work.
+        try {
+            if (windows != null) windows.close();
+        } finally {
+            try {
+                check("destroy", api.webview_destroy(nativePointer));
+            } finally {
+                activeDispatches.clear();
+                activeBinds.clear();
+            }
+        }
     }
 
     /**
@@ -151,7 +209,34 @@ class Webview implements Closeable {
      */
     @Override
     public void close() {
-        WEBVIEW_NATIVE.webview_terminate(nativePointer);
+        requireOwnerThread();
+        if (destroyed) return;
+        // Windows uses PostQuitMessage on the calling thread.
+        check("terminate", api.webview_terminate(nativePointer));
+    }
+
+    WindowsBrowser windows() {
+        requireOwner();
+        if (!SystemUtils.isWindows()) throw new UnsupportedOperationException("Native browser operations require Windows");
+        if (windows == null) windows = new WindowsBrowser(api.webview_get_native_handle(nativePointer, 2));
+        return windows;
+    }
+
+    private void requireOwner() {
+        requireOwnerThread();
+        if (destroyed) throw new IllegalStateException("Browser has been destroyed");
+    }
+
+    private void requireOwnerThread() {
+        if (Thread.currentThread() != owner) throw new IllegalStateException("Native browser access requires its owning thread");
+    }
+
+    private static void check(String operation, int result) {
+        if (result < 0) throw nativeFailure(operation, result);
+    }
+
+    private static IllegalStateException nativeFailure(String operation, int result) {
+        return new IllegalStateException("webview_" + operation + " failed (code " + result + ")");
     }
 
     private static String getStackTraceAsString(Throwable e) {

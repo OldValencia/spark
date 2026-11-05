@@ -11,7 +11,10 @@ public class AppPaths {
     static {
         boolean isDev = "Dev-Build".equals(SystemUtils.VERSION) || SystemUtils.VERSION == null;
 
-        if (SystemUtils.isMac() && !isDev) {
+        var override = System.getProperty("spark.dataDir");
+        if (override != null && !override.isBlank()) {
+            DIR = new File(override).getAbsolutePath();
+        } else if (SystemUtils.isMac() && !isDev) {
             DIR = System.getProperty("user.home") + "/Library/Application Support/OldValencia/Spark";
         } else {
             DIR = System.getProperty("user.home") + "/Documents/OldValencia/Spark";

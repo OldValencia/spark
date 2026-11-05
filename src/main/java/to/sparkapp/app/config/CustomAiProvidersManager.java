@@ -39,15 +39,15 @@ public class CustomAiProvidersManager {
         }
     }
 
-    public List<AiConfiguration.AiConfig> loadProviders() {
-        if (!configFile.exists() || configFile.length() == 0) {
+    public synchronized List<AiConfiguration.AiConfig> loadProviders() {
+        if ((!configFile.exists() || configFile.length() == 0) && !new File(configFile + ".bak").exists()) {
             log.info("Configuration file not found. Loading defaults from resources...");
             restoreDefaults();
         }
 
         try {
-            List<AiConfiguration.AiConfig> providers = jsonMapper.readValue(configFile, new TypeReference<>() {});
-            return refreshAccentColors(providers);
+            List<AiConfiguration.AiConfig> providers = JsonFiles.read(configFile, jsonMapper.readerFor(new TypeReference<List<AiConfiguration.AiConfig>>() {}));
+            return providers == null ? new ArrayList<>() : refreshAccentColors(providers);
         } catch (IOException e) {
             log.error("Failed to load providers", e);
             return new ArrayList<>();
@@ -94,7 +94,7 @@ public class CustomAiProvidersManager {
         return DominantColorExtractor.fromImage(new File(iconsDir, iconName));
     }
 
-    public void restoreDefaults() {
+    public synchronized void restoreDefaults() {
         try {
             InputStream inputStream = getClass().getResourceAsStream("/default-providers.json");
 
@@ -157,16 +157,16 @@ public class CustomAiProvidersManager {
         }
     }
 
-    public void saveProviders(List<AiConfiguration.AiConfig> providers) {
+    public synchronized void saveProviders(List<AiConfiguration.AiConfig> providers) {
         try {
-            jsonMapper.writerWithDefaultPrettyPrinter().writeValue(configFile, providers);
+            JsonFiles.write(configFile, jsonMapper, providers);
             log.info("Saved {} providers to {}", providers.size(), configFile.getAbsolutePath());
         } catch (IOException e) {
             log.error("Failed to save providers", e);
         }
     }
 
-    public void addCustomProvider(String name, String url) {
+    public synchronized void addCustomProvider(String name, String url) {
         List<AiConfiguration.AiConfig> current = loadProviders();
 
         String id = "custom_" + UUID.randomUUID().toString().substring(0, 8);
@@ -185,7 +185,7 @@ public class CustomAiProvidersManager {
         return color != null ? color : DominantColorExtractor.fromHost(url);
     }
 
-    public void updateProvider(String id, String name, String url, String color) {
+    public synchronized void updateProvider(String id, String name, String url, String color) {
         List<AiConfiguration.AiConfig> current = loadProviders();
         for (int i = 0; i < current.size(); i++) {
             var existing = current.get(i);
@@ -211,7 +211,7 @@ public class CustomAiProvidersManager {
         saveProviders(current);
     }
 
-    public void deleteProvider(String id) {
+    public synchronized void deleteProvider(String id) {
         List<AiConfiguration.AiConfig> current = loadProviders();
 
         AiConfiguration.AiConfig toDelete = current.stream()

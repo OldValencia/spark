@@ -1,0 +1,10 @@
+{
+  "target": "linux-gnu-x86_64",
+  "revision": "a706ea8219c712653fd3f794259cb32a423a5243",
+  "libraries": [
+    {
+      "path": "natives/x86_64/linux/gnu/libwebview.so",
+      "sha256": "448171ac696902de2ff6d91cddaae1a8c0f92dcb8d7ba3660caf68de5168c890"
+    }
+  ]
+}

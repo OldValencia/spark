@@ -11,6 +11,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -20,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 public class AppPreferences {
 
     private static final String FILE_NAME = "app-config.json";
-    private static final File FILE = new File(AppPaths.DIR, FILE_NAME);
+    private final File file;
 
     private final ObjectMapper mapper = new ObjectMapper();
     private AppConfig config;
@@ -33,19 +35,25 @@ public class AppPreferences {
     private volatile ScheduledFuture<?> pendingDebouncedSave;
 
     public AppPreferences() {
+        this(new File(AppPaths.DIR, FILE_NAME));
+    }
+
+    AppPreferences(File file) {
+        this.file = file;
         mapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
         load();
         initDefaults();
     }
 
     private void load() {
-        if (!FILE.exists()) {
+        if (!file.exists() && !new File(file + ".bak").exists()) {
             config = new AppConfig();
             return;
         }
 
         try {
-            config = mapper.readValue(FILE, AppConfig.class);
+            config = JsonFiles.read(file, mapper.readerFor(AppConfig.class));
+            if (config == null) config = new AppConfig();
         } catch (IOException e) {
             log.error("Failed to load application preferences", e);
             config = new AppConfig();
@@ -101,9 +109,9 @@ public class AppPreferences {
      * Immediate, synchronous write — used for settings that change rarely.
      */
     private synchronized void save() {
-        new File(AppPaths.DIR).mkdirs();
+        file.getAbsoluteFile().getParentFile().mkdirs();
         try {
-            mapper.writerWithDefaultPrettyPrinter().writeValue(FILE, config);
+            JsonFiles.write(file, mapper, config);
         } catch (IOException e) {
             log.error("Failed to save application preferences", e);
         }
@@ -125,7 +133,7 @@ public class AppPreferences {
      * Writes any pending debounced changes straight away. Must be called before the
      * process exits, otherwise the last URL and zoom level are silently lost.
      */
-    public void flush() {
+    public synchronized void flush() {
         var pending = pendingDebouncedSave;
         if (pending != null && !pending.isDone()) {
             pending.cancel(false);
@@ -135,42 +143,78 @@ public class AppPreferences {
 
     // Last-URL — debounced because the webview fires a URL-change event for
     // every in-app navigation (e.g. chatgpt.com → chatgpt.com/c/<uuid>).
-    public void setLastUrl(String url) {
+    public synchronized void setLastUrl(String url) {
         if (Boolean.TRUE.equals(config.rememberLastAi)) {
             config.lastUrl = url;
             saveDebounced();
         }
     }
 
-    public String getLastUrl() {
+    public synchronized String getLastSiteId() { return config.lastSiteId; }
+
+    public synchronized String getSiteUrl(AiConfiguration.AiConfig site) {
+        if (!isRememberLastAi() || config.siteUrls == null) return null;
+        var url = config.siteUrls.get(site.id());
+        return UrlUtils.isSameHost(url, site.url()) ? url : null;
+    }
+
+    public synchronized void rememberSitePage(AiConfiguration.AiConfig site, String url, boolean active) {
+        if (!isRememberLastAi() || !UrlUtils.isSameHost(url, site.url())) return;
+        if (config.siteUrls == null) config.siteUrls = new HashMap<>();
+        config.siteUrls.put(site.id(), url);
+        if (active) {
+            config.lastSiteId = site.id();
+            config.lastUrl = url;
+        }
+        saveDebounced();
+    }
+
+    public synchronized void clearSiteHistory() {
+        config.siteUrls = new HashMap<>();
+        config.lastSiteId = null;
+        config.lastUrl = null;
+        save();
+    }
+
+    public synchronized void pruneSiteHistory(List<AiConfiguration.AiConfig> sites) {
+        if (config.siteUrls == null) return;
+        config.siteUrls.entrySet().removeIf(entry -> sites.stream().noneMatch(site ->
+                site.id().equals(entry.getKey()) && UrlUtils.isSameHost(entry.getValue(), site.url())));
+        if (sites.stream().noneMatch(site -> site.id().equals(config.lastSiteId))) config.lastSiteId = null;
+        saveDebounced();
+    }
+
+    public synchronized String getLastUrl() {
         return config.lastUrl;
     }
 
-    public void setRememberLastAi(boolean remember) {
+    public synchronized void setRememberLastAi(boolean remember) {
         config.rememberLastAi = remember;
         save();
         if (!remember) {
             config.lastUrl = null;
+            config.lastSiteId = null;
+            config.siteUrls = new HashMap<>();
             save();
         }
     }
 
-    public boolean isRememberLastAi() {
+    public synchronized boolean isRememberLastAi() {
         return Boolean.TRUE.equals(config.rememberLastAi);
     }
 
-    public void setLastZoomValue(Double zoomValue) {
+    public synchronized void setLastZoomValue(Double zoomValue) {
         if (Boolean.TRUE.equals(config.zoomEnabled)) {
             config.lastZoomValue = zoomValue;
             saveDebounced();
         }
     }
 
-    public Double getLastZoomValue() {
+    public synchronized Double getLastZoomValue() {
         return config.lastZoomValue != null ? config.lastZoomValue : 0.0;
     }
 
-    public void setZoomEnabled(boolean zoomEnabled) {
+    public synchronized void setZoomEnabled(boolean zoomEnabled) {
         config.zoomEnabled = zoomEnabled;
         if (!zoomEnabled) {
             // Written directly: setLastZoomValue() is a no-op once zoom is disabled.
@@ -179,64 +223,73 @@ public class AppPreferences {
         save();
     }
 
-    public boolean isZoomEnabled() {
+    public synchronized boolean isZoomEnabled() {
         return Boolean.TRUE.equals(config.zoomEnabled);
     }
 
-    public void setAiOrder(List<String> urls) {
+    public synchronized void setAiOrder(List<String> urls) {
         config.aiOrder = urls != null ? new ArrayList<>(urls) : new ArrayList<>();
         save();
     }
 
-    public List<String> getAiOrder() {
+    public synchronized List<String> getAiOrder() {
         return config.aiOrder != null ? new ArrayList<>(config.aiOrder) : new ArrayList<>();
     }
 
-    public void setCheckUpdatesOnStartup(boolean checkUpdatesOnStartup) {
+    public synchronized void setCheckUpdatesOnStartup(boolean checkUpdatesOnStartup) {
         config.checkUpdatesOnStartup = checkUpdatesOnStartup;
         save();
     }
 
-    public boolean isCheckUpdatesOnStartupEnabled() {
+    public synchronized boolean isCheckUpdatesOnStartupEnabled() {
         return Boolean.TRUE.equals(config.checkUpdatesOnStartup);
     }
 
-    public void setAutoStartEnabled(boolean autoStartEnabled) {
+    public synchronized void setAutoStartEnabled(boolean autoStartEnabled) {
         config.autoStartEnabled = autoStartEnabled;
         save();
         AutoStartManager.setAutoStart(autoStartEnabled);
     }
 
-    public boolean isAutoStartEnabled() {
+    public synchronized boolean isAutoStartEnabled() {
         return Boolean.TRUE.equals(config.autoStartEnabled);
     }
 
-    public void setStartApplicationHiddenEnabled(boolean enabled) {
+    public synchronized void setStartApplicationHiddenEnabled(boolean enabled) {
         config.startApplicationHiddenEnabled = enabled;
         save();
     }
 
-    public boolean isStartApplicationHiddenEnabled() {
+    public synchronized boolean isStartApplicationHiddenEnabled() {
         return Boolean.TRUE.equals(config.startApplicationHiddenEnabled);
     }
 
-    public void setHotkeyToStartApplication(List<Integer> keys) {
+    public synchronized void setHotkeyToStartApplication(List<Integer> keys) {
         config.hotkeyToStartApplication = keys != null ? new ArrayList<>(keys) : new ArrayList<>();
         save();
     }
 
-    public List<Integer> getHotkeyToStartApplication() {
+    public synchronized List<Integer> getHotkeyToStartApplication() {
         return config.hotkeyToStartApplication != null
                 ? new ArrayList<>(config.hotkeyToStartApplication)
                 : new ArrayList<>();
     }
 
-    public void setDarkModeEnabled(boolean darkModeEnabled) {
+    public synchronized void setDarkModeEnabled(boolean darkModeEnabled) {
         config.darkModeEnabled = darkModeEnabled;
         save();
     }
 
-    public boolean isDarkModeEnabled() {
+    public synchronized boolean isBackgroundMemoryReductionEnabled() {
+        return !Boolean.FALSE.equals(config.reduceBackgroundMemory);
+    }
+
+    public synchronized void setBackgroundMemoryReductionEnabled(boolean enabled) {
+        config.reduceBackgroundMemory = enabled;
+        save();
+    }
+
+    public synchronized boolean isDarkModeEnabled() {
         return Boolean.TRUE.equals(config.darkModeEnabled);
     }
 
@@ -245,7 +298,7 @@ public class AppPreferences {
      * provider. A deep link such as {@code gemini.google.com/app/<id>} is kept, so
      * the app reopens on the exact conversation the user left.
      */
-    public void cleanupLastUrlIfNeeded(List<String> validUrls) {
+    public synchronized void cleanupLastUrlIfNeeded(List<String> validUrls) {
         if (config.lastUrl == null || validUrls.contains(config.lastUrl)) {
             return;
         }
@@ -254,7 +307,7 @@ public class AppPreferences {
             return;
         }
 
-        log.info("Removing lastUrl of an unknown provider: {}", config.lastUrl);
+        log.info("Removing lastUrl of an unknown provider: {}", UrlUtils.forLog(config.lastUrl));
         config.lastUrl = null;
         save();
     }
@@ -262,6 +315,8 @@ public class AppPreferences {
     @Data
     private static class AppConfig {
         private String lastUrl;
+        private String lastSiteId;
+        private Map<String, String> siteUrls;
         private Boolean rememberLastAi;
         private Double lastZoomValue;
         private Boolean zoomEnabled;
@@ -271,5 +326,6 @@ public class AppPreferences {
         private Boolean startApplicationHiddenEnabled;
         private List<Integer> hotkeyToStartApplication;
         private Boolean darkModeEnabled;
+        private Boolean reduceBackgroundMemory;
     }
 }

@@ -33,6 +33,9 @@ public class SettingsPanel extends VBox {
     @Setter
     private Consumer<Boolean> onZoomEnabledChanged;
 
+    @Setter
+    private Runnable onBackgroundMemoryChanged;
+
     private final AppPreferences appPreferences;
     private final AiConfiguration aiConfiguration;
     private final GlobalHotkeyManager hotkeyManager;
@@ -95,7 +98,9 @@ public class SettingsPanel extends VBox {
                         onProvidersChanged.run();
                     }
                 },
-                new ProvidersResetHandler(aiConfiguration, onProvidersChanged)
+                new ProvidersResetHandler(aiConfiguration, () -> {
+                    if (onProvidersChanged != null) onProvidersChanged.run();
+                })
         ));
     }
 
@@ -158,13 +163,21 @@ public class SettingsPanel extends VBox {
                 appPreferences.isDarkModeEnabled(),
                 appPreferences::setDarkModeEnabled));
 
-        var clearCookiesBtn = new AnimatedSettingsButton("Clear cookies", () -> {
+        card.addRow(toggleRow("Reduce background memory",
+                "Keep hidden pages alive while allowing Windows to reclaim RAM",
+                appPreferences.isBackgroundMemoryReductionEnabled(),
+                enabled -> {
+                    appPreferences.setBackgroundMemoryReductionEnabled(enabled);
+                    if (onBackgroundMemoryChanged != null) onBackgroundMemoryChanged.run();
+                }));
+
+        var clearCookiesBtn = new AnimatedSettingsButton("Clear site data", () -> {
             if (onClearCookies != null) {
                 onClearCookies.run();
             }
         });
-        card.addRow(new SettingsRow("Cookies",
-                "Sign out of every provider and reset sessions",
+        card.addRow(new SettingsRow("Site data",
+                "Clear cookies and website storage for all sites",
                 clearCookiesBtn));
 
         addSection("Browser", card);

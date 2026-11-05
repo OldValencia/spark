@@ -2,9 +2,7 @@ package to.sparkapp.app.browser;
 
 import com.sun.jna.*;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -14,7 +12,14 @@ import java.util.List;
  */
 interface WebviewNative extends Library {
 
-    WebviewNative WEBVIEW_NATIVE = runSetup();
+    static WebviewNative instance() {
+        return Holder.INSTANCE;
+    }
+
+    final class Holder {
+        private static final WebviewNative INSTANCE = runSetup();
+        private Holder() {}
+    }
 
     private static WebviewNative runSetup() {
         var osName = System.getProperty("os.name").toLowerCase();
@@ -31,31 +36,16 @@ interface WebviewNative extends Library {
         }
 
         try {
-            var tempDir = new File(System.getProperty("java.io.tmpdir"), "spark_webview_natives");
-            if (!tempDir.exists()) tempDir.mkdirs();
-
-            var targetFile = new File(tempDir, new File(libPath).getName());
-            targetFile.deleteOnExit();
-
+            byte[] library;
             try (var in = WebviewNative.class.getResourceAsStream(libPath)) {
-                if (in == null) {
-                    throw new RuntimeException("Native library not found in resources: " + libPath);
-                }
-                Files.copy(in, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            } catch (Exception e) {
-                if (!e.getMessage().contains("used by another process")) {
-                    System.err.println("Warning: Could not extract native library. " + e.getMessage());
-                }
+                if (in == null) throw new IllegalStateException("Native library not found in resources: " + libPath);
+                library = in.readAllBytes();
             }
-
-            System.setProperty("jna.library.path", tempDir.getAbsolutePath());
-            System.load(targetFile.getAbsolutePath());
-
-            return Native.load(
-                    "webview",
-                    WebviewNative.class,
-                    Collections.singletonMap(Library.OPTION_STRING_ENCODING, "UTF-8")
-            );
+            var cacheRoot = Path.of(System.getProperty("java.io.tmpdir"), "spark_webview_natives");
+            var relativeLibrary = Path.of(libPath.substring("/webview/natives/".length()));
+            var target = NativeLibraryCache.extract(cacheRoot, relativeLibrary, library);
+            return Native.load(target.toString(), WebviewNative.class,
+                    Collections.singletonMap(Library.OPTION_STRING_ENCODING, "UTF-8"));
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize Webview native library", e);
@@ -68,42 +58,44 @@ interface WebviewNative extends Library {
     int WV_HINT_FIXED = 3;
 
     interface BindCallback extends Callback {
-        void callback(long seq, String req, long arg);
+        void callback(String seq, String req, Pointer arg);
     }
 
     interface DispatchCallback extends Callback {
-        void callback(long pointer, long arg);
+        void callback(Pointer pointer, Pointer arg);
     }
 
-    long webview_create(boolean debug, Pointer window);
+    Pointer webview_create(int debug, Pointer window);
 
-    long webview_get_window(long pointer);
+    Pointer webview_get_window(Pointer pointer);
 
-    void webview_set_html(long pointer, String html);
+    Pointer webview_get_native_handle(Pointer pointer, int kind);
 
-    void webview_navigate(long pointer, String url);
+    int webview_set_html(Pointer pointer, String html);
 
-    void webview_set_title(long pointer, String title);
+    int webview_navigate(Pointer pointer, String url);
 
-    void webview_set_size(long pointer, int width, int height, int hint);
+    int webview_set_title(Pointer pointer, String title);
 
-    void webview_run(long pointer);
+    int webview_set_size(Pointer pointer, int width, int height, int hint);
 
-    void webview_destroy(long pointer);
+    int webview_run(Pointer pointer);
 
-    void webview_terminate(long pointer);
+    int webview_destroy(Pointer pointer);
 
-    void webview_eval(long pointer, String js);
+    int webview_terminate(Pointer pointer);
 
-    void webview_init(long pointer, String js);
+    int webview_eval(Pointer pointer, String js);
 
-    void webview_bind(long pointer, String name, BindCallback callback, long arg);
+    int webview_init(Pointer pointer, String js);
 
-    void webview_unbind(long pointer, String name);
+    int webview_bind(Pointer pointer, String name, BindCallback callback, Pointer arg);
 
-    void webview_return(long pointer, long seq, boolean isError, String result);
+    int webview_unbind(Pointer pointer, String name);
 
-    void webview_dispatch(long pointer, DispatchCallback callback, long arg);
+    int webview_return(Pointer pointer, String seq, int status, String result);
+
+    int webview_dispatch(Pointer pointer, DispatchCallback callback, Pointer arg);
 
     VersionInfoStruct webview_version();
 

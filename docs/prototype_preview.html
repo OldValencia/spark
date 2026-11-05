@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spark 2.0 — Dynamic Notch & Living AI Concept</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-desktop: #0d0f14;
+      --island-bg: #18191d;
+      --island-border: rgba(255, 255, 255, 0.08);
+      --island-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06), 0 0 35px -5px rgba(120, 100, 255, 0.12);
+      --accent-claude: #d97757;
+      --accent-chatgpt: #10a37f;
+      --accent-gemini: #4285f4;
+      --accent-perplexity: #20b8cd;
+      --active-accent: var(--accent-claude);
+      --text-main: #f0f2f7;
+      --text-muted: #8b92a4;
+      --radius-island: 24px;
+      --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.15);
+      --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #090a0f;
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Fake Desktop / OS Screen */
+    .screen-container {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 50% 20%, #1e1b38 0%, #0c0d14 60%, #06070a 100%);
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+    }
+
+    /* Subtle grid wallpaper */
+    .screen-container::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 50% 50%, rgba(138, 92, 246, 0.08) 0%, transparent 60%),
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 48px 48px, 48px 48px;
+      pointer-events: none;
+    }
+
+    /* Top Screen Edge Sensor (Trigger zone) */
+    .top-edge-sensor {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 14px;
+      z-index: 999;
+      cursor: s-resize;
+    }
+
+    /* Collapsed Notch / Dynamic Island pill at the very top */
+    .collapsed-notch {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 160px;
+      height: 28px;
+      background: #14151a;
+      border: 1px solid var(--island-border);
+      border-top: none;
+      border-radius: 0 0 16px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      z-index: 1000;
+      transition: all 0.3s var(--ease-spring);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+    }
+
+    .collapsed-notch:hover {
+      width: 220px;
+      height: 36px;
+      background: #1d1e25;
+      box-shadow: 0 8px 25px rgba(120, 100, 255, 0.25);
+    }
+
+    .collapsed-notch .notch-mascot-eye {
+      width: 6px;
+      height: 6px;
+      background: #fff;
+      border-radius: 50%;
+      display: inline-block;
+      animation: blink 4s infinite;
+    }
+
+    .collapsed-notch .notch-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--active-accent);
+      box-shadow: 0 0 8px var(--active-accent);
+    }
+
+    .collapsed-notch .notch-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      color: var(--text-muted);
+    }
+
+    /* The Main Island Drawer Window */
+    .island-window {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translate(-50%, -105%);
+      width: 860px;
+      height: 700px;
+      background: var(--island-bg);
+      border: 1px solid var(--island-border);
+      border-top: none;
+      border-radius: 0 0 var(--radius-island) var(--radius-island);
+      box-shadow: var(--island-shadow);
+      display: flex;
+      flex-direction: column;
+      z-index: 1001;
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.4s var(--ease-spring), opacity 0.25s ease, width 0.35s var(--ease-smooth), height 0.35s var(--ease-smooth);
+      will-change: transform, width, height;
+      backdrop-filter: blur(20px);
+    }
+
+    .island-window.open {
+      transform: translate(-50%, 0);
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* Island Window Header */
+    .island-header {
+      height: 64px;
+      background: linear-gradient(180deg, #1b1c22 0%, #15161b 100%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      position: relative;
+    }
+
+    /* Left Area: Animated Mascot & Companion */
+    .mascot-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .mascot-avatar {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #2a2c38 0%, #1c1d27 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s var(--ease-spring);
+    }
+
+    .mascot-avatar:hover {
+      transform: scale(1.08) rotate(-2deg);
+    }
+
+    /* Cute SVG Face */
+    .mascot-face {
+      width: 28px;
+      height: 28px;
+      position: relative;
+    }
+
+    .eye {
+      position: absolute;
+      width: 6px;
+      height: 8px;
+      background: #f0f3fc;
+      border-radius: 4px;
+      top: 10px;
+      transition: all 0.15s ease;
+    }
+    .eye.left { left: 4px; }
+    .eye.right { right: 4px; }
+
+    .eye .pupil {
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      background: #11131a;
+      border-radius: 50%;
+      top: 2px;
+      left: 1px;
+      transition: transform 0.08s ease-out;
+    }
+
+    .mouth {
+      position: absolute;
+      width: 8px;
+      height: 4px;
+      border-bottom: 2px solid #f0f3fc;
+      border-radius: 0 0 6px 6px;
+      bottom: 6px;
+      left: 10px;
+      transition: all 0.2s ease;
+    }
+
+    /* Mascot Speech / Mood Bubble */
+    .mascot-bubble {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 5px 11px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      backdrop-filter: blur(10px);
+      transition: all 0.25s ease;
+    }
+
+    .mascot-bubble .status-indicator {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--active-accent);
+      box-shadow: 0 0 8px var(--active-accent);
+      transition: background 0.3s;
+    }
+
+    .mascot-bubble .typing-dots {
+      display: none;
+      gap: 3px;
+    }
+    .mascot-bubble .typing-dots span {
+      width: 4px;
+      height: 4px;
+      background: var(--active-accent);
+      border-radius: 50%;
+      animation: pulseDot 1.2s infinite;
+    }
+    .mascot-bubble .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .mascot-bubble .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    /* Center: Provider Dock with Sliding Pill */
+    .dock-container {
+      position: relative;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 4px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .sliding-pill {
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      left: 4px;
+      width: 105px;
+      background: rgba(255, 255, 255, 0.09);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      pointer-events: none;
+      transition: transform 0.35s var(--ease-spring), width 0.35s var(--ease-spring);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .dock-btn {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12.5px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border-radius: 12px;
+      transition: color 0.2s ease;
+    }
+
+    .dock-btn:hover {
+      color: #fff;
+    }
+
+    .dock-btn.active {
+      color: #fff;
+    }
+
+    .dock-btn svg {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.2s var(--ease-spring);
+    }
+    .dock-btn:hover svg {
+      transform: scale(1.12);
+    }
+
+    /* Right: Window Controls & Presets */
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .action-icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .action-icon-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    /* Size preset pill selector */
+    .size-presets {
+      display: flex;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+      padding: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .size-btn {
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .size-btn.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    /* Webview Container */
+    .webview-frame {
+      flex: 1;
+      position: relative;
+      background: #1f1e1d;
+      border-radius: 0 0 var(--radius-island) var(--radius-island);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Web Simulation Interior */
+    .web-mock-inner {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: #212121;
+      color: #ececec;
+      position: relative;
+    }
+
+    .web-mock-inner.claude-theme {
+      background: #262624;
+    }
+    .web-mock-inner.chatgpt-theme {
+      background: #212121;
+    }
+    .web-mock-inner.gemini-theme {
+      background: #131314;
+    }
+
+    .web-chat-content {
+      flex: 1;
+      padding: 30px 45px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* AI message bubble in web */
+    .web-ai-greeting {
+      margin: auto 0;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .web-ai-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .web-ai-title {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .web-ai-subtitle {
+      font-size: 14px;
+      color: #999;
+      max-width: 420px;
+      line-height: 1.5;
+    }
+
+    /* Input Bar inside the Webview */
+    .web-input-container {
+      padding: 0 45px 28px 45px;
+    }
+
+    .web-input-box {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .web-input-box input {
+      flex: 1;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .web-send-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #fff;
+      color: #000;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.2s var(--ease-spring);
+    }
+
+    .web-send-btn:hover {
+      transform: scale(1.08);
+    }
+
+    /* Bottom Drag Handle & Preset Drawer indicator */
+    .bottom-handle-bar {
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: ns-resize;
+      background: inherit;
+      border-radius: 0 0 var(--radius-island) var(--radius-island);
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+    }
+
+    .bottom-handle-pill {
+      width: 44px;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.2);
+      transition: width 0.2s, background 0.2s;
+    }
+    .bottom-handle-bar:hover .bottom-handle-pill {
+      width: 60px;
+      background: rgba(255, 255, 255, 0.4);
+    }
+
+    /* Floating Interactive Controls Panel (Right Side for experimenting) */
+    .demo-controls-panel {
+      position: absolute;
+      right: 25px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 320px;
+      background: rgba(18, 20, 28, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 22px;
+      backdrop-filter: blur(25px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .demo-controls-panel h3 {
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .demo-controls-panel p {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .ctrl-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ctrl-group label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .ctrl-btn-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .demo-btn {
+      flex: 1;
+      padding: 9px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #fff;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .demo-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .demo-btn.primary {
+      background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+      border: none;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+    }
+
+    .demo-btn.primary:hover {
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .key-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #ddd;
+    }
+
+    /* Keyframe Animations */
+    @keyframes blink {
+      0%, 90%, 100% { transform: scaleY(1); }
+      95% { transform: scaleY(0.1); }
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    @keyframes floatMascot {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Screen Container -->
+  <div class="screen-container" id="screen">
+
+    <!-- Top Edge Trigger Area (hover here to tease / reveal) -->
+    <div class="top-edge-sensor" id="topSensor" title="Hover here or drag down"></div>
+
+    <!-- Collapsed Dynamic Island Pill (stays at the top edge) -->
+    <div class="collapsed-notch" id="collapsedNotch" onclick="toggleIsland(true)">
+      <div class="mascot-face" style="width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: space-around;">
+        <span class="notch-mascot-eye"></span>
+        <span class="notch-mascot-eye"></span>
+      </div>
+      <span class="notch-status-dot" id="notchStatusDot"></span>
+      <span class="notch-label" id="notchLabel">Claude</span>
+    </div>
+
+    <!-- The Island Window (Drawer) -->
+    <div class="island-window" id="islandWindow">
+
+      <!-- Top Island Header -->
+      <div class="island-header">
+
+        <!-- Left: Mascot & Companion Status -->
+        <div class="mascot-area" id="mascotArea" onclick="cycleMascotMood()">
+          <div class="mascot-avatar" id="mascotAvatar">
+            <div class="mascot-face" id="mascotFace">
+              <div class="eye left" id="eyeLeft"><div class="pupil" id="pupilLeft"></div></div>
+              <div class="eye right" id="eyeRight"><div class="pupil" id="pupilRight"></div></div>
+              <div class="mouth" id="mouth"></div>
+            </div>
+          </div>
+          <div class="mascot-bubble" id="mascotBubble">
+            <span class="status-indicator" id="mascotStatusDot"></span>
+            <span id="mascotText">Ready</span>
+            <div class="typing-dots" id="mascotDots">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center: Sliding Pill AI Dock -->
+        <div class="dock-container" id="dockContainer">
+          <div class="sliding-pill" id="slidingPill"></div>
+
+          <button class="dock-btn active" data-provider="claude" data-color="#d97757" onclick="switchProvider(this, 'claude', '#d97757')">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15 8L22 9L17 14L18 21L12 17.5L6 21L7 14L2 9L9 8L12 2Z"/></svg>
+            Claude
+          </button>
+
+          <button class="dock-btn" data-provider="chatgpt" data-color="#10a37f" onclick="switchProvider(this, 'chatgpt', '#10a37f')">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.93V17a1 1 0 0 1-2 0v-.07A8 8 0 0 1 4.07 10H5a1 1 0 0 1 0-2h-.93A8 8 0 0 1 11 4.07V5a1 1 0 0 1 2 0v-.93A8 8 0 0 1 19.93 11H19a1 1 0 0 1 0 2h.93A8 8 0 0 1 13 16.93z"/></svg>
+            ChatGPT
+          </button>
+
+          <button class="dock-btn" data-provider="gemini" data-color="#4285f4" onclick="switchProvider(this, 'gemini', '#4285f4')">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/></svg>
+            Gemini
+          </button>
+
+          <button class="dock-btn" data-provider="perplexity" data-color="#20b8cd" onclick="switchProvider(this, 'perplexity', '#20b8cd')">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v18M3 12h18M5 5l14 14M19 5L5 19"/></svg>
+            Perplexity
+          </button>
+        </div>
+
+        <!-- Right: Size Presets & Window Actions -->
+        <div class="header-actions">
+
+          <!-- Size presets -->
+          <div class="size-presets">
+            <button class="size-btn" onclick="setSizePreset('compact', this)">S</button>
+            <button class="size-btn active" onclick="setSizePreset('standard', this)">M</button>
+            <button class="size-btn" onclick="setSizePreset('studio', this)">L</button>
+          </div>
+
+          <button class="action-icon-btn" title="New chat (Ctrl+N)" onclick="triggerNewChat()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+
+          <button class="action-icon-btn" title="Settings" onclick="alert('Opening Spark settings')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </button>
+
+          <button class="action-icon-btn" title="Collapse to top (Esc)" onclick="toggleIsland(false)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+          </button>
+
+        </div>
+      </div>
+
+      <!-- Webview Content Simulation (The actual AI web page) -->
+      <div class="webview-frame">
+        <div class="web-mock-inner claude-theme" id="webMock">
+
+          <!-- Web Chat Content -->
+          <div class="web-chat-content" id="webChat">
+            <div class="web-ai-greeting">
+              <div class="web-ai-logo" id="webLogo" style="background: rgba(217, 119, 87, 0.15); color: #d97757;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15 8L22 9L17 14L18 21L12 17.5L6 21L7 14L2 9L9 8L12 2Z"/></svg>
+              </div>
+              <div class="web-ai-title" id="webTitle">Good evening, Denis.</div>
+              <div class="web-ai-subtitle" id="webSubtitle">Your Claude Pro / ChatGPT web interface loads through Edge WebView2, retaining your sign-in, history, and files.</div>
+            </div>
+          </div>
+
+          <!-- Web Chat Input Field -->
+          <div class="web-input-container">
+            <div class="web-input-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#777" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              <input type="text" id="userInput" placeholder="Type a message..." onkeydown="handleInputKey(event)">
+              <button class="web-send-btn" onclick="sendPrompt()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Bottom Pull Handle -->
+          <div class="bottom-handle-bar" title="Drag to adjust height">
+            <div class="bottom-handle-pill"></div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Interactive Interactive Controls on the Right -->
+    <div class="demo-controls-panel">
+      <h3>
+        <span style="color: #a78bfa;">✦</span>
+        Interactive controls
+      </h3>
+      <p>Explore the drop-down panel concept, animations, and native WebView2 integration.</p>
+
+      <div class="ctrl-group">
+        <label>Panel controls</label>
+        <button class="demo-btn primary" onclick="toggleIsland()">
+          <span>Toggle window</span>
+          <span class="key-badge">Space</span>
+        </button>
+      </div>
+
+      <div class="ctrl-group">
+        <label>Mascot reactions (AI events)</label>
+        <div class="ctrl-btn-row">
+          <button class="demo-btn" onclick="setMascotState('idle')">Idle</button>
+          <button class="demo-btn" onclick="setMascotState('thinking')">Thinking...</button>
+          <button class="demo-btn" onclick="setMascotState('happy')">Done! ✨</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <label>Window size presets</label>
+        <div class="ctrl-btn-row">
+          <button class="demo-btn" onclick="setSizePreset('compact')">Compact (700px)</button>
+          <button class="demo-btn" onclick="setSizePreset('standard')">Standard (860px)</button>
+          <button class="demo-btn" onclick="setSizePreset('studio')">Wide (1120px)</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <label>Clean website view (CSS injection)</label>
+        <button class="demo-btn" id="cleanWebBtn" onclick="toggleCleanWeb()">
+          <span>Toggle website CSS enhancements</span>
+        </button>
+        <p style="font-size: 11px; color: #7e859b;">
+          Removes duplicate Claude/ChatGPT headers and matches the background to the Dynamic Island.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const islandWindow = document.getElementById('islandWindow');
+    const collapsedNotch = document.getElementById('collapsedNotch');
+    const slidingPill = document.getElementById('slidingPill');
+    const dockContainer = document.getElementById('dockContainer');
+    const mascotBubble = document.getElementById('mascotBubble');
+    const mascotText = document.getElementById('mascotText');
+    const mascotDots = document.getElementById('mascotDots');
+    const mascotStatusDot = document.getElementById('mascotStatusDot');
+    const notchStatusDot = document.getElementById('notchStatusDot');
+    const notchLabel = document.getElementById('notchLabel');
+    const webMock = document.getElementById('webMock');
+    const webChat = document.getElementById('webChat');
+    const webTitle = document.getElementById('webTitle');
+    const webLogo = document.getElementById('webLogo');
+    const userInput = document.getElementById('userInput');
+    const eyeLeft = document.getElementById('eyeLeft');
+    const eyeRight = document.getElementById('eyeRight');
+    const pupilLeft = document.getElementById('pupilLeft');
+    const pupilRight = document.getElementById('pupilRight');
+    const mouth = document.getElementById('mouth');
+
+    let isOpen = true;
+    let currentMood = 'idle';
+    let currentPreset = 'standard';
+    let cleanWebEnabled = true;
+
+    // Initialize island state
+    islandWindow.classList.add('open');
+    collapsedNotch.style.opacity = '0';
+    collapsedNotch.style.pointerEvents = 'none';
+
+    // Align sliding pill initially to Claude button
+    const firstBtn = dockContainer.querySelector('.dock-btn.active');
+    updatePillPosition(firstBtn);
+
+    function toggleIsland(forceState) {
+      isOpen = (forceState !== undefined) ? forceState : !isOpen;
+
+      if (isOpen) {
+        islandWindow.classList.add('open');
+        collapsedNotch.style.opacity = '0';
+        collapsedNotch.style.pointerEvents = 'none';
+        userInput.focus();
+        setMascotState('idle');
+      } else {
+        islandWindow.classList.remove('open');
+        collapsedNotch.style.opacity = '1';
+        collapsedNotch.style.pointerEvents = 'all';
+      }
+    }
+
+    // Top sensor hover expands the island
+    document.getElementById('topSensor').addEventListener('mouseenter', () => {
+      if (!isOpen) {
+        collapsedNotch.style.transform = 'translateX(-50%) scale(1.1)';
+      }
+    });
+
+    // Space key toggles window, Esc closes
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && e.ctrlKey) {
+        e.preventDefault();
+        toggleIsland();
+      } else if (e.code === 'Escape' && isOpen) {
+        toggleIsland(false);
+      }
+    });
+
+    // Mouse movement makes mascot eyes track cursor
+    window.addEventListener('mousemove', (e) => {
+      const avatar = document.getElementById('mascotAvatar').getBoundingClientRect();
+      const avatarCenterX = avatar.left + avatar.width / 2;
+      const avatarCenterY = avatar.top + avatar.height / 2;
+
+      const angle = Math.atan2(e.clientY - avatarCenterY, e.clientX - avatarCenterX);
+      const distance = Math.min(3, Math.hypot(e.clientX - avatarCenterX, e.clientY - avatarCenterY) / 100);
+
+      const dx = Math.cos(angle) * distance;
+      const dy = Math.sin(angle) * distance;
+
+      pupilLeft.style.transform = `translate(${dx}px, ${dy}px)`;
+      pupilRight.style.transform = `translate(${dx}px, ${dy}px)`;
+    });
+
+    function updatePillPosition(btn) {
+      const rect = btn.getBoundingClientRect();
+      const containerRect = dockContainer.getBoundingClientRect();
+      const leftOffset = rect.left - containerRect.left;
+
+      slidingPill.style.transform = `translateX(${leftOffset - 4}px)`;
+      slidingPill.style.width = `${rect.width}px`;
+    }
+
+    function switchProvider(btn, provider, color) {
+      document.querySelectorAll('.dock-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updatePillPosition(btn);
+
+      document.documentElement.style.setProperty('--active-accent', color);
+      notchStatusDot.style.background = color;
+      notchStatusDot.style.boxShadow = `0 0 8px ${color}`;
+      notchLabel.textContent = btn.textContent.trim();
+
+      // Theme mock webview
+      webMock.className = `web-mock-inner ${provider}-theme`;
+      webTitle.textContent = `${btn.textContent.trim()} Active`;
+      webLogo.style.color = color;
+      webLogo.style.background = `${color}25`;
+
+      // Trigger happy mascot reaction
+      setMascotState('happy');
+      setTimeout(() => setMascotState('idle'), 1500);
+    }
+
+    function setMascotState(state) {
+      currentMood = state;
+      if (state === 'idle') {
+        mascotText.style.display = 'inline';
+        mascotText.textContent = 'Ready';
+        mascotDots.style.display = 'none';
+        mouth.style.borderRadius = '0 0 6px 6px';
+        mouth.style.width = '8px';
+        mouth.style.height = '4px';
+        mouth.style.borderBottom = '2px solid #f0f3fc';
+        mouth.style.borderTop = 'none';
+      } else if (state === 'thinking') {
+        mascotText.style.display = 'none';
+        mascotDots.style.display = 'flex';
+        mouth.style.borderRadius = '50%';
+        mouth.style.width = '5px';
+        mouth.style.height = '5px';
+        mouth.style.border = '2px solid #f0f3fc';
+      } else if (state === 'happy') {
+        mascotText.style.display = 'inline';
+        mascotText.textContent = 'Sparky ^‿^';
+        mascotDots.style.display = 'none';
+        mouth.style.borderRadius = '0 0 10px 10px';
+        mouth.style.width = '10px';
+        mouth.style.height = '6px';
+        mouth.style.borderBottom = '2.5px solid #f0f3fc';
+        mouth.style.borderTop = 'none';
+      }
+    }
+
+    function cycleMascotMood() {
+      if (currentMood === 'idle') setMascotState('thinking');
+      else if (currentMood === 'thinking') setMascotState('happy');
+      else setMascotState('idle');
+    }
+
+    function setSizePreset(preset, btn) {
+      currentPreset = preset;
+      if (btn) {
+        document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      }
+
+      if (preset === 'compact') {
+        islandWindow.style.width = '700px';
+        islandWindow.style.height = '580px';
+      } else if (preset === 'standard') {
+        islandWindow.style.width = '860px';
+        islandWindow.style.height = '700px';
+      } else if (preset === 'studio') {
+        islandWindow.style.width = '1120px';
+        islandWindow.style.height = '820px';
+      }
+    }
+
+    function handleInputKey(e) {
+      if (e.key === 'Enter') sendPrompt();
+    }
+
+    function sendPrompt() {
+      const text = userInput.value.trim();
+      if (!text) return;
+
+      // Add user message to chat preview
+      const msg = document.createElement('div');
+      msg.style.cssText = 'align-self: flex-end; background: rgba(255,255,255,0.12); padding: 12px 18px; border-radius: 16px 16px 4px 16px; font-size: 14px; max-width: 75%;';
+      msg.textContent = text;
+      webChat.appendChild(msg);
+      userInput.value = '';
+
+      // Mascot starts thinking!
+      setMascotState('thinking');
+
+      // Simulate streaming AI answer
+      setTimeout(() => {
+        const reply = document.createElement('div');
+        reply.style.cssText = 'align-self: flex-start; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); padding: 14px 20px; border-radius: 16px 16px 16px 4px; font-size: 14px; line-height: 1.6; max-width: 80%;';
+        reply.innerHTML = '<strong>' + notchLabel.textContent + ':</strong> Your request was handled in the web session! The mascot is idle again, and the panel is ready to collapse.';
+        webChat.appendChild(reply);
+        webChat.scrollTop = webChat.scrollHeight;
+
+        setMascotState('happy');
+        setTimeout(() => setMascotState('idle'), 2500);
+      }, 1500);
+    }
+
+    function triggerNewChat() {
+      webChat.innerHTML = `
+        <div class="web-ai-greeting">
+          <div class="web-ai-logo" style="background: var(--active-accent); opacity: 0.8; color: #fff;">
+            ✦
+          </div>
+          <div class="web-ai-title">New chat</div>
+          <div class="web-ai-subtitle">The current web session has been cleared. Ask a new question.</div>
+        </div>
+      `;
+      setMascotState('idle');
+    }
+
+    function toggleCleanWeb() {
+      cleanWebEnabled = !cleanWebEnabled;
+      const btn = document.getElementById('cleanWebBtn');
+      btn.style.borderColor = cleanWebEnabled ? '#10a37f' : 'rgba(255,255,255,0.1)';
+      alert(cleanWebEnabled ? 'CSS injection is on: extra banners and duplicate headers are hidden, and the background is seamless.' : 'CSS injection is off: the website appears as it would in a regular browser.');
+    }
+  </script>
+</body>
+</html>

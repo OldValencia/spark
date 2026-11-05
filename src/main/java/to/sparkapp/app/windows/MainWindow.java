@@ -103,13 +103,17 @@ public class MainWindow extends Stage {
      * Public so that both the tray action and GlobalHotkeyManager can use it.
      */
     public void showMainWindow() {
+        showMainWindow(System.nanoTime());
+    }
+
+    public void showMainWindow(long requestedAt) {
         this.show();
         this.setIconified(false);
         this.toFront();
         this.requestFocus();
 
         if (fxWebViewPane != null) {
-            fxWebViewPane.onWindowRestored();
+            fxWebViewPane.onWindowRestored(requestedAt);
         }
     }
 
@@ -141,6 +145,7 @@ public class MainWindow extends Stage {
     public void reloadTopBar() {
         Platform.runLater(() -> {
             aiConfiguration.reload();
+            fxWebViewPane.reconcileSites(aiConfiguration.getConfigurations());
             rootPane.setTop(null);
 
             var newTopBarArea = new TopBarArea(aiConfiguration, fxWebViewPane, this, settingsWindow, appPreferences,
@@ -204,13 +209,16 @@ public class MainWindow extends Stage {
     private void performShutdown() {
         log.info("Starting application shutdown...");
 
-        new Thread(() -> {
+        var shutdownWatchdog = new Thread(() -> {
             try {
                 Thread.sleep(1500);
             } catch (InterruptedException ignored) {}
             log.warn("Shutdown timeout reached. Forcing exit.");
             System.exit(0);
-        }).start();
+        }, "spark-shutdown-watchdog");
+        // The fallback must not keep a cleanly stopped application alive.
+        shutdownWatchdog.setDaemon(true);
+        shutdownWatchdog.start();
 
         if (globalHotkeyManager != null) {
             try {
@@ -238,7 +246,6 @@ public class MainWindow extends Stage {
                 fxWebViewPane.shutdown(() -> {
                     log.info("Webview shutdown complete");
                     Platform.exit();
-                    System.exit(0);
                 });
             } catch (Exception e) {
                 log.error("Error initiating Webview shutdown", e);
@@ -246,7 +253,6 @@ public class MainWindow extends Stage {
             }
         } else {
             Platform.exit();
-            System.exit(0);
         }
     }
 
@@ -264,7 +270,7 @@ public class MainWindow extends Stage {
             }
 
             try {
-                globalHotkeyManager = new GlobalHotkeyManager(this, settingsWindow, appPreferences);
+                globalHotkeyManager = new GlobalHotkeyManager(this, appPreferences);
                 globalHotkeyManager.start();
                 log.info("Global hotkey manager initialized");
             } catch (Exception | UnsatisfiedLinkError e) {
@@ -274,6 +280,7 @@ public class MainWindow extends Stage {
             var settingsPanel = new SettingsPanel(appPreferences, globalHotkeyManager, aiConfiguration);
             settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
             settingsPanel.setOnClearCookies(fxWebViewPane::clearCookies);
+            settingsPanel.setOnBackgroundMemoryChanged(fxWebViewPane::refreshResourcePolicy);
             settingsPanel.setOnZoomEnabledChanged(enabled -> fxWebViewPane.resetZoom());
             settingsPanel.setOnProvidersChanged(this::handleProvidersChanged);
 

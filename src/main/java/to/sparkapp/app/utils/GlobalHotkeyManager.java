@@ -10,7 +10,6 @@ import javafx.application.Platform;
 import lombok.Getter;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.windows.MainWindow;
-import to.sparkapp.app.windows.SettingsWindow;
 
 import javax.swing.Timer;
 import java.util.*;
@@ -23,7 +22,6 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
     private static final int MOUSE_OFFSET = 10_000;
 
     private final MainWindow mainWindow;
-    private final SettingsWindow settingsWindow;
     private final AppPreferences appPreferences;
 
     private final Set<Integer> pressedKeys = Collections.synchronizedSet(new HashSet<>());
@@ -39,10 +37,9 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
     @Getter
     private boolean initialized = false;
 
-    public GlobalHotkeyManager(MainWindow mainWindow, SettingsWindow settingsWindow, AppPreferences appPreferences) {
+    public GlobalHotkeyManager(MainWindow mainWindow, AppPreferences appPreferences) {
         this.mainWindow = mainWindow;
         this.appPreferences = appPreferences;
-        this.settingsWindow = settingsWindow;
 
         var logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
         logger.setLevel(Level.OFF);
@@ -115,20 +112,17 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
         synchronized (pressedKeys) {
             if (pressedKeys.containsAll(saved)) {
                 hotkeyTriggered = true;
-                Platform.runLater(this::toggleWindow);
+                long requestedAt = System.nanoTime();
+                Platform.runLater(() -> toggleWindow(requestedAt));
             }
         }
     }
 
-    private void toggleWindow() {
-        if (settingsWindow != null) {
-            settingsWindow.close();
-        }
-
+    private void toggleWindow(long requestedAt) {
         if (mainWindow.isShowing()) {
             mainWindow.hideMainWindow();
         } else {
-            mainWindow.showMainWindow();
+            mainWindow.showMainWindow(requestedAt);
         }
     }
 
