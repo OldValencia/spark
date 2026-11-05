@@ -42,6 +42,9 @@ public class WebviewManager {
     private final Queue<Runnable> pending = new ArrayDeque<>();
     private volatile boolean loading = true;
     private volatile String loadError;
+    private volatile boolean processFailed;
+    private volatile boolean recreateOnRetry;
+    private volatile boolean restartRequested;
     private long navigationId;
     @Setter private Consumer<Boolean> onLoadingChanged;
     @Setter private Consumer<String> onLoadError;
@@ -152,6 +155,8 @@ public class WebviewManager {
         var webviewThread = new Thread(() -> {
             try {
                 ready.set(false);
+                processFailed = false;
+                recreateOnRetry = false;
 
                 // Always let the library create its own top-level window and reparent it
                 // afterwards: the embedded (parent handle) path of the native library
@@ -175,12 +180,14 @@ public class WebviewManager {
 
                 if (SystemUtils.isWindows()) {
                     webview.windows().setPresentation(false, isHibernated && appPreferences.isBackgroundMemoryReductionEnabled());
+                    webview.windows().observeProcessFailures(this::handleProcessFailure);
                     webview.windows().observe(id -> {
+                        if (processFailed || disposed.get()) return;
                         navigationId = id;
                         loadError = null;
                         loadingChanged(true);
                     }, (id, success) -> {
-                        if (id != navigationId) return;
+                        if (processFailed || disposed.get() || id != navigationId) return;
                         var url = webview.windows().source();
                         if ("about:blank".equals(url)) return;
                         Platform.runLater(() -> navigator.handleUrlChange(url));
@@ -249,6 +256,10 @@ public class WebviewManager {
                     shutdownCallback = null;
                 }
                 if (complete != null) complete.run();
+                if (restartRequested && !disposed.get()) {
+                    restartRequested = false;
+                    startWebviewThread(navigator.getCurrentUrl());
+                }
             }
         }, "spark-webview-thread-" + System.currentTimeMillis());
 
@@ -289,6 +300,27 @@ public class WebviewManager {
                 UrlUtils.openLink(args.get(0).asText());
             }
         });
+    }
+
+    private void handleProcessFailure(int kind) {
+        if (disposed.get()) return;
+        // Auxiliary/subframe failures do not justify replacing the main page or
+        // its draft. Report them without interfering with runtime recovery.
+        if (kind != 0 && kind != 1 && kind != 2) {
+            log.warn("WebView2 reported a recoverable subprocess failure (kind={})", kind);
+            return;
+        }
+        processFailed = true;
+        recreateOnRetry = kind == 0 || kind == 2;
+        navigationId = -1;
+        loadError = switch (kind) {
+            case 0 -> "The browser process stopped. Retry reopens this site. Unsent text on affected pages may be lost.";
+            case 2 -> "This page is not responding. Retry reopens this site; unsent text may be lost.";
+            default -> "This page stopped unexpectedly. Retry reloads this site; unsent text on this page may be lost.";
+        };
+        log.warn("WebView2 process failure requires user recovery (kind={})", kind);
+        loadingChanged(false);
+        if (onLoadError != null) Platform.runLater(() -> onLoadError.accept(loadError));
     }
 
     private synchronized Runnable pollPending() { return pending.poll(); }
@@ -380,7 +412,7 @@ public class WebviewManager {
 
     /** Reconciles the latest desired state on the browser thread; stale shows never win. */
     private void applyPresentation() {
-        if (disposed.get() || !SystemUtils.isWindows() || webview == null) return;
+        if (disposed.get() || (processFailed && recreateOnRetry) || !SystemUtils.isWindows() || webview == null) return;
         long generation;
         boolean show;
         boolean lowMemory;
@@ -457,7 +489,7 @@ public class WebviewManager {
     public void focusBrowser(Consumer<Boolean> completed) {
         long generation = visibilityGeneration;
         dispatch(() -> {
-            if (generation == visibilityGeneration && !isHibernated && !loading
+            if (generation == visibilityGeneration && !processFailed && !isHibernated && !loading
                     && loadError == null && SystemUtils.isWindows()) {
                 boolean accepted = webview.windows().focus();
                 if (!accepted) log.debug("Focus skipped because the host is changing visibility");
@@ -467,13 +499,24 @@ public class WebviewManager {
     }
 
     public void reload() {
+        if (disposed.get()) return;
         if (!isStarting.get() && !disposed.get()) {
             synchronized (this) { pending.clear(); }
             loadError = null;
             loadingChanged(true);
             startWebviewThread(navigator.getCurrentUrl());
         } else {
-            dispatch(() -> webview.loadURL(navigator.getCurrentUrl()));
+            loadError = null;
+            loadingChanged(true);
+            dispatch(() -> {
+                if (recreateOnRetry) {
+                    restartRequested = true;
+                    webview.close();
+                } else {
+                    processFailed = false;
+                    webview.loadURL(navigator.getCurrentUrl());
+                }
+            });
         }
     }
 

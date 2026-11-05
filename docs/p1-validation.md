@@ -37,6 +37,16 @@ Coverage:
 
 ## Measurements and limits
 
+### Process-failure recovery follow-up
+
+The browser bridge now observes WebView2 ProcessFailed. Main renderer termination shows a persistent error and Retry reloads that site. Browser-process termination and renderer unresponsiveness request recreation of that site's native view instead of navigating a dead controller. Auxiliary/subframe failures are logged without replacing the main page. Recovery is explicit: there is no automatic refresh of cached sites.
+
+A failed view may have lost unsent text; the error message explains this. A shared browser-process crash can affect several sites, and each affected site remains in error until explicitly retried. Healthy sites are not deliberately reloaded. Native presentation/focus operations avoid a dead browser connection, and late navigation completions cannot hide the failure.
+
+Recreation exposed a dispatch/destruction deadlock: native destruction can synchronously communicate with the FX host while the host tries to acquire the dispatch monitor. The wrapper now marks the instance destroyed under a short lock, releases that lock before native cleanup, and discards queued actions against a destroyed view. Callback storage remains pinned until native destruction returns.
+
+The native FX integration test deliberately navigates the isolated active renderer to `edge://crash`, checks the error/Retry path, and verifies an independent origin's draft survives. It also terminates the browser PID read from that test WebView, after verifying it belongs to the current test worker's descendants. It verifies no silent navigation, a new browser PID after Retry, and separate recovery of another affected cached site. No user browser process or profile is targeted. The unresponsive-renderer and auxiliary-process branches are not covered by an actual hang/auxiliary-crash injection in this run.
+
 ### Background memory policy follow-up
 
 The Browser setting **Reduce background memory** defaults to enabled. Inactive sites and a hidden Spark window request the native Low memory target. Before showing a page, the browser thread restores Normal and controller visibility, then shows the HWND. Generation checks prevent stale queued shows from overriding a newer hide. A page covered only by the loading overlay is hidden at the controller level but is not put in Low solely because it is loading.

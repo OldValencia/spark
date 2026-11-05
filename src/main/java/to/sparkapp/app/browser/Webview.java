@@ -17,7 +17,7 @@ import static to.sparkapp.app.browser.WebviewNative.*;
 class Webview implements Closeable {
 
     private final long nativePointer;
-    private boolean destroyed;
+    private volatile boolean destroyed;
     private WindowsBrowser windows;
 
     private final Map<String, BindCallback> activeBinds = new ConcurrentHashMap<>();
@@ -129,7 +129,7 @@ class Webview implements Closeable {
             @Override
             public void callback(long pointer, long arg) {
                 try {
-                    handler.run();
+                    if (!destroyed) handler.run();
                 } finally {
                     // Remove self from GC shield after execution
                     activeDispatches.remove(holder[0]);
@@ -154,12 +154,16 @@ class Webview implements Closeable {
         }
     }
 
-    synchronized void destroy() {
-        if (destroyed) return;
+    void destroy() {
+        synchronized (this) {
+            if (destroyed) return;
+            destroyed = true;
+        }
+        // Native teardown can synchronously message the FX host or pump queued
+        // callbacks. Never hold the dispatch monitor while waiting for that work.
         try {
             if (windows != null) windows.close();
         } finally {
-            destroyed = true;
             WEBVIEW_NATIVE.webview_destroy(nativePointer);
             activeDispatches.clear();
             activeBinds.clear();

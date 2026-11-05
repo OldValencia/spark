@@ -34,6 +34,7 @@ final class WindowsBrowser implements AutoCloseable {
     private boolean memoryPolicyChecked;
     private Integer memoryTarget;
     private Boolean visible;
+    private boolean browserProcessExited;
 
     /** Changes resource policy without suspending or navigating the page. */
     void setPresentation(boolean requestedVisible, boolean reduceMemory) {
@@ -87,6 +88,15 @@ final class WindowsBrowser implements AutoCloseable {
             check(call(args, 5, id));
             check(call(args, 3, success));
             completed.accept(id.getValue(), success.getValue() != 0);
+        });
+    }
+
+    void observeProcessFailures(Consumer<Integer> failed) {
+        listen(25, 26, "79e0aea4-990b-42d9-aa1d-0fcc2e5bc7f1", args -> {
+            var kind = new IntByReference();
+            check(call(args, 3, kind));
+            if (kind.getValue() == 0) browserProcessExited = true;
+            failed.accept(kind.getValue());
         });
     }
 
@@ -145,9 +155,9 @@ final class WindowsBrowser implements AutoCloseable {
         if (closed) return;
         closed = true;
         try {
-            removals.forEach(Runnable::run);
+            if (!browserProcessExited) removals.forEach(Runnable::run);
             removals.clear();
-            check(call(controller, 24)); // Close before the native wrapper destroys its HWNDs.
+            if (!browserProcessExited) check(call(controller, 24)); // A failed browser has already closed its controllers.
         } finally {
             release(memoryController);
             memoryController = null;

@@ -3,6 +3,11 @@ package to.sparkapp.app.ui.webview;
 import com.sun.net.httpserver.HttpServer;
 import javafx.application.Platform;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import com.sun.jna.Function;
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
+import com.sun.jna.ptr.IntByReference;
 import javafx.stage.Stage;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -17,6 +22,7 @@ import java.util.List;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
@@ -28,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @Tag("native")
 class FxWebViewPaneTest {
     @Test @Timeout(120)
-    void rapidRestoresAndSiteSwitchesPreserveLivePages() throws Exception {
+    void liveSitesSurviveVisibilityChangesAndRecoverFromProcessFailures() throws Exception {
         assertEquals("true", System.getProperty("spark.nativeTests"));
         var boot = new CountDownLatch(1);
         Platform.startup(() -> { Platform.setImplicitExit(false); boot.countDown(); });
@@ -51,7 +57,7 @@ class FxWebViewPaneTest {
         var preferences = new AppPreferences();
         preferences.setRememberLastAi(true);
         var first = new AiConfig("native-first", "First", base + "/first", null, null);
-        var second = new AiConfig("native-second", "Second", base + "/second", null, null);
+        var second = new AiConfig("native-second", "Second", "http://localhost:" + server.getAddress().getPort() + "/second", null, null);
         var stage = new AtomicReference<Stage>();
         var pane = new AtomicReference<FxWebViewPane>();
         long coldStart = System.nanoTime();
@@ -79,6 +85,7 @@ class FxWebViewPaneTest {
             System.out.println("Warm show/restore call: " + (System.nanoTime()-warm)/1_000_000 + " ms");
             fx(() -> { pane.get().setCurrentConfig(second, null); return null; });
             await(() -> !active(pane.get()).isLoading());
+            active(pane.get()).eval("document.querySelector('#draft').value='second-unsent'");
             sampleMemory("two cached sites");
             int afterSecond = hits.get();
             assertTrue(afterSecond > initialRequests);
@@ -95,6 +102,39 @@ class FxWebViewPaneTest {
             assertTrue(preferences.getLastUrl().endsWith("network=true"), "An in-flight request must survive hiding");
             assertEquals(afterSecond, hits.get(), "Cached switching and restore must not issue another page request");
             assertTrue(preferences.getSiteUrl(second).endsWith("/second"));
+            // Crash only this test profile's active renderer. The other origin must
+            // retain its own live page; recovery is explicit, never an automatic refresh.
+            var crashed = active(pane.get());
+            crashed.dispatch(() -> crashed.loadURL("edge://crash"));
+            await(() -> crashed.getLoadError() != null && crashed.getLoadError().contains("stopped unexpectedly"));
+            assertFalse(crashed.isLoading());
+            fx(() -> { pane.get().setCurrentConfig(second, null); return null; });
+            assertNull(active(pane.get()).getLoadError());
+            active(pane.get()).eval("history.replaceState({},'', '/second?draft='+document.querySelector('#draft').value)");
+            await(() -> preferences.getSiteUrl(second).contains("draft=second-unsent"));
+            fx(() -> {
+                pane.get().setCurrentConfig(first, null);
+                retry(pane.get());
+                return null;
+            });
+            await(() -> !crashed.isLoading() && crashed.getLoadError() == null);
+            assertEquals(afterSecond + 1, hits.get(), "Only the explicitly retried page should reload");
+            System.out.println("Renderer crash detected; retry recovered its page and preserved the other site's draft.");
+            long failedPid = browserProcessId(crashed);
+            assertTrue(ProcessHandle.current().descendants().anyMatch(process -> process.pid() == failedPid),
+                    "Only the isolated test worker's own browser process may be terminated");
+            assertTrue(ProcessHandle.of(failedPid).orElseThrow().destroyForcibly());
+            await(() -> crashed.getLoadError() != null && crashed.getLoadError().contains("browser process stopped"));
+            assertEquals(afterSecond + 1, hits.get(), "Browser failure must not silently reload sites");
+            fx(() -> { retry(pane.get()); return null; });
+            await(() -> !crashed.isLoading() && crashed.getLoadError() == null);
+            assertNotEquals(failedPid, browserProcessId(crashed), "Retry must recreate the failed browser connection");
+            fx(() -> { pane.get().setCurrentConfig(second, null); return null; });
+            assertNotNull(active(pane.get()).getLoadError(), "Other affected sites must wait for explicit recovery");
+            fx(() -> { retry(pane.get()); return null; });
+            await(() -> !active(pane.get()).isLoading() && active(pane.get()).getLoadError() == null);
+            fx(() -> { pane.get().setCurrentConfig(first, null); return null; });
+            System.out.println("Browser-process failure detected; explicit retries recreated affected views without automatic site reloads.");
             var failureSite = new AiConfig("native-failure", "Unavailable", "http://127.0.0.1:1/unavailable", null, null);
             fx(() -> { pane.get().setCurrentConfig(failureSite, null); return null; });
             await(() -> active(pane.get()).getLoadError() != null);
@@ -153,6 +193,34 @@ class FxWebViewPaneTest {
             field.setAccessible(true);
             return (WebviewManager) field.get(pane);
         } catch (ReflectiveOperationException failure) { throw new AssertionError(failure); }
+    }
+
+    private static void retry(FxWebViewPane pane) {
+        pane.lookupAll(".button").stream().filter(node -> node instanceof Button button
+                && button.getText().equals("Retry") && button.isVisible())
+                .map(node -> (Button) node).findFirst().orElseThrow().fire();
+    }
+
+    private static long browserProcessId(WebviewManager manager) throws Exception {
+        var result = new CompletableFuture<Long>();
+        manager.dispatch(() -> {
+            try {
+                var viewField = WebviewManager.class.getDeclaredField("webview");
+                viewField.setAccessible(true);
+                var view = viewField.get(manager);
+                var windowsMethod = view.getClass().getDeclaredMethod("windows");
+                windowsMethod.setAccessible(true);
+                var windows = windowsMethod.invoke(view);
+                var coreField = windows.getClass().getDeclaredField("core");
+                coreField.setAccessible(true);
+                var core = (Pointer) coreField.get(windows);
+                var pid = new IntByReference();
+                var function = Function.getFunction(core.getPointer(0).getPointer(37L * Native.POINTER_SIZE), Function.ALT_CONVENTION);
+                assertTrue(function.invokeInt(new Object[]{core, pid}) >= 0);
+                result.complete(Integer.toUnsignedLong(pid.getValue()));
+            } catch (Throwable failure) { result.completeExceptionally(failure); }
+        });
+        return result.get(10, TimeUnit.SECONDS);
     }
     private static <T> T fx(Callable<T> action) throws Exception {
         var task = new FutureTask<>(action);
