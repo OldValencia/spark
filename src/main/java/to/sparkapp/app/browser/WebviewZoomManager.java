@@ -5,6 +5,7 @@ import lombok.Setter;
 import to.sparkapp.app.config.AppPreferences;
 
 import java.util.function.Consumer;
+import java.util.Locale;
 
 /**
  * Manages browser zoom levels, CSS injection, and zoom UI callbacks.
@@ -56,7 +57,7 @@ class WebviewZoomManager {
         // stored back when the feature was still enabled.
         var level = appPreferences.isZoomEnabled() ? currentZoom : 0.0;
         var scale = Math.pow(1.2, level);
-        var js = String.format("document.documentElement.style.zoom='%.4f';", scale);
+        var js = String.format(Locale.ROOT, "document.documentElement.style.zoom='%.4f';", scale);
         bridge.eval(js);
     }
 

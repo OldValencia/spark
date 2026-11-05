@@ -6,7 +6,10 @@ import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.utils.UrlUtils;
 
 import java.util.List;
+import java.net.URI;
+import java.util.Locale;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -26,10 +29,10 @@ public class WebviewNavigator {
 
     private static final List<String> AUTH_DOMAINS = List.of(
             // Google
-            "accounts.google.",
-            "consent.google.",
+            "accounts.google.com",
+            "consent.google.com",
             // OpenAI
-            "auth.openai.",
+            "auth.openai.com",
             // Apple
             "appleid.apple.com",
             "idmsa.apple.com",
@@ -42,9 +45,7 @@ public class WebviewNavigator {
             "login.facebook.com",
             "www.facebook.com/login",
             // GitHub
-            "github.com/login",
-            "github.com/session",
-            "github.com/oauth",
+            "github.com/login", "github.com/session", "github.com/oauth",
             // Cloudflare
             "challenges.cloudflare.com",
             "cloudflare.com/cdn-cgi/challenge",
@@ -61,11 +62,9 @@ public class WebviewNavigator {
             // Perplexity
             "auth.perplexity.ai",
             // Midjourney / Discord
-            "discord.com/login",
-            "discord.com/oauth2",
+            "discord.com/login", "discord.com/oauth2",
             // HuggingFace
-            "huggingface.co/login",
-            "huggingface.co/oauth"
+            "huggingface.co/login", "huggingface.co/oauth"
     );
 
     private static final List<String> AUTH_PATH_PATTERNS = List.of(
@@ -77,7 +76,7 @@ public class WebviewNavigator {
             "/saml/",
             "/signin",
             "/login",
-            "/callback?code=",
+            "/callback",
             "/oidc/"
     );
 
@@ -97,12 +96,15 @@ public class WebviewNavigator {
     }
 
     void handleUrlChange(String url) {
-        if (url.isBlank() || url.equals("about:blank") || url.startsWith("chrome-error://")) return;
+        if (!UrlUtils.isWebUrl(url)) return;
 
-        if (onUrlChanged != null) onUrlChanged.accept(url);
+        if (isAuthUrl(url)) {
+            if (onUrlChanged != null) onUrlChanged.accept(url);
+            return;
+        }
 
         if (configBaseUrl != null && !isAuthUrl(url) && !UrlUtils.isSameHost(url, configBaseUrl)) {
-            log.info("WebviewNavigator: External URL detected [{}], opening in browser", url);
+            log.info("WebviewNavigator: External URL detected [{}], opening in browser", UrlUtils.forLog(url));
             UrlUtils.openLink(url);
             final long navId = currentNavId;
             schedule(80, () -> {
@@ -110,7 +112,10 @@ public class WebviewNavigator {
                     bridge.dispatch(() -> bridge.loadURL(configBaseUrl));
                 }
             });
+            return;
         }
+        currentUrl = url;
+        if (onUrlChanged != null) onUrlChanged.accept(url);
     }
 
     /**
@@ -122,19 +127,20 @@ public class WebviewNavigator {
                 ? targetUrl
                 : config.url();
 
-        log.info("WebviewNavigator: Changing config to: {}", url);
+        log.info("WebviewNavigator: Changing config to: {}", UrlUtils.forLog(url));
         this.configBaseUrl = config.url();
         navigate(url);
     }
 
     void navigate(String url) {
-        this.currentUrl = url;
+        if (!UrlUtils.isWebUrl(url)) return;
+        if (!isAuthUrl(url)) this.currentUrl = url;
         final long navId = NAV_ID_SEQUENCE.incrementAndGet();
         this.currentNavId = navId;
 
         bridge.dispatch(() -> {
             if (currentNavId == navId) {
-                log.info("WebviewNavigator: Loading {} [Nav-{}]", url, navId);
+                log.info("WebviewNavigator: Loading {} [Nav-{}]", UrlUtils.forLog(url), navId);
                 bridge.loadURL(url);
             }
         });
@@ -176,39 +182,50 @@ public class WebviewNavigator {
     }
 
     void handleLinkClicked(String url) {
-        if (url == null || url.isBlank()) {
+        if (!UrlUtils.isWebUrl(url)) {
             return;
         }
 
         if (isAuthUrl(url) || (configBaseUrl != null && UrlUtils.isSameHost(url, configBaseUrl))) {
-            log.info("WebviewNavigator: Internal/Auth click detected, loading inside: {}", url);
+            log.info("WebviewNavigator: Internal/Auth click detected, loading inside: {}", UrlUtils.forLog(url));
             navigate(url);
         } else {
-            log.info("WebviewNavigator: External click detected, opening in OS browser: {}", url);
+            log.info("WebviewNavigator: External click detected, opening in OS browser: {}", UrlUtils.forLog(url));
             UrlUtils.openLink(url);
         }
     }
 
     public static boolean isAuthUrl(String url) {
-        if (url == null) {
-            return false;
-        }
-        var lower = url.toLowerCase();
+        if (!UrlUtils.isWebUrl(url)) return false;
+        var uri = URI.create(url);
+        var host = uri.getHost().toLowerCase(Locale.ROOT);
+        var path = uri.getPath() == null ? "" : uri.getPath().toLowerCase(Locale.ROOT);
 
         for (var domain : AUTH_DOMAINS) {
-            if (lower.contains(domain)) {
+            var parts = domain.split("/", 2);
+            if ((host.equals(parts[0]) || host.endsWith("." + parts[0]))
+                    && (parts.length == 1 || path.equals("/" + parts[1]) || path.startsWith("/" + parts[1] + "/"))) {
                 return true;
             }
         }
         for (var pattern : AUTH_PATH_PATTERNS) {
-            if (lower.contains(pattern)) {
+            if (path.equals(pattern) || path.startsWith(pattern.endsWith("/") ? pattern : pattern + "/")) {
                 return true;
             }
         }
         return false;
     }
 
+    void shutdown() {
+        scheduler.shutdownNow();
+    }
+
     private void schedule(long delayMs, Runnable task) {
-        scheduler.schedule(task, delayMs, TimeUnit.MILLISECONDS);
+        if (scheduler.isShutdown()) return;
+        try {
+            scheduler.schedule(task, delayMs, TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException stopped) {
+            if (!scheduler.isShutdown()) throw stopped;
+        }
     }
 }

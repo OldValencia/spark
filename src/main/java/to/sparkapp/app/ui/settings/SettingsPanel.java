@@ -95,7 +95,9 @@ public class SettingsPanel extends VBox {
                         onProvidersChanged.run();
                     }
                 },
-                new ProvidersResetHandler(aiConfiguration, onProvidersChanged)
+                new ProvidersResetHandler(aiConfiguration, () -> {
+                    if (onProvidersChanged != null) onProvidersChanged.run();
+                })
         ));
     }
 

@@ -6,6 +6,7 @@ import to.sparkapp.app.ui.dialogs.components.ProviderMainPanel;
 import to.sparkapp.app.ui.dialogs.components.ProviderTitleLabel;
 import to.sparkapp.app.ui.dialogs.components.ProvidersFormButtonsPanel;
 import to.sparkapp.app.utils.SystemUtils;
+import to.sparkapp.app.utils.UrlUtils;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -76,7 +77,7 @@ public class ProviderEditDialog extends Stage {
             return false;
         }
 
-        if (!url.startsWith("http")) {
+        if (!UrlUtils.isWebUrl(url)) {
             showValidationError("Please enter a valid URL (starting with http:// or https://)");
             return false;
         }

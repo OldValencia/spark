@@ -1,12 +1,12 @@
 package to.sparkapp.app.browser;
 
-import javafx.application.Platform;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.utils.NativeWindowUtils;
 import to.sparkapp.app.utils.SystemUtils;
+import to.sparkapp.app.utils.UrlUtils;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -17,6 +17,7 @@ import java.util.function.Consumer;
 @Slf4j
 public class WebviewManager {
 
+    private Runnable shutdownCallback;
     private volatile Webview webview;
     private volatile long nativeHandle = 0L;
     private volatile long parentHandle = 0L;
@@ -126,7 +127,7 @@ public class WebviewManager {
         startWebviewThread(startUrl);
     }
 
-    private void startWebviewThread(String initialUrl) {
+    private synchronized void startWebviewThread(String initialUrl) {
         if (disposed.get() || !isStarting.compareAndSet(false, true)) {
             return;
         }
@@ -163,8 +164,14 @@ public class WebviewManager {
                 webview.loadURL(urlToLoad);
 
                 webview.dispatch(() -> {
+                    synchronized (this) {
+                        if (disposed.get()) {
+                            webview.close();
+                            return;
+                        }
+                        ready.set(true);
+                    }
                     zoomManager.applyZoomCss();
-                    ready.set(true);
 
                     if (nativeHandle != 0) {
                         if (isHibernated) {
@@ -188,10 +195,16 @@ public class WebviewManager {
             } catch (Throwable t) {
                 log.error("WebviewManager: Webview thread encountered an error", t);
             } finally {
-                ready.set(false);
-                nativeHandle = 0L;
-                webview = null;
-                isStarting.set(false);
+                Runnable complete;
+                synchronized (this) {
+                    ready.set(false);
+                    nativeHandle = 0L;
+                    webview = null;
+                    isStarting.set(false);
+                    complete = shutdownCallback;
+                    shutdownCallback = null;
+                }
+                if (complete != null) complete.run();
             }
         }, "spark-webview-thread-" + System.currentTimeMillis());
 
@@ -226,7 +239,7 @@ public class WebviewManager {
 
         api.on("middleClicked", args -> {
             if (!args.isEmpty()) {
-                to.sparkapp.app.utils.UrlUtils.openLink(args.get(0).asText());
+                UrlUtils.openLink(args.get(0).asText());
             }
         });
     }
@@ -346,21 +359,18 @@ public class WebviewManager {
         }
     }
 
-    public void shutdown(Runnable onComplete) {
+    public synchronized void shutdown(Runnable onComplete) {
         if (disposed.getAndSet(true)) {
             return;
         }
 
         dispatchWaitScheduler.shutdownNow();
-
-        if (webview != null && ready.get()) {
-            dispatch(() -> {
-                try {
-                    webview.close();
-                } catch (Throwable ignored) {
-                }
-                Platform.runLater(onComplete);
-            });
+        navigator.shutdown();
+        if (isStarting.get()) {
+            shutdownCallback = onComplete;
+            var active = webview;
+            if (active != null && ready.get()) active.dispatch(active::close);
+            // Startup checks disposed before publishing readiness and closes itself.
         } else {
             onComplete.run();
         }

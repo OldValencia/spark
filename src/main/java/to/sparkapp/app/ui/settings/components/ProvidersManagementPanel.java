@@ -4,6 +4,7 @@ import javafx.stage.Stage;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.CustomAiProvidersManager;
 import to.sparkapp.app.ui.Theme;
+import to.sparkapp.app.ui.dialogs.ProviderEditDialog;
 import to.sparkapp.app.utils.FrameUtils;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
@@ -66,7 +67,7 @@ public class ProvidersManagementPanel extends VBox {
 
     private void openAddDialog() {
         var owner = FrameUtils.getOwnerStage(this);
-        var dialog = new to.sparkapp.app.ui.dialogs.ProviderEditDialog(owner, null);
+        var dialog = new ProviderEditDialog(owner, null);
         dialog.showAndWait();
 
         if (dialog.isConfirmed()) {
@@ -79,7 +80,7 @@ public class ProvidersManagementPanel extends VBox {
 
     private void openEditDialog(AiConfiguration.AiConfig provider) {
         var owner = FrameUtils.getOwnerStage(this);
-        var dialog = new to.sparkapp.app.ui.dialogs.ProviderEditDialog(owner, provider);
+        var dialog = new ProviderEditDialog(owner, provider);
         dialog.showAndWait();
 
         if (dialog.isConfirmed()) {

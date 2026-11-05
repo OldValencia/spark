@@ -48,6 +48,9 @@ jobs:
           
           mv icon.icns src/main/resources/app-icons/icon.icns
 
+      - name: Run tests
+        run: ./gradlew test
+
       - name: Build DMG
         run: ./gradlew createInstaller
 

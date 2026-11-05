@@ -104,7 +104,7 @@ public class FxWebViewPane extends StackPane {
             if (onAuthPageDetected != null) {
                 Platform.runLater(() -> onAuthPageDetected.accept(WebviewNavigator.isAuthUrl(url)));
             }
-            if (appPreferences.isRememberLastAi()) {
+            if (appPreferences.isRememberLastAi() && !WebviewNavigator.isAuthUrl(url)) {
                 appPreferences.setLastUrl(url);
             }
         });

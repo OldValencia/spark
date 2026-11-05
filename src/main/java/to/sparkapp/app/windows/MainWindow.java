@@ -264,7 +264,7 @@ public class MainWindow extends Stage {
             }
 
             try {
-                globalHotkeyManager = new GlobalHotkeyManager(this, settingsWindow, appPreferences);
+                globalHotkeyManager = new GlobalHotkeyManager(this, appPreferences);
                 globalHotkeyManager.start();
                 log.info("Global hotkey manager initialized");
             } catch (Exception | UnsatisfiedLinkError e) {

@@ -1,4 +1,7 @@
 .gradle
+# Local roadmap; keep it out of commits.
+/next_steps.md
+/docs/next_steps.md
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
