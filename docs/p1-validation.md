@@ -37,6 +37,12 @@ Coverage:
 
 ## Measurements and limits
 
+### Native API/thread contract follow-up
+
+JNA now matches the bundled webview 0.12.0 pointer, C-string, integer and error-result types. Native failures are checked, duplicate binding registration preserves the original callback reference, failed dispatch submissions release unused callbacks, and binding errors use JSON serialization. Direct native/COM access requires the browser's creating thread. Manager navigation is dispatched, while submitted tasks validate the captured view before running. Native teardown remains outside the dispatch monitor.
+
+The Windows/JDK 21 validation run passed 17 unit tests and 5 native tests (`test nativeTest --offline --no-daemon`). Six fake-API tests cover failure paths without opening a DLL or profile. A new real-WebView2 test checks promise rejection containing backslashes, quotes and a newline, null success results, and the original binding after duplicate registration fails. Existing navigation, profile clearing, background streaming/state preservation, renderer/browser process recovery and normal application exit remain covered. The test worker can still emit the documented class-unregister diagnostic at its own termination; this is not suppressed. macOS/Linux were not tested.
+
 ### Process-failure recovery follow-up
 
 The browser bridge now observes WebView2 ProcessFailed. Main renderer termination shows a persistent error and Retry reloads that site. Browser-process termination and renderer unresponsiveness request recreation of that site's native view instead of navigating a dead controller. Auxiliary/subframe failures are logged without replacing the main page. Recovery is explicit: there is no automatic refresh of cached sites.

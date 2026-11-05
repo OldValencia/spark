@@ -25,6 +25,7 @@ import java.util.function.Consumer;
  */
 @Slf4j
 final class WindowsBrowser implements AutoCloseable {
+    private final Thread owner = Thread.currentThread();
     private final Pointer controller;
     private final Pointer core;
     private final List<Handler> handlers = new ArrayList<>();
@@ -38,6 +39,7 @@ final class WindowsBrowser implements AutoCloseable {
 
     /** Changes resource policy without suspending or navigating the page. */
     void setPresentation(boolean requestedVisible, boolean reduceMemory) {
+        requireOwner();
         if (closed) return;
         // Restore the normal target before exposing a page that may have been paged out.
         if (requestedVisible) setMemoryTarget(0);
@@ -77,6 +79,7 @@ final class WindowsBrowser implements AutoCloseable {
     }
 
     void observe(Consumer<Long> starting, BiConsumer<Long, Boolean> completed) {
+        requireOwner();
         listen(7, 8, "9adbe429-f36d-432b-9ddc-f8881fbd76e3", args -> {
             var id = new LongByReference();
             check(call(args, 9, id));
@@ -92,6 +95,7 @@ final class WindowsBrowser implements AutoCloseable {
     }
 
     void observeProcessFailures(Consumer<Integer> failed) {
+        requireOwner();
         listen(25, 26, "79e0aea4-990b-42d9-aa1d-0fcc2e5bc7f1", args -> {
             var kind = new IntByReference();
             check(call(args, 3, kind));
@@ -113,6 +117,7 @@ final class WindowsBrowser implements AutoCloseable {
     }
 
     void clearBrowsingData(Consumer<Boolean> completed) {
+        requireOwner();
         Pointer extended = query(core, "f75f09a8-667e-4983-88d6-c8773f315e84");
         Pointer profile = null;
         Pointer profile2 = null;
@@ -136,6 +141,7 @@ final class WindowsBrowser implements AutoCloseable {
     }
 
     String source() {
+        requireOwner();
         var out = new PointerByReference();
         check(call(core, 4, out));
         try { return out.getValue().getWideString(0); }
@@ -143,15 +149,17 @@ final class WindowsBrowser implements AutoCloseable {
     }
 
     boolean focus() {
+        requireOwner();
         int result = call(controller, 12, 0);
         // A host can be hidden again while a focus request is queued.
         if (result == 0x80070057) return false;
         check(result);
         return true;
     }
-    void stop() { check(call(core, 43)); }
+    void stop() { requireOwner(); check(call(core, 43)); }
 
     @Override public void close() {
+        requireOwner();
         if (closed) return;
         closed = true;
         try {
@@ -164,6 +172,10 @@ final class WindowsBrowser implements AutoCloseable {
             release(core);
         }
         // Handler storage is retained by Webview until native destruction completes.
+    }
+
+    private void requireOwner() {
+        if (Thread.currentThread() != owner) throw new IllegalStateException("WebView2 COM access requires its owning thread");
     }
 
     private static Pointer query(Pointer object, String iid) {

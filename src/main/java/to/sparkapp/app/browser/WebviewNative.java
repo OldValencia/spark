@@ -14,7 +14,14 @@ import java.util.List;
  */
 interface WebviewNative extends Library {
 
-    WebviewNative WEBVIEW_NATIVE = runSetup();
+    static WebviewNative instance() {
+        return Holder.INSTANCE;
+    }
+
+    final class Holder {
+        private static final WebviewNative INSTANCE = runSetup();
+        private Holder() {}
+    }
 
     private static WebviewNative runSetup() {
         var osName = System.getProperty("os.name").toLowerCase();
@@ -68,44 +75,44 @@ interface WebviewNative extends Library {
     int WV_HINT_FIXED = 3;
 
     interface BindCallback extends Callback {
-        void callback(long seq, String req, long arg);
+        void callback(String seq, String req, Pointer arg);
     }
 
     interface DispatchCallback extends Callback {
-        void callback(long pointer, long arg);
+        void callback(Pointer pointer, Pointer arg);
     }
 
-    long webview_create(boolean debug, Pointer window);
+    Pointer webview_create(int debug, Pointer window);
 
-    long webview_get_window(long pointer);
+    Pointer webview_get_window(Pointer pointer);
 
-    Pointer webview_get_native_handle(long pointer, int kind);
+    Pointer webview_get_native_handle(Pointer pointer, int kind);
 
-    void webview_set_html(long pointer, String html);
+    int webview_set_html(Pointer pointer, String html);
 
-    void webview_navigate(long pointer, String url);
+    int webview_navigate(Pointer pointer, String url);
 
-    void webview_set_title(long pointer, String title);
+    int webview_set_title(Pointer pointer, String title);
 
-    void webview_set_size(long pointer, int width, int height, int hint);
+    int webview_set_size(Pointer pointer, int width, int height, int hint);
 
-    void webview_run(long pointer);
+    int webview_run(Pointer pointer);
 
-    void webview_destroy(long pointer);
+    int webview_destroy(Pointer pointer);
 
-    void webview_terminate(long pointer);
+    int webview_terminate(Pointer pointer);
 
-    void webview_eval(long pointer, String js);
+    int webview_eval(Pointer pointer, String js);
 
-    void webview_init(long pointer, String js);
+    int webview_init(Pointer pointer, String js);
 
-    void webview_bind(long pointer, String name, BindCallback callback, long arg);
+    int webview_bind(Pointer pointer, String name, BindCallback callback, Pointer arg);
 
-    void webview_unbind(long pointer, String name);
+    int webview_unbind(Pointer pointer, String name);
 
-    void webview_return(long pointer, long seq, boolean isError, String result);
+    int webview_return(Pointer pointer, String seq, int status, String result);
 
-    void webview_dispatch(long pointer, DispatchCallback callback, long arg);
+    int webview_dispatch(Pointer pointer, DispatchCallback callback, Pointer arg);
 
     VersionInfoStruct webview_version();
 

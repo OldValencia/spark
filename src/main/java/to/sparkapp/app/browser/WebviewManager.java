@@ -333,7 +333,7 @@ public class WebviewManager {
             return;
         }
         active.dispatch(() -> {
-            if (!disposed.get()) {
+            if (!disposed.get() && active == webview) {
                 try { action.run(); }
                 catch (Exception failure) { log.error("Browser task failed", failure); }
             }
@@ -341,15 +341,16 @@ public class WebviewManager {
     }
 
     public void eval(String js) {
-        if (webview != null && ready.get()) {
-            webview.eval(js);
+        var active = webview;
+        if (active != null && ready.get()) {
+            active.dispatch(() -> {
+                if (!disposed.get() && active == webview) active.eval(js);
+            });
         }
     }
 
     public void loadURL(String url) {
-        if (webview != null) {
-            webview.loadURL(url);
-        }
+        dispatch(() -> webview.loadURL(url));
     }
 
     public void updateBounds(int x, int y, int width, int height) {

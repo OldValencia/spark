@@ -11,6 +11,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -77,6 +78,34 @@ class WindowsBrowserTest {
             }
             System.out.println("Native navigation, hidden DOM state and profile-wide cookie/storage clearing passed.");
         } finally { server.stop(0); }
+    }
+
+    @Test @Timeout(40)
+    void nativeBindingsPreserveOriginalCallbackAndRejectWithValidJson() throws Exception {
+        assertEquals("true", System.getProperty("spark.nativeTests"));
+        try (var browser = new Harness()) {
+            var registered = new CompletableFuture<Void>();
+            browser.run(view -> {
+                try {
+                    view.bind("rejectProbe", args -> {
+                        throw new IllegalArgumentException("Test path C:\\draft\\note \"quoted\"\nnext line");
+                    });
+                    assertThrows(IllegalStateException.class, () -> view.bind("probe", args -> "false"));
+                    registered.complete(null);
+                } catch (Throwable failure) {
+                    registered.completeExceptionally(failure);
+                }
+            });
+            registered.get(10, TimeUnit.SECONDS);
+            browser.load("data:text/html,%3Ctitle%3EBridge%3C/title%3E");
+            browser.eval("window.rejectProbe().then(() => window.probe('unexpected success'), error => window.probe(JSON.stringify({type:typeof error,message:error})))");
+            var rejection = JSON.readTree(browser.message());
+            assertEquals("string", rejection.get("type").asText());
+            assertTrue(rejection.get("message").asText().contains("C:\\draft\\note \"quoted\"\nnext line"));
+            browser.eval("window.probe('original callback survived').then(result => window.probe(JSON.stringify(result)))");
+            assertEquals("original callback survived", browser.message());
+            assertEquals("null", browser.message());
+        }
     }
 
     static final class Harness implements AutoCloseable {
