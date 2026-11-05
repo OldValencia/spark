@@ -34,6 +34,7 @@ Access your favorite AI services in one place. Pre-configured with:
 
 ### ⚡ Performance
 - Sites load on demand. Hiding preserves live state and does not suspend active requests.
+- **Reduce background memory** is enabled by default in Browser settings. Hidden and inactive pages use WebView2's low memory target; visible pages return to Normal before display. Pages are not unloaded. Windows may reclaim resident RAM at the cost of extra work when restoring a page; you can disable the option if needed. Older runtimes without this API continue with normal memory policy.
 - Memory includes the JVM and WebView2 child processes and depends on the sites you open. Visited sites stay loaded until removed or until Spark exits. JVM heap limits do not represent total application RAM.
 
 ## Screenshots
@@ -108,6 +109,6 @@ cd spark
 ./gradlew nativeTest
 ```
 
-Native tests require the WebView2 Runtime. They use a fresh `build/native-tests/` directory for browser data and preferences, local HTTP fixtures, and off-screen/hidden windows. They never use or clear installed Spark sessions. See [P1 validation notes](docs/p1-validation.md) for coverage and measurement limitations.
+Native tests require a recent Evergreen WebView2 Runtime, including memory-target API support. They use a fresh `build/native-tests/` directory for browser data and preferences, local HTTP fixtures, and off-screen/hidden windows. They never use or clear installed Spark sessions. See [P1 validation notes](docs/p1-validation.md) for coverage and measurement limitations.
 
 Remembered page addresses survive a restart when enabled. Unsent drafts and running requests are live browser state and survive only while Spark is running. Clearing site data is an explicit destructive action; it is never part of hiding or ordinary startup.

@@ -79,7 +79,7 @@ class WindowsBrowserTest {
         } finally { server.stop(0); }
     }
 
-    private static final class Harness implements AutoCloseable {
+    static final class Harness implements AutoCloseable {
         final BlockingQueue<Boolean> loads = new LinkedBlockingQueue<>();
         final BlockingQueue<String> messages = new LinkedBlockingQueue<>();
         final AtomicReference<Throwable> failure = new AtomicReference<>();

@@ -33,6 +33,9 @@ public class SettingsPanel extends VBox {
     @Setter
     private Consumer<Boolean> onZoomEnabledChanged;
 
+    @Setter
+    private Runnable onBackgroundMemoryChanged;
+
     private final AppPreferences appPreferences;
     private final AiConfiguration aiConfiguration;
     private final GlobalHotkeyManager hotkeyManager;
@@ -159,6 +162,14 @@ public class SettingsPanel extends VBox {
                 "Takes effect after a restart",
                 appPreferences.isDarkModeEnabled(),
                 appPreferences::setDarkModeEnabled));
+
+        card.addRow(toggleRow("Reduce background memory",
+                "Keep hidden pages alive while allowing Windows to reclaim RAM",
+                appPreferences.isBackgroundMemoryReductionEnabled(),
+                enabled -> {
+                    appPreferences.setBackgroundMemoryReductionEnabled(enabled);
+                    if (onBackgroundMemoryChanged != null) onBackgroundMemoryChanged.run();
+                }));
 
         var clearCookiesBtn = new AnimatedSettingsButton("Clear site data", () -> {
             if (onClearCookies != null) {

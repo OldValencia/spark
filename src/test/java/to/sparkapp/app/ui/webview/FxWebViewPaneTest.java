@@ -73,6 +73,7 @@ class FxWebViewPaneTest {
             active(pane.get()).eval("document.querySelector('#draft').value='unsent';window.scrollTo(0,420);window.testCounter=0;window.testInterval=setInterval(()=>window.testCounter++,50);fetch('/slow').then(r=>r.text()).then(()=>window.requestCompleted=true)");
             fx(() -> { pane.get().onWindowHidden(); stage.get().hide(); return null; });
             Thread.sleep(350);
+            active(pane.get()).eval("window.hiddenDuringPause=document.hidden");
             long warm = System.nanoTime();
             fx(() -> { stage.get().show(); pane.get().onWindowRestored(); return null; });
             System.out.println("Warm show/restore call: " + (System.nanoTime()-warm)/1_000_000 + " ms");
@@ -86,10 +87,11 @@ class FxWebViewPaneTest {
                 pane.get().onWindowHidden(); stage.get().hide();
                 stage.get().show(); pane.get().onWindowRestored(); return null;
             });
-            active(pane.get()).eval("clearInterval(window.testInterval);history.replaceState({},'', '/first?draft='+document.querySelector('#draft').value+'&scroll='+scrollY+'&ticks='+window.testCounter+'&network='+Boolean(window.requestCompleted))");
+            active(pane.get()).eval("clearInterval(window.testInterval);history.replaceState({},'', '/first?draft='+document.querySelector('#draft').value+'&scroll='+scrollY+'&ticks='+window.testCounter+'&hidden='+window.hiddenDuringPause+'&network='+Boolean(window.requestCompleted))");
             await(() -> preferences.getLastUrl() != null && preferences.getLastUrl().contains("draft=unsent"));
             assertTrue(preferences.getLastUrl().contains("scroll=420"));
             assertFalse(preferences.getLastUrl().contains("ticks=0&"));
+            assertTrue(preferences.getLastUrl().contains("hidden=true"), "WebView2 must know the page is hidden");
             assertTrue(preferences.getLastUrl().endsWith("network=true"), "An in-flight request must survive hiding");
             assertEquals(afterSecond, hits.get(), "Cached switching and restore must not issue another page request");
             assertTrue(preferences.getSiteUrl(second).endsWith("/second"));

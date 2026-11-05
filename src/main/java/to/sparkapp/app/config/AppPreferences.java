@@ -280,6 +280,15 @@ public class AppPreferences {
         save();
     }
 
+    public synchronized boolean isBackgroundMemoryReductionEnabled() {
+        return !Boolean.FALSE.equals(config.reduceBackgroundMemory);
+    }
+
+    public synchronized void setBackgroundMemoryReductionEnabled(boolean enabled) {
+        config.reduceBackgroundMemory = enabled;
+        save();
+    }
+
     public synchronized boolean isDarkModeEnabled() {
         return Boolean.TRUE.equals(config.darkModeEnabled);
     }
@@ -317,5 +326,6 @@ public class AppPreferences {
         private Boolean startApplicationHiddenEnabled;
         private List<Integer> hotkeyToStartApplication;
         private Boolean darkModeEnabled;
+        private Boolean reduceBackgroundMemory;
     }
 }

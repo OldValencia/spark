@@ -532,6 +532,10 @@ public class FxWebViewPane extends StackPane {
         });
     }
 
+    public void refreshResourcePolicy() {
+        sessions.values().forEach(WebviewManager::refreshResourcePolicy);
+    }
+
     public void resetZoom() { bridge.resetZoom(); }
 
     public void shutdown(Runnable onComplete) {

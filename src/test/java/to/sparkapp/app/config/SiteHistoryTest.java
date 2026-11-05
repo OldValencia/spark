@@ -10,6 +10,16 @@ class SiteHistoryTest {
     private final AiConfiguration.AiConfig first = new AiConfiguration.AiConfig("first", "First", "https://example.com", null, null);
     private final AiConfiguration.AiConfig second = new AiConfiguration.AiConfig("second", "Second", "https://example.com", null, null);
 
+    @Test void backgroundMemoryReductionDefaultsOnAndCanBeDisabledPersistently() {
+        var file = directory.resolve("settings.json").toFile();
+        var preferences = new AppPreferences(file);
+        assertTrue(preferences.isBackgroundMemoryReductionEnabled());
+        preferences.setBackgroundMemoryReductionEnabled(false);
+        assertFalse(new AppPreferences(file).isBackgroundMemoryReductionEnabled());
+        preferences.setBackgroundMemoryReductionEnabled(true);
+        assertTrue(new AppPreferences(file).isBackgroundMemoryReductionEnabled());
+    }
+
     @Test void remembersIndependentPagesByIdAndRestoresThemFromDisk() {
         var file = directory.resolve("settings.json").toFile();
         var preferences = new AppPreferences(file);

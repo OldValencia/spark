@@ -280,6 +280,7 @@ public class MainWindow extends Stage {
             var settingsPanel = new SettingsPanel(appPreferences, globalHotkeyManager, aiConfiguration);
             settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
             settingsPanel.setOnClearCookies(fxWebViewPane::clearCookies);
+            settingsPanel.setOnBackgroundMemoryChanged(fxWebViewPane::refreshResourcePolicy);
             settingsPanel.setOnZoomEnabledChanged(enabled -> fxWebViewPane.resetZoom());
             settingsPanel.setOnProvidersChanged(this::handleProvidersChanged);
 

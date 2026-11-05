@@ -17,6 +17,9 @@ import java.util.function.Consumer;
 @Slf4j
 public class WebviewManager {
 
+    private final Object presentationLock = new Object();
+    private final AppPreferences appPreferences;
+    private volatile boolean displayRequested;
     private Runnable shutdownCallback;
     private volatile Webview webview;
     private volatile long nativeHandle = 0L;
@@ -122,6 +125,7 @@ public class WebviewManager {
             """;
 
     public WebviewManager(AppPreferences appPreferences) {
+        this.appPreferences = appPreferences;
         this.zoomManager = new WebviewZoomManager(appPreferences, this);
         this.navigator = new WebviewNavigator(this, zoomManager);
     }
@@ -170,6 +174,7 @@ public class WebviewManager {
                 }
 
                 if (SystemUtils.isWindows()) {
+                    webview.windows().setPresentation(false, isHibernated && appPreferences.isBackgroundMemoryReductionEnabled());
                     webview.windows().observe(id -> {
                         navigationId = id;
                         loadError = null;
@@ -214,10 +219,10 @@ public class WebviewManager {
                         } else if (parentHandle != 0) {
                             NativeWindowUtils.setParent(nativeHandle, parentHandle);
                             NativeWindowUtils.setBounds(nativeHandle, nativeX, nativeY, nativeW, nativeH);
-                            NativeWindowUtils.setVisible(nativeHandle, !loading && loadError == null);
                         }
                     }
 
+                    applyPresentation();
                     if (onReadyCallback != null) {
                         onReadyCallback.run();
                     }
@@ -342,40 +347,58 @@ public class WebviewManager {
     }
 
     public void hibernate() {
-        visibilityGeneration++;
-        isHibernated = true;
-
-        if (!SystemUtils.isWindows() || nativeHandle == 0) {
-            return;
+        synchronized (presentationLock) {
+            visibilityGeneration++;
+            isHibernated = true;
+            displayRequested = false;
         }
-
-        NativeWindowUtils.setVisible(nativeHandle, false);
-        // JavaFX may destroy its HWND when hidden. Detach the browser first so
-        // destroying the host cannot destroy the live browser child window.
-        // Preserve the viewport: shrinking it would reflow the page and lose scroll.
-        NativeWindowUtils.unparent(nativeHandle);
+        if (SystemUtils.isWindows() && nativeHandle != 0) {
+            NativeWindowUtils.setVisible(nativeHandle, false);
+            // Detach synchronously before JavaFX can destroy its HWND. Keep the viewport.
+            NativeWindowUtils.unparent(nativeHandle);
+        }
+        refreshResourcePolicy();
     }
 
     public void wakeup(long parentHandle) {
-        visibilityGeneration++;
-        if (parentHandle != 0) {
-            this.parentHandle = parentHandle;
+        synchronized (presentationLock) {
+            visibilityGeneration++;
+            if (parentHandle != 0) this.parentHandle = parentHandle;
+            isHibernated = false;
+            displayRequested = !loading && loadError == null;
         }
-
-        isHibernated = false;
-
-        if (disposed.get() || !SystemUtils.isWindows()) {
-            return;
-        }
-
+        if (disposed.get() || !SystemUtils.isWindows()) return;
         if (!ready.get() || nativeHandle == 0 || webview == null) {
             startWebviewThread(navigator.getCurrentUrl());
         } else {
             if (!NativeWindowUtils.isChildOf(nativeHandle, this.parentHandle))
                 NativeWindowUtils.setParent(nativeHandle, this.parentHandle);
             NativeWindowUtils.setBounds(nativeHandle, nativeX, nativeY, nativeW, nativeH);
-            NativeWindowUtils.setVisible(nativeHandle, !loading && loadError == null);
+            refreshResourcePolicy();
         }
+    }
+
+    /** Reconciles the latest desired state on the browser thread; stale shows never win. */
+    private void applyPresentation() {
+        if (disposed.get() || !SystemUtils.isWindows() || webview == null) return;
+        long generation;
+        boolean show;
+        boolean lowMemory;
+        synchronized (presentationLock) {
+            generation = visibilityGeneration;
+            show = displayRequested && !isHibernated;
+            lowMemory = isHibernated && appPreferences.isBackgroundMemoryReductionEnabled();
+        }
+        webview.windows().setPresentation(show, lowMemory);
+        synchronized (presentationLock) {
+            if (generation != visibilityGeneration || disposed.get()) return;
+            if (nativeHandle != 0) NativeWindowUtils.setVisible(nativeHandle, show);
+        }
+    }
+
+    public void refreshResourcePolicy() {
+        // Startup reads the latest flags, so visibility changes need not grow its work queue.
+        if (ready.get()) dispatch(this::applyPresentation);
     }
 
     public synchronized void shutdown(Runnable onComplete) {
@@ -459,11 +482,11 @@ public class WebviewManager {
     }
 
     public void setVisible(boolean visible) {
-        if (nativeHandle != 0) {
-            if (visible && isHibernated) {
-                return;
-            }
-            NativeWindowUtils.setVisible(nativeHandle, visible);
+        synchronized (presentationLock) {
+            visibilityGeneration++;
+            displayRequested = visible;
         }
+        if (!visible && nativeHandle != 0) NativeWindowUtils.setVisible(nativeHandle, false);
+        refreshResourcePolicy();
     }
 }

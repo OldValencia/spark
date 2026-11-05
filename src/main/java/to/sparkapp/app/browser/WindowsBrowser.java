@@ -12,6 +12,7 @@ import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.LongByReference;
 import com.sun.jna.ptr.PointerByReference;
 import com.sun.jna.win32.StdCallLibrary.StdCallCallback;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,12 +23,49 @@ import java.util.function.Consumer;
 /** WebView2 COM calls. Every method must run on the owning browser thread.
  * Vtable slots and IIDs follow Microsoft.Web.WebView2 SDK 1.0.2903.40.
  */
+@Slf4j
 final class WindowsBrowser implements AutoCloseable {
     private final Pointer controller;
     private final Pointer core;
     private final List<Handler> handlers = new ArrayList<>();
     private final List<Runnable> removals = new ArrayList<>();
     private boolean closed;
+    private Pointer memoryController;
+    private boolean memoryPolicyChecked;
+    private Integer memoryTarget;
+    private Boolean visible;
+
+    /** Changes resource policy without suspending or navigating the page. */
+    void setPresentation(boolean requestedVisible, boolean reduceMemory) {
+        if (closed) return;
+        // Restore the normal target before exposing a page that may have been paged out.
+        if (requestedVisible) setMemoryTarget(0);
+        if (visible == null || visible != requestedVisible) {
+            check(call(controller, 4, requestedVisible ? 1 : 0));
+            visible = requestedVisible;
+        }
+        if (!requestedVisible) setMemoryTarget(reduceMemory ? 1 : 0);
+    }
+
+    private void setMemoryTarget(int target) {
+        if (!memoryPolicyChecked) {
+            memoryPolicyChecked = true;
+            var out = new PointerByReference();
+            int result = call(core, 0, new GUID("6921f954-79b0-437f-a997-c85811897c68"), out);
+            if (result >= 0) memoryController = out.getValue();
+            else if (result == 0x80004002) log.debug("This WebView2 Runtime does not support memory targets");
+            else log.warn("Memory target interface unavailable: 0x{}", Integer.toHexString(result));
+        }
+        if (memoryController == null || (memoryTarget != null && memoryTarget == target)) return;
+        int result = call(memoryController, 120, target);
+        if (result >= 0) memoryTarget = target;
+        else {
+            // Resource optimization must not make an otherwise usable page inaccessible.
+            log.warn("Disabling browser memory targets after error 0x{}", Integer.toHexString(result));
+            release(memoryController);
+            memoryController = null;
+        }
+    }
 
     WindowsBrowser(Pointer controller) {
         if (controller == null) throw new IllegalStateException("WebView2 controller is unavailable");
@@ -111,6 +149,8 @@ final class WindowsBrowser implements AutoCloseable {
             removals.clear();
             check(call(controller, 24)); // Close before the native wrapper destroys its HWNDs.
         } finally {
+            release(memoryController);
+            memoryController = null;
             release(core);
         }
         // Handler storage is retained by Webview until native destruction completes.

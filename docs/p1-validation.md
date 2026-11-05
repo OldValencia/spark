@@ -37,6 +37,16 @@ Coverage:
 
 ## Measurements and limits
 
+### Background memory policy follow-up
+
+The Browser setting **Reduce background memory** defaults to enabled. Inactive sites and a hidden Spark window request the native Low memory target. Before showing a page, the browser thread restores Normal and controller visibility, then shows the HWND. Generation checks prevent stale queued shows from overriding a newer hide. A page covered only by the loading overlay is hidden at the controller level but is not put in Low solely because it is loading.
+
+Turning the setting off applies Normal to already open background pages without reloading them. Older runtimes returning E_NOINTERFACE continue without the optional memory target. A failed target setter disables that optimization for the affected browser rather than blocking page display. No suspend, automatic refresh, page eviction, or cookie clearing is involved.
+
+`BackgroundMemoryTest` checks actual native getter values, switches to hidden/Low during an in-flight chunked event-stream response, and requires the response to finish before restoration. It also checks unfinished text, scroll, and a referenced 30 MiB typed array, plus disabling Low while still hidden and restoring Normal/visible. The settings persistence regression and the existing rapid-restore/native-shutdown tests also pass.
+
+A separate synthetic two-page probe through the implemented `setPresentation` method measured 677 MiB summed working set in hidden/Normal and 357 MiB in hidden/Low, with private bytes 527 and 526 MiB respectively. Restoring Normal/visible measured 432 MiB working set. Both pages retained their state. This is resident-memory relief in a local fixture, not a reduction of live committed data or a guaranteed saving on real provider sites. Hidden timers can be throttled; account-specific streaming still warrants normal user testing.
+
 Representative local-fixture run on the development machine:
 
 | Measurement | Observed |
