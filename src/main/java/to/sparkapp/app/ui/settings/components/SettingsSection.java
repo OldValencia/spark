@@ -23,6 +23,7 @@ public class SettingsSection extends HBox {
         setMinHeight(22);
 
         var titleLabel = new Label(title.toUpperCase());
+        titleLabel.getStyleClass().add("section-caption");
         titleLabel.setFont(Theme.FONT_SETTINGS_SECTION);
         titleLabel.setTextFill(Theme.TEXT_TERTIARY);
         getChildren().add(titleLabel);

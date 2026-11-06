@@ -1,40 +1,88 @@
 package to.sparkapp.app.ui.dialogs.components;
 
-import to.sparkapp.app.config.AiConfiguration;
-import to.sparkapp.app.ui.Theme;
-import javafx.geometry.Insets;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.Region;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontPosture;
+import javafx.scene.paint.Color;
+import lombok.Getter;
+import to.sparkapp.app.config.AiConfiguration.AiConfig;
+import to.sparkapp.app.ui.SiteAccent;
+import to.sparkapp.app.ui.Theme;
 
 public class ProviderFormPanel extends VBox {
-
     private final TextField nameField;
     private final TextField urlField;
+    private final ColorPicker colorPicker;
+    private final Label colorHint = new Label("The site icon is fetched automatically.");
+    private final AiConfig provider;
+    @Getter
+    private boolean manualColor;
+    @Getter
+    private boolean useIconColor;
 
-    public ProviderFormPanel(AiConfiguration.AiConfig provider) {
-        this.setSpacing(8);
+    public ProviderFormPanel(AiConfig provider) {
+        this.provider = provider;
+        setSpacing(14);
+        nameField = createTextField(provider == null ? "" : provider.name(), "Site name");
+        nameField.setPromptText("Site name");
+        urlField = createTextField(provider == null ? "https://" : provider.url(), "Website address");
+        colorPicker = new ColorPicker(initialColor());
+        colorPicker.setAccessibleText("Site accent color");
+        colorPicker.setOnAction(event -> selectManualColor());
 
-        this.getChildren().add(createLabel("Provider Name:"));
-        nameField = createTextField(provider != null ? provider.name() : "");
-        this.getChildren().add(nameField);
+        var automatic = new Button("Use icon color");
+        automatic.getStyleClass().add("quiet-button");
+        automatic.setOnAction(event -> selectIconColor());
+        colorHint.getStyleClass().add("field-hint");
+        colorHint.setWrapText(true);
+        getChildren().addAll(field("Name", nameField), field("Website", urlField),
+                field("Accent", new HBox(8, colorPicker, automatic)), colorHint);
+    }
 
-        // Custom spacer
-        var spacer = new Region();
-        spacer.setMinHeight(4);
-        this.getChildren().add(spacer);
+    private TextField createTextField(String value, String accessibleText) {
+        var field = new TextField(value);
+        field.setAccessibleText(accessibleText);
 
-        this.getChildren().add(createLabel("Website URL:"));
-        urlField = createTextField(provider != null ? provider.url() : "https://");
-        this.getChildren().add(urlField);
+        return field;
+    }
 
-        var hintLabel = new Label("Icon and color will be automatically extracted from the website");
-        hintLabel.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), FontPosture.ITALIC, 11));
-        hintLabel.setTextFill(Theme.TEXT_TERTIARY);
-        this.getChildren().add(hintLabel);
+    private Color initialColor() {
+        return provider == null ? SiteAccent.DEFAULT : SiteAccent.resolve(provider.color());
+    }
+
+    private void selectManualColor() {
+        manualColor = true;
+        useIconColor = false;
+        colorHint.setText("Your color will be kept for this site.");
+    }
+
+    private void selectIconColor() {
+        useIconColor = true;
+        manualColor = false;
+        colorHint.setText("The accent will be taken from the icon when saved.");
+    }
+
+    private VBox field(String title, Node control) {
+        var label = new Label(title);
+        label.getStyleClass().add("field-label");
+
+        return new VBox(6, label, control);
+    }
+
+    public String getColorValue() {
+        if (useIconColor) {
+            return null;
+        }
+
+        if (manualColor) {
+            return Theme.toHex(colorPicker.getValue());
+        }
+
+        return provider == null ? null : provider.color();
     }
 
     public String getNameFieldValue() {
@@ -43,34 +91,5 @@ public class ProviderFormPanel extends VBox {
 
     public String getUrlFieldValue() {
         return urlField.getText().trim();
-    }
-
-    private Label createLabel(String text) {
-        var label = new Label(text);
-        label.setFont(Theme.FONT_SETTINGS);
-        label.setTextFill(Theme.TEXT_SECONDARY);
-        label.setPadding(new Insets(0, 0, 4, 0));
-        return label;
-    }
-
-    private TextField createTextField(String text) {
-        var field = new TextField(text);
-        field.setFont(Theme.FONT_SETTINGS);
-
-        // CSS to match the custom Swing look
-        var bg = Theme.toHex(Theme.BG_POPUP);
-        var border = Theme.toHex(Theme.BORDER);
-        var textFill = Theme.toHex(Theme.TEXT_PRIMARY);
-
-        field.setStyle("""
-                    -fx-background-color: %s;
-                    -fx-border-color: %s;
-                    -fx-text-fill: %s;
-                    -fx-padding: 8 12 8 12;
-                    -fx-border-radius: 4;
-                    -fx-background-radius: 4;
-                """.formatted(bg, border, textFill)
-        );
-        return field;
     }
 }

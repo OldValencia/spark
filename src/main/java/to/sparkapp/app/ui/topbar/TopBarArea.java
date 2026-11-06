@@ -1,102 +1,119 @@
 package to.sparkapp.app.ui.topbar;
 
+import javafx.beans.binding.Bindings;
+import javafx.geometry.Pos;
+import javafx.scene.control.Button;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.stage.Stage;
+import lombok.Getter;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.ui.topbar.components.AiDock;
+import to.sparkapp.app.ui.topbar.components.ShellIcon;
+import to.sparkapp.app.ui.topbar.components.ShellTooltip;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
-import to.sparkapp.app.ui.topbar.components.*;
-import to.sparkapp.app.windows.SettingsWindow;
-import javafx.scene.Node;
-import javafx.scene.control.ButtonBase;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.paint.Color;
-import javafx.stage.Stage;
+import to.sparkapp.app.windows.WindowController;
 
-public class TopBarArea extends GradientPanel {
+public class TopBarArea extends HBox {
+    public static final int HEIGHT = 52;
+    @Getter
+    private final AiDock dock;
+    private final SitesPopup sites;
+    private final ShellPopover sizes;
+    private final ShellPopover options;
 
-    private final Stage frame;
-    private final SettingsWindow settingsWindow;
+    public TopBarArea(AiConfiguration configuration, FxWebViewPane browser, Stage frame, AppPreferences preferences, Runnable onSettings, Runnable onHide, WindowController controller, Runnable onSitesChanged) {
+        sizes = new WindowSizeMenu(frame, preferences, controller);
+        options = new WindowOptionsMenu(preferences, browser, onSettings);
+        getStyleClass().add("shell-bar");
+        setMinHeight(HEIGHT);
+        setPrefHeight(HEIGHT);
+        setMaxHeight(HEIGHT);
 
-    public static final int HEIGHT = 48;
+        var mascot = new Region();
+        mascot.setMinSize(30, 30);
+        mascot.setPrefSize(30, 30);
+        mascot.setMaxSize(30, 30);
+        mascot.setMouseTransparent(true);
+        dock = new AiDock(configuration.getConfigurations(), browser, preferences, browser.getActiveSiteId());
 
-    private double xOffset = 0;
-    private double yOffset = 0;
+        double dockBudget = dock.desiredWidth();
+        dock.prefWidthProperty().bind(
+                Bindings.createDoubleBinding(() -> Math.max(36, Math.min(dockBudget, frame.getWidth() - 240)),
+                        frame.widthProperty()));
+        dock.maxWidthProperty().bind(dock.prefWidthProperty());
+        dock.minWidthProperty().bind(dock.prefWidthProperty());
+        sites = new SitesPopup(frame, dock, configuration, preferences, onSitesChanged);
 
-    private double startScreenX = 0;
-    private double startScreenY = 0;
-    private boolean isDragging = false;
-    private static final double DRAG_THRESHOLD = 5.0;
-
-    public TopBarArea(AiConfiguration aiConfiguration,
-                      FxWebViewPane fxWebViewPane,
-                      Stage frame,
-                      SettingsWindow settingsWindow,
-                      AppPreferences appPreferences,
-                      Runnable onSettingsToggle,
-                      Runnable onCloseWindow) {
-        super();
-
-        this.frame = frame;
-        this.settingsWindow = settingsWindow;
-
-        this.setPrefSize(frame.getWidth(), HEIGHT);
-        this.setMinHeight(HEIGHT);
-        this.setMaxHeight(HEIGHT);
-        this.setLeft(new LeftTopBarArea(aiConfiguration, fxWebViewPane, appPreferences));
-        this.setRight(new RightTopBarArea(fxWebViewPane, onSettingsToggle, onCloseWindow));
-
-        setupDragging();
-
-        if (!aiConfiguration.getConfigurations().isEmpty()) {
-            this.updateAccentColor(Color.web(aiConfiguration.getConfigurations().getFirst().color()));
-        }
-    }
-
-    private void setupDragging() {
-        this.setOnMousePressed(e -> {
-            if (!isDraggableTarget((Node) e.getTarget())) {
-                isDragging = false;
-                return;
-            }
-
-            xOffset = e.getSceneX();
-            yOffset = e.getSceneY();
-
-            startScreenX = e.getScreenX();
-            startScreenY = e.getScreenY();
-            isDragging = true;
-
-            if (settingsWindow != null && settingsWindow.isOpen()) {
-                settingsWindow.close();
-            }
+        var allSites = button("squares-2x2", "All sites");
+        allSites.setOnAction(e -> {
+            sizes.dismiss();
+            options.dismiss();
+            sites.open(allSites);
         });
 
-        this.setOnMouseDragged(e -> {
-            if (!isDragging) return;
+        var mark = new Region();
+        mark.setPrefSize(24, 3);
+        mark.setMaxSize(24, 3);
+        mark.getStyleClass().add("shell-drag-mark");
 
-            double deltaX = Math.abs(e.getScreenX() - startScreenX);
-            double deltaY = Math.abs(e.getScreenY() - startScreenY);
+        var drag = new StackPane(mark);
+        drag.setMinWidth(22);
+        drag.setMaxWidth(Double.MAX_VALUE);
+        drag.setAccessibleText("Drag to move; double-click to dock at the top");
+        Tooltip.install(drag, ShellTooltip.create("Drag to move · Double-click to dock at the top"));
+        HBox.setHgrow(drag, Priority.ALWAYS);
+        controller.installDragArea(drag);
 
-            if (deltaX > DRAG_THRESHOLD || deltaY > DRAG_THRESHOLD) {
-                frame.setX(e.getScreenX() - xOffset);
-                frame.setY(e.getScreenY() - yOffset);
-            }
+        var size = button("arrows-pointing-out", "Window size");
+        size.getStyleClass().setAll("button", "shell-size");
+        size.setPrefWidth(Region.USE_COMPUTED_SIZE);
+        size.setMinWidth(Region.USE_PREF_SIZE);
+        size.setOnAction(e -> {
+            sites.hide();
+            options.dismiss();
+            sizes.toggle(size);
         });
 
-        this.setOnMouseReleased(e -> isDragging = false);
+        var more = button("ellipsis-horizontal", "Window options");
+        more.setOnAction(e -> {
+            sites.hide();
+            sizes.dismiss();
+            options.toggle(more);
+        });
+
+        var hide = button("chevron-up", "Hide Spark");
+        hide.setOnAction(e -> onHide.run());
+        getChildren().addAll(mascot, dock, allSites, drag, size, more, hide);
+        setAlignment(Pos.CENTER_LEFT);
     }
 
-    private static boolean isDraggableTarget(Node node) {
-        while (node != null) {
-            if (node instanceof ButtonBase
-                    || node instanceof DockItemNode
-                    || node instanceof AnimatedIconButton
-                    || node instanceof ZoomButton
-                    || node instanceof ScrollPane
-                    || node instanceof AiDock) {
-                return false;
-            }
-            node = node.getParent();
-        }
-        return true;
+    public void closeMenus() {
+        sites.hide();
+        sizes.dismiss();
+        options.dismiss();
+        dock.cancelInteraction();
+    }
+
+    public void dispose() {
+        closeMenus();
+        dock.dispose();
+    }
+
+    public static Button button(String icon, String title) {
+        var button = new Button();
+        button.setGraphic(ShellIcon.create(icon));
+        button.getStyleClass().add("shell-button");
+        button.setTooltip(ShellTooltip.create(title));
+        button.setAccessibleText(title);
+        button.setMinSize(30, 30);
+        button.setPrefSize(30, 30);
+        button.setMaxHeight(30);
+
+        return button;
     }
 }

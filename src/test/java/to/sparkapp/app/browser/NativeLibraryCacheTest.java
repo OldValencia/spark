@@ -1,7 +1,6 @@
 package to.sparkapp.app.browser;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.IOException;
 import java.nio.channels.FileChannel;
@@ -14,10 +13,12 @@ import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class NativeLibraryCacheTest {
-    @TempDir Path cache;
+    @TempDir
+    Path cache;
     private static final Path LIBRARY = Path.of("x86_64", "windows_nt", "webview.dll");
     private static final byte[] CONTENT = "test native binary".getBytes(StandardCharsets.UTF_8);
 
@@ -26,11 +27,13 @@ class NativeLibraryCacheTest {
         var first = NativeLibraryCache.extract(cache, LIBRARY, CONTENT);
         var timestamp = FileTime.fromMillis(1_600_000_000_000L);
         Files.setLastModifiedTime(first, timestamp);
+
         try (var open = FileChannel.open(first, StandardOpenOption.READ)) {
             assertEquals(first, NativeLibraryCache.extract(cache, LIBRARY, CONTENT));
             assertTrue(open.isOpen());
             assertEquals(timestamp, Files.getLastModifiedTime(first));
         }
+
         assertArrayEquals(CONTENT, Files.readAllBytes(first));
     }
 
@@ -56,15 +59,25 @@ class NativeLibraryCacheTest {
     @Test
     void concurrentExtractionPublishesOneCompleteBinaryAndNoStagingFiles() throws Exception {
         var tasks = new ArrayList<CompletableFuture<Path>>();
+
         for (int i = 0; i < 8; i++) {
             tasks.add(CompletableFuture.supplyAsync(() -> {
-                try { return NativeLibraryCache.extract(cache, LIBRARY, CONTENT); }
-                catch (IOException failure) { throw new IllegalStateException(failure); }
+                try {
+                    return NativeLibraryCache.extract(cache, LIBRARY, CONTENT);
+                } catch (IOException failure) {
+                    throw new IllegalStateException(failure);
+                }
             }));
         }
+
         var target = tasks.getFirst().get(5, TimeUnit.SECONDS);
-        for (var task : tasks) assertEquals(target, task.get(5, TimeUnit.SECONDS));
+
+        for (var task : tasks) {
+            assertEquals(target, task.get(5, TimeUnit.SECONDS));
+        }
+
         assertArrayEquals(CONTENT, Files.readAllBytes(target));
+
         try (var files = Files.list(target.getParent())) {
             assertEquals(2, files.count(), "Only the binary and extraction lock should remain");
         }
@@ -73,6 +86,7 @@ class NativeLibraryCacheTest {
     @Test
     void rejectsPathsOutsideCache() {
         assertThrows(IOException.class, () -> NativeLibraryCache.extract(cache, Path.of("..", "outside.dll"), CONTENT));
-        assertThrows(IOException.class, () -> NativeLibraryCache.extract(cache, cache.resolve("absolute.dll"), CONTENT));
+        assertThrows(IOException.class,
+                () -> NativeLibraryCache.extract(cache, cache.resolve("absolute.dll"), CONTENT));
     }
 }

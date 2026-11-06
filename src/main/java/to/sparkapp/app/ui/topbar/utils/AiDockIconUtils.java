@@ -1,39 +1,45 @@
 package to.sparkapp.app.ui.topbar.utils;
 
 import com.formdev.flatlaf.extras.FlatSVGIcon;
-import to.sparkapp.app.config.AiConfiguration;
-import to.sparkapp.app.ui.topbar.components.AiDock;
-import javafx.embed.swing.SwingFXUtils;
-import javafx.scene.image.Image;
-import javafx.scene.image.WritableImage;
-import lombok.extern.slf4j.Slf4j;
 
-import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
+
+import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.image.Image;
+import javafx.scene.image.WritableImage;
+
+import javax.imageio.ImageIO;
+
+import lombok.extern.slf4j.Slf4j;
+import to.sparkapp.app.config.AiConfiguration.AiConfig;
+import to.sparkapp.app.ui.topbar.components.AiDock;
 
 @Slf4j
 public class AiDockIconUtils {
 
     /**
-     * Icons are rasterised at three times their layout size so that they stay sharp on
-     * HiDPI monitors (up to 300 % scaling); the ImageView scales them back down.
+     * Icons are rasterised at three times their layout size so that they stay sharp on HiDPI
+     * monitors (up to 300 % scaling); the ImageView scales them back down.
      */
     private static final int RENDER_SCALE = 3;
+
     private static final int RENDER_SIZE = AiDock.ICON_SIZE * RENDER_SCALE;
 
-    public static void preloadIcon(AiConfiguration.AiConfig cfg, File userIconsDir) {
-        if (cfg.icon() == null) {
+    public static void preloadIcon(AiConfig cfg, File userIconsDir) {
+        if (cfg.icon() == null || cfg.icon().isBlank()) {
             return;
         }
 
         AiDock.ICON_CACHE.computeIfAbsent(cfg.icon(), key -> {
             try {
                 var resourceUrl = AiDock.class.getResource("/icons/" + key);
+
                 if (resourceUrl != null) {
                     if (key.toLowerCase().endsWith(".svg")) {
                         var icon = new FlatSVGIcon(resourceUrl);
+
                         return renderSvgToFx(icon);
                     } else {
                         return resizeToFx(ImageIO.read(resourceUrl));
@@ -41,9 +47,11 @@ public class AiDockIconUtils {
                 }
 
                 var userIconFile = new File(userIconsDir, key);
+
                 if (userIconFile.exists()) {
                     if (key.toLowerCase().endsWith(".svg")) {
                         var icon = new FlatSVGIcon(userIconFile);
+
                         return renderSvgToFx(icon);
                     } else {
                         return resizeToFx(ImageIO.read(userIconFile));
@@ -51,10 +59,12 @@ public class AiDockIconUtils {
                 }
 
                 log.warn("Icon not found: {} (searched in resources and {})", key, userIconsDir.getAbsolutePath());
+
                 return createPlaceholderIcon();
 
             } catch (Exception e) {
                 log.error("Error while trying to preload icon for {}", cfg.name(), e);
+
                 return createPlaceholderIcon();
             }
         });

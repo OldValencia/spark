@@ -11,8 +11,8 @@ import javafx.scene.layout.VBox;
 import to.sparkapp.app.ui.Theme;
 
 /**
- * One setting inside a {@link SettingsCard}: a title, an optional explanation
- * underneath it, and the control that changes the value.
+ * One setting inside a {@link SettingsCard}: a title, an optional explanation underneath it, and
+ * the control that changes the value.
  */
 public class SettingsRow extends HBox {
 
@@ -40,6 +40,7 @@ public class SettingsRow extends HBox {
 
     private static Node buildTextBlock(String title, String description) {
         var titleLabel = new Label(title);
+        titleLabel.getStyleClass().add("setting-title");
         titleLabel.setFont(Theme.FONT_SETTINGS_TITLE);
         titleLabel.setTextFill(Theme.TEXT_PRIMARY);
 
@@ -48,12 +49,16 @@ public class SettingsRow extends HBox {
         }
 
         var descriptionLabel = new Label(description);
+        descriptionLabel.getStyleClass().add("setting-description");
         descriptionLabel.setFont(Theme.FONT_SETTINGS_HINT);
         descriptionLabel.setTextFill(Theme.TEXT_TERTIARY);
         descriptionLabel.setWrapText(true);
 
         var textBlock = new VBox(3, titleLabel, descriptionLabel);
+        textBlock.setMinWidth(0);
+        HBox.setHgrow(textBlock, Priority.ALWAYS);
         textBlock.setAlignment(Pos.CENTER_LEFT);
+
         return textBlock;
     }
 
@@ -61,8 +66,8 @@ public class SettingsRow extends HBox {
      * Inset highlight — it never reaches the card corners, so no clipping is needed.
      */
     static void applyHoverHighlight(Region row) {
-        var hovered = "-fx-background-color: %s; -fx-background-radius: %spx;"
-                .formatted(Theme.toHex(Theme.BG_ROW_HOVER), Theme.ROW_RADIUS);
+        var hovered = "-fx-background-color: %s; -fx-background-radius: %spx;".formatted(
+                Theme.toHex(Theme.BG_ROW_HOVER), Theme.ROW_RADIUS);
 
         row.setOnMouseEntered(e -> row.setStyle(hovered));
         row.setOnMouseExited(e -> row.setStyle(""));

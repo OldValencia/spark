@@ -1,84 +1,57 @@
 package to.sparkapp.app.windows;
 
-import javafx.animation.AnimationTimer;
 import javafx.scene.Scene;
+import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.input.KeyCode;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
-import to.sparkapp.app.ui.Theme;
+import lombok.RequiredArgsConstructor;
 import to.sparkapp.app.ui.settings.SettingsPanel;
 import to.sparkapp.app.ui.topbar.TopBarArea;
 
+/**
+ * Settings use the same contained surface as the shell's other owned panels.
+ */
+@RequiredArgsConstructor
 public class SettingsWindow {
-
-    private static final int TOPBAR_HEIGHT = TopBarArea.HEIGHT;
-    private static final double LERP_SPEED = 0.22;
-
     private final Window owner;
-    private final SettingsPanel settingsPanel;
+    private final SettingsPanel panel;
     private Stage window;
-    private Rectangle contentClip;
-
-    private double progress = 0.0;
-    private double targetProgress = 0.0;
-    private AnimationTimer animTimer;
-    private double targetHeight = 0;
-
-    public SettingsWindow(Window owner, SettingsPanel settingsPanel) {
-        this.owner = owner;
-        this.settingsPanel = settingsPanel;
-    }
 
     public void open() {
-        if (window == null) createWindow();
-
-        var w = Double.isNaN(owner.getWidth()) ? 820.0 : owner.getWidth();
-
-        settingsPanel.setPrefWidth(w);
-        settingsPanel.setMinWidth(w);
-        settingsPanel.setMaxWidth(w);
-        settingsPanel.applyCss();
-        settingsPanel.layout();
-
-        var contentHeight = settingsPanel.prefHeight(w);
-        var maxHeight = (Double.isNaN(owner.getHeight()) ? 700.0 : owner.getHeight()) - TOPBAR_HEIGHT;
-        targetHeight = Math.min(contentHeight, maxHeight);
-
-        var x = Double.isNaN(owner.getX()) ? 0.0 : owner.getX();
-        var y = (Double.isNaN(owner.getY()) ? 0.0 : owner.getY()) + TOPBAR_HEIGHT;
-
-        if (!window.isShowing()) {
-            window.setX(x);
-            window.setY(y);
-            window.setWidth(w);
-            window.setHeight(targetHeight);
-            progress = 0.0;
-            applyClip(0.0, w);
-            settingsPanel.setOpacity(0.0);
-            window.show();
-        } else {
-            window.setX(x);
-            window.setWidth(w);
-            window.setHeight(targetHeight);
-            applyClip(targetHeight * progress, w);
+        if (window == null) {
+            createWindow();
         }
 
+        double width = Math.min(600, owner.getWidth() - 24);
+        double height = Math.min(610, owner.getHeight() - TopBarArea.HEIGHT - 24);
+        panel.setPrefWidth(width - 12);
+        panel.setMinWidth(0);
+        panel.setMaxWidth(Double.MAX_VALUE);
+        window.setWidth(width);
+        window.setHeight(height);
+        window.setX(owner.getX() + (owner.getWidth() - width) / 2);
+        window.setY(owner.getY() + TopBarArea.HEIGHT + 8);
+        window.show();
         window.toFront();
-        targetProgress = 1.0;
-        animTimer.start();
     }
 
     public void close() {
-        if (window == null) return;
-        targetProgress = 0.0;
-        animTimer.start();
+        if (window != null) {
+            window.hide();
+        }
     }
 
     public boolean isOpen() {
-        return window != null && targetProgress > 0.5;
+        return isShowing();
     }
 
     public boolean isShowing() {
@@ -86,80 +59,50 @@ public class SettingsWindow {
     }
 
     private void createWindow() {
-        window = new Stage();
+        window = new Stage(StageStyle.TRANSPARENT);
         window.initOwner(owner);
-        window.initStyle(StageStyle.TRANSPARENT);
-        window.setAlwaysOnTop(true);
+        window.setTitle("Spark settings");
 
-        owner.xProperty().addListener((obs, o, n) -> syncPosition());
-        owner.yProperty().addListener((obs, o, n) -> syncPosition());
-        owner.widthProperty().addListener((obs, o, newW) -> {
-            if (window != null && window.isShowing() && isOpen()) {
-                window.setWidth(newW.doubleValue());
-                applyClip(targetHeight * progress, newW.doubleValue());
+        if (owner instanceof Stage stage) {
+            window.setAlwaysOnTop(stage.isAlwaysOnTop());
+            stage.alwaysOnTopProperty().addListener((o, before, pinned) -> window.setAlwaysOnTop(pinned));
+        }
+
+        var title = new Label("Settings");
+        var space = new Region();
+        HBox.setHgrow(space, Priority.ALWAYS);
+
+        var close = TopBarArea.button("x-mark", "Close settings");
+        close.setOnAction(e -> close());
+
+        var heading = new HBox(title, space, close);
+        heading.getStyleClass().add("settings-heading");
+
+        var scroll = new ScrollPane(panel);
+        scroll.setFitToWidth(true);
+        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scroll.getStyleClass().add("settings-scroll");
+
+        var root = new VBox(heading, scroll);
+        root.getStyleClass().add("settings-surface");
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+
+        var clip = new Rectangle();
+        clip.widthProperty().bind(root.widthProperty());
+        clip.heightProperty().bind(root.heightProperty());
+        clip.setArcWidth(26);
+        clip.setArcHeight(26);
+        root.setClip(clip);
+
+        var scene = new Scene(root, Color.TRANSPARENT);
+        scene.getStylesheets().addAll(getClass().getResource("/css/shell.css").toExternalForm(),
+                getClass().getResource("/css/settings.css").toExternalForm());
+        scene.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ESCAPE) {
+                close();
+                e.consume();
             }
         });
-
-        var scrollPane = new ScrollPane(settingsPanel);
-        scrollPane.getStyleClass().add("settings-scroll");
-        // Painted opaque: the content is laid out inside the viewport, which is
-        // narrower than the window by the width of the scrollbar - without this the
-        // strip under the scrollbar would let the page behind show through.
-        scrollPane.setStyle("-fx-background: %s; -fx-background-color: %s;"
-                .formatted(Theme.toHex(Theme.BG_BAR), Theme.toHex(Theme.BG_BAR)));
-        scrollPane.setFitToWidth(true);
-        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-
-        contentClip = new Rectangle(820, 0);
-        scrollPane.setClip(contentClip);
-
-        var scene = new Scene(scrollPane, Color.TRANSPARENT);
-        var stylesheet = getClass().getResource("/css/settings.css");
-        if (stylesheet != null) {
-            scene.getStylesheets().add(stylesheet.toExternalForm());
-        }
         window.setScene(scene);
-
-        animTimer = new AnimationTimer() {
-            @Override
-            public void handle(long now) {
-                tick();
-            }
-        };
-    }
-
-    private void applyClip(double clipH, double clipW) {
-        contentClip.setWidth(clipW);
-        contentClip.setHeight(clipH);
-    }
-
-    private void syncPosition() {
-        if (window != null && window.isShowing() && isOpen()) {
-            window.setX(owner.getX());
-            window.setY(owner.getY() + TOPBAR_HEIGHT);
-        }
-    }
-
-    private void tick() {
-        double diff = targetProgress - progress;
-
-        if (Math.abs(diff) < 0.004) {
-            progress = targetProgress;
-            animTimer.stop();
-            if (progress <= 0.0) {
-                window.hide();
-                return;
-            }
-        } else {
-            progress += diff * LERP_SPEED;
-        }
-
-        double clipH = targetHeight * progress;
-        double clipW = window.getWidth() > 0 ? window.getWidth() : 820;
-        applyClip(clipH, clipW);
-
-        double opacity = progress < 0.5 ? 0.0 : (progress - 0.5) / 0.5;
-        settingsPanel.setOpacity(Math.min(1.0, opacity));
     }
 }

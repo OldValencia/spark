@@ -189,7 +189,7 @@ tasks.register('createInstaller', Exec) {
             '--input', 'build/install/Spark/lib',
             '--main-jar', "Spark-${version}.jar",
             '--main-class', application.mainClass.get(),
-            '--add-modules', 'java.desktop,jdk.unsupported,java.logging,java.naming,java.management,jdk.crypto.ec',
+            '--add-modules', 'java.desktop,jdk.unsupported,java.logging,java.naming,java.management,java.net.http,jdk.crypto.ec',
     *winOptions,
     *macOptions,
     *javaOpts.collectMany { ['--java-options', it] }

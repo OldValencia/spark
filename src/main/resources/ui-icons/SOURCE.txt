@@ -1,0 +1,7 @@
+Heroicons outline icons
+https://github.com/tailwindlabs/heroicons
+Commit: 616b7a4dbbf3d011760af8066262cd5c6b3868f3
+License: MIT (see LICENSE.txt)
+
+pin.svg is an original Spark UI glyph, distributed under the project's MIT license.
+coffee.svg is an original Spark UI glyph, distributed under the project's MIT license.

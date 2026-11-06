@@ -18,7 +18,9 @@ interface WebviewNative extends Library {
 
     final class Holder {
         private static final WebviewNative INSTANCE = runSetup();
-        private Holder() {}
+
+        private Holder() {
+        }
     }
 
     private static WebviewNative runSetup() {
@@ -37,13 +39,19 @@ interface WebviewNative extends Library {
 
         try {
             byte[] library;
+
             try (var in = WebviewNative.class.getResourceAsStream(libPath)) {
-                if (in == null) throw new IllegalStateException("Native library not found in resources: " + libPath);
+                if (in == null) {
+                    throw new IllegalStateException("Native library not found in resources: " + libPath);
+                }
+
                 library = in.readAllBytes();
             }
+
             var cacheRoot = Path.of(System.getProperty("java.io.tmpdir"), "spark_webview_natives");
             var relativeLibrary = Path.of(libPath.substring("/webview/natives/".length()));
             var target = NativeLibraryCache.extract(cacheRoot, relativeLibrary, library);
+
             return Native.load(target.toString(), WebviewNative.class,
                     Collections.singletonMap(Library.OPTION_STRING_ENCODING, "UTF-8"));
 
@@ -100,7 +108,10 @@ interface WebviewNative extends Library {
     VersionInfoStruct webview_version();
 
     class VersionInfoStruct extends Structure {
-        public int major, minor, patch;
+        public int major;
+        public int minor;
+        public int patch;
+
         public byte[] version_number = new byte[32];
         public byte[] pre_release = new byte[48];
         public byte[] build_metadata = new byte[48];

@@ -1,7 +1,8 @@
 package to.sparkapp.app.config;
 
-import to.sparkapp.app.utils.SystemUtils;
 import java.io.File;
+
+import to.sparkapp.app.utils.SystemUtils;
 
 public class AppPaths {
 
@@ -12,6 +13,7 @@ public class AppPaths {
         boolean isDev = "Dev-Build".equals(SystemUtils.VERSION) || SystemUtils.VERSION == null;
 
         var override = System.getProperty("spark.dataDir");
+
         if (override != null && !override.isBlank()) {
             DIR = new File(override).getAbsolutePath();
         } else if (SystemUtils.isMac() && !isDev) {

@@ -1,11 +1,11 @@
 package to.sparkapp.app.config;
 
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class AiConfiguration {
@@ -29,9 +29,7 @@ public class AiConfiguration {
         log.info("AiConfiguration loaded {} providers", configurations.size());
 
         if (appPreferences != null) {
-            List<String> validUrls = configurations.stream()
-                    .map(AiConfig::url)
-                    .collect(Collectors.toList());
+            List<String> validUrls = configurations.stream().map(AiConfig::url).collect(Collectors.toList());
             appPreferences.cleanupLastUrlIfNeeded(validUrls);
             appPreferences.pruneSiteHistory(configurations);
         }
@@ -42,11 +40,9 @@ public class AiConfiguration {
         reload();
     }
 
-    public record AiConfig(
-            String id,
-            String name,
-            String url,
-            String color,
-            String icon
-    ) {}
+    public record AiConfig(String id, String name, String url, String color, String icon, String colorSource) {
+        public AiConfig(String id, String name, String url, String color, String icon) {
+            this(id, name, url, color, icon, null);
+        }
+    }
 }

@@ -1,25 +1,27 @@
 package to.sparkapp.app.windows;
 
-import to.sparkapp.app.config.AiConfiguration;
-import to.sparkapp.app.config.AppPreferences;
-import to.sparkapp.app.ui.webview.FxWebViewPane;
-import to.sparkapp.app.ui.Theme;
-import to.sparkapp.app.ui.settings.SettingsPanel;
-import to.sparkapp.app.ui.topbar.TopBarArea;
-import to.sparkapp.app.ui.topbar.components.AiDock;
-import to.sparkapp.app.utils.GlobalHotkeyManager;
+import java.awt.*;
+
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
-
-import javax.imageio.ImageIO;
-import java.awt.*;
-import java.io.IOException;
-import java.util.stream.Collectors;
+import to.sparkapp.app.config.AiConfiguration;
+import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.ui.Theme;
+import to.sparkapp.app.ui.settings.SettingsPanel;
+import to.sparkapp.app.ui.topbar.TopBarArea;
+import to.sparkapp.app.ui.topbar.SitesEditor;
+import to.sparkapp.app.ui.topbar.components.AiDock;
+import to.sparkapp.app.ui.webview.FxWebViewPane;
+import to.sparkapp.app.utils.GlobalHotkeyManager;
+import to.sparkapp.app.utils.NativeWindowUtils;
 
 @Slf4j
 public class MainWindow extends Stage {
@@ -31,14 +33,18 @@ public class MainWindow extends Stage {
     private SettingsWindow settingsWindow;
     private BorderPane rootPane;
     private GlobalHotkeyManager globalHotkeyManager;
+    private WindowController windowController;
+    private TopBarArea topBar;
+    private long previousForeground;
 
     // Сохраняем иконку трея, чтобы можно было удалить её при выходе
-    private TrayIcon trayIcon;
+    private final SparkTray tray = new SparkTray(this::showMainWindow, this::performShutdown);
+    private WindowAutoHide autoHide;
 
     private boolean authMode = false;
 
     public static final int HEIGHT = 700;
-    private static final int WIDTH = 820;
+    private static final int WIDTH = 860;
     private static final int RADIUS = 14;
 
     public MainWindow(AiConfiguration aiConfiguration, AppPreferences appPreferences) {
@@ -47,7 +53,7 @@ public class MainWindow extends Stage {
 
         this.setTitle("Spark");
         this.initStyle(StageStyle.TRANSPARENT);
-        this.setAlwaysOnTop(true);
+        this.setAlwaysOnTop(appPreferences.isAlwaysOnTop());
         this.setWidth(WIDTH);
         this.setHeight(HEIGHT);
         this.centerOnScreen();
@@ -55,35 +61,46 @@ public class MainWindow extends Stage {
         Platform.setImplicitExit(false);
 
         this.focusedProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal) {
-                if (authMode && this.isAlwaysOnTop()) {
-                    this.setAlwaysOnTop(false);
-                }
-            } else {
-                if (!this.isAlwaysOnTop()) {
-                    this.setAlwaysOnTop(true);
-                }
+            this.setAlwaysOnTop(appPreferences.isAlwaysOnTop() && (newVal || !authMode));
+
+            if (!newVal && windowController != null) {
+                windowController.cancelInteraction();
+            }
+
+            if (!newVal && topBar != null) {
+                topBar.getDock().cancelInteraction();
             }
         });
 
         this.setOnCloseRequest(e -> {
-            if (settingsWindow != null) settingsWindow.close();
+            if (settingsWindow != null) {
+                settingsWindow.close();
+            }
         });
 
         this.iconifiedProperty().addListener((obs, oldVal, isIconified) -> {
-            if (isIconified && settingsWindow != null) settingsWindow.close();
+            if (isIconified && settingsWindow != null) {
+                settingsWindow.close();
+            }
         });
 
         this.showingProperty().addListener((obs, oldVal, isShowing) -> {
-            if (!isShowing && settingsWindow != null) settingsWindow.close();
+
+            if (!isShowing && settingsWindow != null) {
+                settingsWindow.close();
+            }
         });
 
         this.xProperty().addListener((obs, oldVal, newVal) -> {
-            if (settingsWindow != null) settingsWindow.close();
+            if (settingsWindow != null) {
+                settingsWindow.close();
+            }
         });
 
         this.yProperty().addListener((obs, oldVal, newVal) -> {
-            if (settingsWindow != null) settingsWindow.close();
+            if (settingsWindow != null) {
+                settingsWindow.close();
+            }
         });
     }
 
@@ -93,20 +110,31 @@ public class MainWindow extends Stage {
 
     public void setAuthMode(boolean isAuth) {
         this.authMode = isAuth;
-        if (!isAuth && !this.isAlwaysOnTop()) {
-            this.setAlwaysOnTop(true);
-        }
+        this.setAlwaysOnTop(appPreferences.isAlwaysOnTop() && (!isAuth || isFocused()));
     }
 
     /**
-     * Shows the main window and wakes up the webview.
-     * Public so that both the tray action and GlobalHotkeyManager can use it.
+     * Shows the main window and wakes up the webview. Public so that both the tray action and
+     * GlobalHotkeyManager can use it.
      */
     public void showMainWindow() {
         showMainWindow(System.nanoTime());
     }
 
     public void showMainWindow(long requestedAt) {
+        if (!isShowing() && !NativeWindowUtils.isSparkForeground()) {
+            previousForeground = NativeWindowUtils.foregroundWindow();
+        }
+
+        if (autoHide != null) {
+            autoHide.shown();
+        }
+
+        if (windowController != null) {
+            windowController.opening();
+        }
+
+        setAlwaysOnTop(appPreferences.isAlwaysOnTop());
         this.show();
         this.setIconified(false);
         this.toFront();
@@ -118,26 +146,56 @@ public class MainWindow extends Stage {
     }
 
     /**
-     * Hides the main window and hibernates the webview.
-     * Public so that GlobalHotkeyManager can use it alongside showMainWindow().
+     * Hides the main window and hibernates the webview. Public so that GlobalHotkeyManager can use
+     * it alongside showMainWindow().
      */
     public void hideMainWindow() {
+        hideMainWindow(true);
+    }
+
+    private void hideMainWindow(boolean restoreFocus) {
+        if (autoHide != null) {
+            autoHide.cancel();
+        }
+
+        if (windowController != null) {
+            windowController.closing();
+        }
+
+        if (topBar != null) {
+            topBar.closeMenus();
+        }
+
         if (settingsWindow != null && settingsWindow.isOpen()) {
             settingsWindow.close();
         }
+
         if (fxWebViewPane != null) {
             fxWebViewPane.onWindowHidden();
         }
+
         this.hide();
+
+        if (restoreFocus) {
+            NativeWindowUtils.restoreForeground(previousForeground);
+        }
+    }
+
+    public void onGlobalMousePressed() {
+        if (autoHide != null) {
+            autoHide.onGlobalMousePressed();
+        }
+    }
+
+    public void onGlobalMouseMoved(double x, double y, long recordedAtNanos) {
+        if (autoHide != null) {
+            autoHide.onGlobalMouseMoved(x, y, recordedAtNanos);
+        }
     }
 
     private void handleProvidersChanged() {
         Platform.runLater(() -> {
-            var activeIcons = aiConfiguration.getConfigurations().stream()
-                    .map(AiConfiguration.AiConfig::icon)
-                    .filter(icon -> icon != null && !icon.isEmpty())
-                    .collect(Collectors.toList());
-            AiDock.pruneIconCache(activeIcons);
+            AiDock.clearIconCache();
             reloadTopBar();
         });
     }
@@ -146,59 +204,24 @@ public class MainWindow extends Stage {
         Platform.runLater(() -> {
             aiConfiguration.reload();
             fxWebViewPane.reconcileSites(aiConfiguration.getConfigurations());
+
+            if (topBar != null) {
+                topBar.dispose();
+            }
+
             rootPane.setTop(null);
-
-            var newTopBarArea = new TopBarArea(aiConfiguration, fxWebViewPane, this, settingsWindow, appPreferences,
-                    this::toggleSettings, this::hideMainWindow);
-
-            rootPane.setTop(newTopBarArea);
+            installTopBar();
             log.info("TopBar reloaded with {} providers", aiConfiguration.getConfigurations().size());
         });
-    }
-
-    private void setupTray() {
-        if (!SystemTray.isSupported()) return;
-
-        var tray = SystemTray.getSystemTray();
-        var iconUrl = getClass().getResource("/app-icons/icon.png");
-        if (iconUrl == null) iconUrl = getClass().getResource("/app-icons/icon.ico");
-
-        Image image;
-        try {
-            image = ImageIO.read(iconUrl);
-        } catch (IOException | IllegalArgumentException e) {
-            log.error("Failed to load tray icon", e);
-            return;
-        }
-
-        var popup = new PopupMenu();
-
-        var showItem = new MenuItem("Show Application");
-        showItem.addActionListener(e -> Platform.runLater(this::showMainWindow));
-        popup.add(showItem);
-
-        popup.addSeparator();
-
-        var exitItem = new MenuItem("Exit Spark");
-        exitItem.addActionListener(e -> Platform.runLater(this::performShutdown));
-        popup.add(exitItem);
-
-        trayIcon = new TrayIcon(image, "Spark", popup);
-        trayIcon.setImageAutoSize(true);
-        trayIcon.addActionListener(e -> Platform.runLater(this::showMainWindow));
-
-        try {
-            tray.add(trayIcon);
-        } catch (AWTException e) {
-            log.error("Failed to setup system tray", e);
-        }
     }
 
     private void toggleSettings() {
         if (settingsWindow.isOpen() && !settingsWindow.isShowing()) {
             settingsWindow.open();
+
             return;
         }
+
         if (settingsWindow.isOpen()) {
             settingsWindow.close();
         } else {
@@ -212,7 +235,9 @@ public class MainWindow extends Stage {
         var shutdownWatchdog = new Thread(() -> {
             try {
                 Thread.sleep(1500);
-            } catch (InterruptedException ignored) {}
+            } catch (InterruptedException ignored) {
+            }
+
             log.warn("Shutdown timeout reached. Forcing exit.");
             System.exit(0);
         }, "spark-shutdown-watchdog");
@@ -233,13 +258,23 @@ public class MainWindow extends Stage {
             settingsWindow.close();
         }
 
+        if (windowController != null) {
+            windowController.dispose();
+        }
+
+        if (autoHide != null) {
+            autoHide.cancel();
+        }
+
+        if (topBar != null) {
+            topBar.dispose();
+        }
+
         this.hide();
         AiDock.clearIconCache();
         appPreferences.flush();
 
-        if (trayIcon != null && SystemTray.isSupported()) {
-            SystemTray.getSystemTray().remove(trayIcon);
-        }
+        tray.close();
 
         if (fxWebViewPane != null) {
             try {
@@ -259,8 +294,28 @@ public class MainWindow extends Stage {
     private void initializeOnFX() {
         try {
             rootPane = createRootPane();
+
             Scene scene = new Scene(rootPane, WIDTH, HEIGHT, Color.TRANSPARENT);
             this.setScene(scene);
+            scene.getStylesheets().add(getClass().getResource("/css/shell.css").toExternalForm());
+            windowController = new WindowController(this, appPreferences);
+            windowController.setOnReveal(this::showMainWindow);
+            autoHide = new WindowAutoHide(this, appPreferences, windowController, () -> authMode,
+                    () -> hideMainWindow(false));
+            windowController.dockedProperty().addListener((o, before, docked) -> updateShellStyle());
+
+            var grip = new Region();
+            grip.setPrefSize(36, 3);
+            grip.setMaxSize(36, 3);
+            grip.setStyle("-fx-background-color:#90909c77;-fx-background-radius:3;");
+
+            var foot = new StackPane(grip);
+            foot.setMinHeight(12);
+            foot.setPrefHeight(12);
+            foot.setMaxHeight(12);
+            rootPane.setBottom(foot);
+            windowController.installResize(scene, foot);
+            updateShellStyle();
 
             fxWebViewPane = getFxWebViewPane();
             rootPane.setCenter(fxWebViewPane);
@@ -277,23 +332,23 @@ public class MainWindow extends Stage {
                 log.warn("Failed to initialize global hotkey manager", e);
             }
 
-            var settingsPanel = new SettingsPanel(appPreferences, globalHotkeyManager, aiConfiguration);
+            var settingsPanel = new SettingsPanel(appPreferences, globalHotkeyManager);
             settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
             settingsPanel.setOnClearCookies(fxWebViewPane::clearCookies);
             settingsPanel.setOnBackgroundMemoryChanged(fxWebViewPane::refreshResourcePolicy);
+            settingsPanel.setOnPillSettingsChanged(windowController::refreshPill);
             settingsPanel.setOnZoomEnabledChanged(enabled -> fxWebViewPane.resetZoom());
-            settingsPanel.setOnProvidersChanged(this::handleProvidersChanged);
 
             settingsWindow = new SettingsWindow(this, settingsPanel);
 
-            var topBarArea = new TopBarArea(aiConfiguration, fxWebViewPane, this, settingsWindow, appPreferences,
-                    this::toggleSettings, this::hideMainWindow);
-            rootPane.setTop(topBarArea);
+            installTopBar();
 
-            setupTray();
+            tray.show();
 
             if (!appPreferences.isStartApplicationHiddenEnabled()) {
-                show();
+                showMainWindow();
+            } else {
+                windowController.refreshPill();
             }
 
         } catch (Exception e) {
@@ -304,12 +359,32 @@ public class MainWindow extends Stage {
 
     private BorderPane createRootPane() {
         var pane = new BorderPane();
-        pane.setStyle(
-                "-fx-background-color: " + Theme.toHex(Theme.BG_DEEP) + ";" +
-                        "-fx-background-radius: " + RADIUS + "px;" +
-                        "-fx-border-radius: " + RADIUS + "px;"
-        );
+        pane.setPadding(new Insets(0, 5, 0, 5));
+        pane.setStyle("-fx-background-color: " + Theme.toHex(Theme.BG_DEEP) + ";" + "-fx-background-radius: " + RADIUS +
+                "px;" + "-fx-border-radius: " + RADIUS + "px;");
+
         return pane;
+    }
+
+    private void installTopBar() {
+        topBar = new TopBarArea(aiConfiguration, fxWebViewPane, this, appPreferences, this::toggleSettings,
+                this::hideMainWindow, windowController, this::handleProvidersChanged);
+        topBar.getDock().setOnAccentChanged(accent -> {
+            updateShellStyle();
+        });
+        rootPane.setTop(topBar);
+    }
+
+    private void updateShellStyle() {
+        if (rootPane == null) {
+            return;
+        }
+
+        var radius = windowController != null && windowController.isDocked() ? "0 0 16 16" : "16";
+        var outline = "#414247";
+        rootPane.setStyle(
+                "-fx-background-color:#25262a;-fx-background-radius:" + radius + ";-fx-border-radius:" + radius +
+                        ";-fx-border-color:" + outline + ";-fx-border-width:1;");
     }
 
     private FxWebViewPane getFxWebViewPane() {
@@ -329,6 +404,8 @@ public class MainWindow extends Stage {
 
         var pane = new FxWebViewPane(startUrl, appPreferences);
         pane.setOnAuthPageDetected(this::setAuthMode);
+        var editor = new SitesEditor(this, aiConfiguration, this::handleProvidersChanged);
+        pane.setOnEditSite(editor::edit);
 
         return pane;
     }

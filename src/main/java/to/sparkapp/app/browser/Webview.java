@@ -2,16 +2,18 @@ package to.sparkapp.app.browser;
 
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.sun.jna.Pointer;
-import lombok.extern.slf4j.Slf4j;
-import to.sparkapp.app.browser.WebviewNative.BindCallback;
-import to.sparkapp.app.browser.WebviewNative.DispatchCallback;
-import to.sparkapp.app.utils.SystemUtils;
+
 import java.io.Closeable;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import lombok.extern.slf4j.Slf4j;
+import to.sparkapp.app.browser.WebviewNative.BindCallback;
+import to.sparkapp.app.browser.WebviewNative.DispatchCallback;
+import to.sparkapp.app.utils.SystemUtils;
 
 /**
  * Owns the native browser and keeps its callbacks alive through native teardown.
@@ -51,7 +53,10 @@ class Webview implements Closeable {
     Webview(boolean debug, WebviewNative api) {
         this.api = api;
         this.nativePointer = api.webview_create(debug ? 1 : 0, null);
-        if (nativePointer == null) throw new IllegalStateException("Could not create browser");
+
+        if (nativePointer == null) {
+            throw new IllegalStateException("Could not create browser");
+        }
     }
 
     /**
@@ -61,6 +66,7 @@ class Webview implements Closeable {
      */
     long getNativeWindowPointer() {
         requireOwner();
+
         return Pointer.nativeValue(api.webview_get_window(nativePointer));
     }
 
@@ -81,10 +87,10 @@ class Webview implements Closeable {
      */
     void setInitScript(String script) {
         requireOwner();
+
         String safeScript = String.format(
-                "(() => { try { %s } catch (e) { console.error('[Webview] Init Script Error:', e); } })();",
-                script
-        );
+                "(() => { try { %s } catch (e) { console.error('[Webview] Init Script" + " Error:', e); } })();",
+                script);
         check("init", api.webview_init(nativePointer, safeScript));
     }
 
@@ -96,34 +102,39 @@ class Webview implements Closeable {
     void eval(String script) {
         dispatch(() -> {
             String safeScript = String.format(
-                    "try { %s } catch (e) { console.error('[Webview] Eval Error:', e); }",
-                    script
-            );
+                    "try { %s } catch (e) { console.error('[Webview] Eval Error:'," + " e); }", script);
             check("eval", api.webview_eval(nativePointer, safeScript));
         });
     }
 
     /**
-     * Binds a Java function so it can be called globally from JavaScript.
-     * e.g., binding "myFunc" allows JS to call `window.myFunc(123)`.
+     * Binds a Java function so it can be called globally from JavaScript. e.g., binding "myFunc"
+     * allows JS to call `window.myFunc(123)`.
      *
      * @param name     The name of the function to expose in JS.
      * @param callback The Java code to execute when JS calls the function.
      */
     void bind(String name, JsCallback callback) {
         requireOwner();
+
         BindCallback nativeCallback = (seq, req, arg) -> {
             String result;
             int status;
+
             try {
                 result = callback.apply(req);
-                if (result == null) result = "null";
+
+                if (result == null) {
+                    result = "null";
+                }
+
                 status = 0;
             } catch (Throwable failure) {
                 log.error("JavaScript binding failed: {}", name, failure);
                 result = TextNode.valueOf(getStackTraceAsString(failure)).toString();
                 status = 1;
             }
+
             try {
                 check("return", api.webview_return(nativePointer, seq, status, result));
             } catch (RuntimeException failure) {
@@ -132,7 +143,11 @@ class Webview implements Closeable {
         };
         int result = api.webview_bind(nativePointer, name, nativeCallback, null);
         // DUPLICATE is positive, but the original native callback remains registered.
-        if (result != 0) throw nativeFailure("bind " + name, result);
+
+        if (result != 0) {
+            throw nativeFailure("bind " + name, result);
+        }
+
         activeBinds.put(name, nativeCallback);
     }
 
@@ -140,7 +155,10 @@ class Webview implements Closeable {
      * Safely dispatches a runnable to be executed on the Webview's native thread.
      */
     synchronized void dispatch(Runnable handler) {
-        if (destroyed) return;
+        if (destroyed) {
+            return;
+        }
+
         var holder = new DispatchCallback[1];
 
         holder[0] = new DispatchCallback() {
@@ -163,6 +181,7 @@ class Webview implements Closeable {
 
         // Shield the callback from GC!
         activeDispatches.add(holder[0]);
+
         try {
             check("dispatch", api.webview_dispatch(nativePointer, holder[0], null));
         } catch (RuntimeException | Error failure) {
@@ -172,11 +191,12 @@ class Webview implements Closeable {
     }
 
     /**
-     * Starts the native webview event loop.
-     * This is a BLOCKING call and will freeze the thread until the webview is destroyed.
+     * Starts the native webview event loop. This is a BLOCKING call and will freeze the thread
+     * until the webview is destroyed.
      */
     void run() {
         requireOwner();
+
         try {
             check("run", api.webview_run(nativePointer));
         } finally {
@@ -187,13 +207,19 @@ class Webview implements Closeable {
     void destroy() {
         requireOwnerThread();
         synchronized (this) {
-            if (destroyed) return;
+            if (destroyed) {
+                return;
+            }
+
             destroyed = true;
         }
         // Native teardown can synchronously message the FX host or pump queued
         // callbacks. Never hold the dispatch monitor while waiting for that work.
+
         try {
-            if (windows != null) windows.close();
+            if (windows != null) {
+                windows.close();
+            }
         } finally {
             try {
                 check("destroy", api.webview_destroy(nativePointer));
@@ -210,29 +236,47 @@ class Webview implements Closeable {
     @Override
     public void close() {
         requireOwnerThread();
-        if (destroyed) return;
+
+        if (destroyed) {
+            return;
+        }
         // Windows uses PostQuitMessage on the calling thread.
+
         check("terminate", api.webview_terminate(nativePointer));
     }
 
     WindowsBrowser windows() {
         requireOwner();
-        if (!SystemUtils.isWindows()) throw new UnsupportedOperationException("Native browser operations require Windows");
-        if (windows == null) windows = new WindowsBrowser(api.webview_get_native_handle(nativePointer, 2));
+
+        if (!SystemUtils.isWindows()) {
+            throw new UnsupportedOperationException("Native browser operations require Windows");
+        }
+
+        if (windows == null) {
+            windows = new WindowsBrowser(api.webview_get_native_handle(nativePointer, 2));
+        }
+
         return windows;
     }
 
     private void requireOwner() {
         requireOwnerThread();
-        if (destroyed) throw new IllegalStateException("Browser has been destroyed");
+
+        if (destroyed) {
+            throw new IllegalStateException("Browser has been destroyed");
+        }
     }
 
     private void requireOwnerThread() {
-        if (Thread.currentThread() != owner) throw new IllegalStateException("Native browser access requires its owning thread");
+        if (Thread.currentThread() != owner) {
+            throw new IllegalStateException("Native browser access requires its owning thread");
+        }
     }
 
     private static void check(String operation, int result) {
-        if (result < 0) throw nativeFailure(operation, result);
+        if (result < 0) {
+            throw nativeFailure(operation, result);
+        }
     }
 
     private static IllegalStateException nativeFailure(String operation, int result) {
@@ -242,6 +286,7 @@ class Webview implements Closeable {
     private static String getStackTraceAsString(Throwable e) {
         var sw = new StringWriter();
         e.printStackTrace(new PrintWriter(sw));
+
         return sw.toString().trim().replace("\r", "");
     }
 }

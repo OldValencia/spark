@@ -6,16 +6,19 @@ import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 import com.github.kwhat.jnativehook.mouse.NativeMouseEvent;
 import com.github.kwhat.jnativehook.mouse.NativeMouseInputListener;
-import javafx.application.Platform;
-import lombok.Getter;
-import to.sparkapp.app.config.AppPreferences;
-import to.sparkapp.app.windows.MainWindow;
 
-import javax.swing.Timer;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import javafx.application.Platform;
+
+import javax.swing.Timer;
+
+import lombok.Getter;
+import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.windows.MainWindow;
 
 public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputListener {
 
@@ -58,6 +61,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
             GlobalScreen.registerNativeHook();
             GlobalScreen.addNativeKeyListener(this);
             GlobalScreen.addNativeMouseListener(this);
+            GlobalScreen.addNativeMouseMotionListener(this);
             watchdogTimer.start();
             initialized = true;
         } catch (NativeHookException e) {
@@ -74,6 +78,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
             watchdogTimer.stop();
             GlobalScreen.removeNativeKeyListener(this);
             GlobalScreen.removeNativeMouseListener(this);
+            GlobalScreen.removeNativeMouseMotionListener(this);
             GlobalScreen.unregisterNativeHook();
         } catch (NativeHookException ignored) {
         }
@@ -105,6 +110,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
         }
 
         var saved = appPreferences.getHotkeyToStartApplication();
+
         if (saved == null || saved.isEmpty()) {
             return;
         }
@@ -112,6 +118,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
         synchronized (pressedKeys) {
             if (pressedKeys.containsAll(saved)) {
                 hotkeyTriggered = true;
+
                 long requestedAt = System.nanoTime();
                 Platform.runLater(() -> toggleWindow(requestedAt));
             }
@@ -129,19 +136,24 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
     @Override
     public void nativeKeyPressed(NativeKeyEvent e) {
         lastEventTime = System.currentTimeMillis();
+
         var code = e.getKeyCode();
 
         if (recording) {
             if (code == NativeKeyEvent.VC_ESCAPE) {
                 finishRecording(false, false);
+
                 return;
             }
+
             if (code == NativeKeyEvent.VC_DELETE || code == NativeKeyEvent.VC_BACKSPACE) {
                 finishRecording(true, true);
+
                 return;
             }
 
             pressedKeys.add(code);
+
             if (pressedKeys.size() >= 4) {
                 finishRecording(true, false);
             }
@@ -172,19 +184,21 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
 
         if (!recording) {
             tryTriggerHotkey();
+            mainWindow.onGlobalMousePressed();
         }
     }
 
     @Override
     public void nativeMouseReleased(NativeMouseEvent e) {
         lastEventTime = System.currentTimeMillis();
+
         var code = MOUSE_OFFSET + e.getButton();
 
         if (recording) {
             var simpleClick = false;
             synchronized (pressedKeys) {
-                simpleClick = pressedKeys.size() == 1
-                        && (pressedKeys.contains(MOUSE_OFFSET + 1) || pressedKeys.contains(MOUSE_OFFSET + 2));
+                simpleClick = pressedKeys.size() == 1 &&
+                        (pressedKeys.contains(MOUSE_OFFSET + 1) || pressedKeys.contains(MOUSE_OFFSET + 2));
             }
 
             if (!pressedKeys.isEmpty() && !simpleClick) {
@@ -220,6 +234,9 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
 
     @Override
     public void nativeMouseMoved(NativeMouseEvent e) {
+        if (!recording) {
+            mainWindow.onGlobalMouseMoved(e.getX(), e.getY(), System.nanoTime());
+        }
     }
 
     @Override
@@ -239,13 +256,12 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
             return "None";
         }
 
-        return codes.stream()
-                .map(code -> {
-                    if (code >= MOUSE_OFFSET) {
-                        return "Mouse " + (code - MOUSE_OFFSET);
-                    }
-                    return NativeKeyEvent.getKeyText(code);
-                })
-                .collect(Collectors.joining(" + "));
+        return codes.stream().map(code -> {
+            if (code >= MOUSE_OFFSET) {
+                return "Mouse " + (code - MOUSE_OFFSET);
+            }
+
+            return NativeKeyEvent.getKeyText(code);
+        }).collect(Collectors.joining(" + "));
     }
 }
