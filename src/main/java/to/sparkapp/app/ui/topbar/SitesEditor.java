@@ -10,12 +10,12 @@ import to.sparkapp.app.config.AiConfiguration.AiConfig;
 import to.sparkapp.app.ui.dialogs.ProviderEditDialog;
 
 @RequiredArgsConstructor
-final class SitesEditor {
+public final class SitesEditor {
     private final Stage owner;
     private final AiConfiguration configuration;
     private final Runnable onChanged;
 
-    void edit(AiConfig site) {
+    public void edit(AiConfig site) {
         var dialog = new ProviderEditDialog(owner, site);
         dialog.showAndWait();
 

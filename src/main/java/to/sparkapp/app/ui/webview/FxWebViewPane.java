@@ -52,6 +52,8 @@ public class FxWebViewPane extends StackPane {
     private Consumer<Double> zoomCallback;
     @Setter
     private Consumer<Boolean> onAuthPageDetected;
+    @Setter
+    private Consumer<AiConfig> onEditSite;
 
     public FxWebViewPane(String startUrl, AppPreferences appPreferences) {
         this.startUrl = startUrl;
@@ -64,7 +66,7 @@ public class FxWebViewPane extends StackPane {
         setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
         setStyle("-fx-background-color: " + Theme.toHex(Theme.BG_DEEP) + ";");
 
-        loadingView = new BrowserLoadingView(() -> bridge, this::windowVisible, this::syncBounds);
+        loadingView = new BrowserLoadingView(() -> bridge, this::windowVisible, this::syncBounds, this::editSiteAction);
         getChildren().add(loadingView.getOverlay());
         dataClearing = new SiteDataClearing(sessions, appPreferences, () -> getScene().getWindow(), () -> disposed);
 
@@ -72,6 +74,13 @@ public class FxWebViewPane extends StackPane {
 
         setupBridgeCallbacks(bridge);
         setupLayoutListeners();
+    }
+
+    private Runnable editSiteAction() {
+        var site = sessions.findSite(bridge);
+        var handler = onEditSite;
+
+        return site == null || handler == null ? null : () -> handler.accept(site);
     }
 
     private void setupBridgeCallbacks(WebviewManager source) {

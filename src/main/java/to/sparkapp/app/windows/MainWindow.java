@@ -17,6 +17,7 @@ import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.Theme;
 import to.sparkapp.app.ui.settings.SettingsPanel;
 import to.sparkapp.app.ui.topbar.TopBarArea;
+import to.sparkapp.app.ui.topbar.SitesEditor;
 import to.sparkapp.app.ui.topbar.components.AiDock;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
 import to.sparkapp.app.utils.GlobalHotkeyManager;
@@ -403,6 +404,8 @@ public class MainWindow extends Stage {
 
         var pane = new FxWebViewPane(startUrl, appPreferences);
         pane.setOnAuthPageDetected(this::setAuthMode);
+        var editor = new SitesEditor(this, aiConfiguration, this::handleProvidersChanged);
+        pane.setOnEditSite(editor::edit);
 
         return pane;
     }

@@ -49,9 +49,9 @@ final class SiteListDrag {
             }
 
             if (target >= 0 && position.getY() < 30) {
-                context.list().scrollTo(Math.max(0, target - 1));
+                SiteListScrolling.reveal(context.list(), Math.max(0, target - 1));
             } else if (target >= 0 && position.getY() > context.list().getHeight() - 30) {
-                context.list().scrollTo(Math.min(context.list().getItems().size() - 1, target + 1));
+                SiteListScrolling.reveal(context.list(), Math.min(context.list().getItems().size() - 1, target + 1));
             }
 
             e.consume();

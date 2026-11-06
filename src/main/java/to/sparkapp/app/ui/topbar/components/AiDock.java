@@ -25,6 +25,7 @@ import to.sparkapp.app.ui.Theme;
 import to.sparkapp.app.ui.topbar.utils.AiDockDragManager;
 import to.sparkapp.app.ui.topbar.utils.AiDockIconUtils;
 import to.sparkapp.app.ui.topbar.utils.AiDockOrderUtils;
+import to.sparkapp.app.ui.topbar.utils.SiteOrderDiagnostics;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
 
 @Slf4j
@@ -67,6 +68,8 @@ public class AiDock extends StackPane {
     }
 
     public void orderChanged() {
+        SiteOrderDiagnostics.record(this);
+
         if (onOrderChanged != null) {
             onOrderChanged.run();
         }
@@ -114,6 +117,7 @@ public class AiDock extends StackPane {
             return;
         }
 
+        log.info("Reordering site: from={}, target={}, after={}", dockItems.indexOf(from), dockItems.indexOf(to), after);
         dockItems.remove(from);
         dockItems.add(dockItems.indexOf(to) + (after ? 1 : 0), from);
         dockContainer.getChildren().setAll(dockItems);

@@ -12,14 +12,17 @@ final class BrowserLoadingView {
     private final Supplier<WebviewManager> browser;
     private final BooleanSupplier visible;
     private final Runnable syncBounds;
+    private final Supplier<Runnable> editSite;
     private final PauseTransition loadTimeout = new PauseTransition(Duration.seconds(20));
     @Getter
     private final WebViewLoadingOverlay overlay = new WebViewLoadingOverlay();
 
-    BrowserLoadingView(Supplier<WebviewManager> browser, BooleanSupplier visible, Runnable syncBounds) {
+    BrowserLoadingView(Supplier<WebviewManager> browser, BooleanSupplier visible, Runnable syncBounds,
+                       Supplier<Runnable> editSite) {
         this.browser = browser;
         this.visible = visible;
         this.syncBounds = syncBounds;
+        this.editSite = editSite;
     }
 
     void refresh() {
@@ -33,7 +36,7 @@ final class BrowserLoadingView {
 
         if (active.getLoadError() != null) {
             active.setVisible(false);
-            overlay.showError(active.getLoadError(), () -> browser.get().reload());
+            overlay.showError(active.getLoadError(), () -> browser.get().reload(), null, editSite.get());
         } else if (active.isLoading()) {
             active.setVisible(false);
             overlay.activate(null, 0, null);
@@ -52,7 +55,7 @@ final class BrowserLoadingView {
         }
 
         overlay.showError("Loading is taking longer than expected. You can retry or show the page.",
-                () -> browser.get().reload(), this::showPage);
+                () -> browser.get().reload(), this::showPage, editSite.get());
     }
 
     private void showPage() {

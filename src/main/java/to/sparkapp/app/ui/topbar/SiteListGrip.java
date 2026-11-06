@@ -55,7 +55,7 @@ final class SiteListGrip extends Button {
         if (target >= 0 && target < context.list().getItems().size()) {
             context.dock().reorder(site.id(), context.list().getItems().get(target).id(), target > index);
             context.list().getSelectionModel().select(target);
-            context.list().scrollTo(target);
+            SiteListScrolling.reveal(context.list(), target);
             Platform.runLater(this::restoreFocus);
         }
 

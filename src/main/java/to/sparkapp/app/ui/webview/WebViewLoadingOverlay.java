@@ -7,11 +7,9 @@ import javafx.animation.RotateTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Group;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -31,9 +29,7 @@ class WebViewLoadingOverlay extends StackPane {
     private final ImageView iconView = new ImageView();
     private final RotateTransition rotation;
     private final Label message = new Label();
-    private final Button retry = new Button("Retry");
-    private final Button showPage = new Button("Show page");
-    private final HBox actions = new HBox(10, retry, showPage);
+    private final PageRecoveryActions actions = new PageRecoveryActions();
     private PauseTransition activeTimer;
 
     WebViewLoadingOverlay() {
@@ -71,13 +67,7 @@ class WebViewLoadingOverlay extends StackPane {
         message.setAlignment(Pos.CENTER);
         message.setMaxWidth(360);
         message.setStyle("-fx-text-fill: #b9beb5; -fx-text-alignment: center; -fx-font-size: 13px;");
-        actions.setAlignment(Pos.CENTER);
-        retry.setStyle("-fx-background-color: #bfd6ab; -fx-text-fill: #252c25; -fx-background-radius: 7;" +
-                " -fx-padding: 8 18;");
-        showPage.setStyle("-fx-background-color: #30342f; -fx-text-fill: #d7dfd0; -fx-background-radius: 7;" +
-                " -fx-padding: 8 18;");
-
-        for (var node : new Region[]{indicator, message, actions, retry, showPage}) {
+        for (var node : new Region[]{indicator, message, actions}) {
             node.managedProperty().bind(node.visibleProperty());
         }
 
@@ -134,23 +124,13 @@ class WebViewLoadingOverlay extends StackPane {
         return isVisible();
     }
 
-    void showError(String text, Runnable onRetry) {
-        showError(text, onRetry, null);
-    }
-
-    void showError(String text, Runnable onRetry, Runnable onShowPage) {
+    void showError(String text, Runnable onRetry, Runnable onShowPage, Runnable onEditSite) {
         cancelTimer();
         pauseAnimation();
         indicator.setVisible(false);
         message.setText(text);
         message.setVisible(true);
-        retry.setOnAction(event -> onRetry.run());
-        showPage.setVisible(onShowPage != null);
-        showPage.setOnAction(event -> {
-            if (onShowPage != null) {
-                onShowPage.run();
-            }
-        });
+        actions.configure(onRetry, onEditSite, onShowPage);
         actions.setVisible(true);
         setAccessibleText(text);
         toFront();
