@@ -24,6 +24,8 @@ import javafx.stage.StageStyle;
 import javafx.scene.paint.Color;
 import javafx.scene.robot.Robot;
 import javafx.util.Duration;
+import lombok.Getter;
+import lombok.Setter;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.config.AppPreferences.WindowPlacement;
 import to.sparkapp.app.utils.NativeWindowUtils;
@@ -38,6 +40,7 @@ public final class WindowController {
     private final ReadOnlyBooleanWrapper docked = new ReadOnlyBooleanWrapper(false);
     private final Popup snapHint = new Popup();
     private final ListChangeListener<Screen> screensChanged = change -> { ensureVisible(); persist(); refreshPill(); };
+    @Getter
     private Visibility visibility = Visibility.HIDDEN;
     private double manualWidth = 860, manualHeight = 700;
     private Rectangle2D monitor;
@@ -48,6 +51,7 @@ public final class WindowController {
     private final SimpleDoubleProperty revealY = new SimpleDoubleProperty();
     private double settledY;
     private Stage pill;
+    @Setter
     private Runnable onReveal;
     private boolean disposed;
     private final PauseTransition edgeHover = new PauseTransition(Duration.millis(300));
@@ -101,10 +105,9 @@ public final class WindowController {
 
     public ReadOnlyBooleanProperty dockedProperty() { return docked.getReadOnlyProperty(); }
     public boolean isDocked() { return docked.get(); }
-    public Visibility getVisibility() { return visibility; }
+
     public void opening() { ensureVisible(); visibility = stage.isShowing() ? Visibility.VISIBLE : Visibility.OPENING; }
     public void closing() { visibility = Visibility.CLOSING; settleReveal(); cancelInteraction(); persist(); }
-    public void setOnReveal(Runnable action) { onReveal = action; }
 
     public void handleHiddenPointer(double x, double y) {
         if (disposed || stage.isShowing()) { edgeHover.stop(); return; }

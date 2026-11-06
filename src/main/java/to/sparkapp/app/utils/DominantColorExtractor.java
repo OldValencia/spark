@@ -29,8 +29,6 @@ public final class DominantColorExtractor {
     private static final double TARGET_MIN_BRIGHTNESS = 0.65;
     private static final double TARGET_MAX_BRIGHTNESS = 0.95;
 
-    private static final String NEUTRAL = "#B9BDC6";
-
     private DominantColorExtractor() {
     }
 
@@ -122,24 +120,6 @@ public final class DominantColorExtractor {
                 hue,
                 Math.max(saturation, TARGET_MIN_SATURATION),
                 Math.clamp(brightness, TARGET_MIN_BRIGHTNESS, TARGET_MAX_BRIGHTNESS));
-    }
-
-    /**
-     * Stable colour for a site whose icon is unavailable: the host always maps to the
-     * same hue, so it never changes between runs the way a random colour would.
-     */
-    public static String fromHost(String url) {
-        var host = UrlUtils.host(url);
-        if (host == null || host.isBlank()) {
-            return NEUTRAL;
-        }
-
-        var hash = 0;
-        for (var i = 0; i < host.length(); i++) {
-            hash = host.charAt(i) + ((hash << 5) - hash);
-        }
-        var hue = Math.abs(hash % 360) / 360.0;
-        return toHex(hue, 0.62, 0.85);
     }
 
     private static String neutralFor(double averageBrightness) {

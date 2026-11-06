@@ -141,15 +141,6 @@ public class AppPreferences {
         }
     }
 
-    // Last-URL — debounced because the webview fires a URL-change event for
-    // every in-app navigation (e.g. chatgpt.com → chatgpt.com/c/<uuid>).
-    public synchronized void setLastUrl(String url) {
-        if (Boolean.TRUE.equals(config.rememberLastAi)) {
-            config.lastUrl = url;
-            saveDebounced();
-        }
-    }
-
     public synchronized String getLastSiteId() { return config.lastSiteId; }
 
     public synchronized String getSiteUrl(AiConfiguration.AiConfig site) {

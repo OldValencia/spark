@@ -33,6 +33,7 @@ import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.dialogs.ProviderEditDialog;
 import to.sparkapp.app.ui.topbar.components.AiDock;
+import to.sparkapp.app.ui.topbar.components.DockItemNode;
 import to.sparkapp.app.ui.topbar.components.ShellIcon;
 import to.sparkapp.app.utils.UrlUtils;
 
@@ -109,11 +110,11 @@ final class SitesPopup extends Popup {
 
     void open(Node anchor) {
         if (isShowing()) { hide(); return; }
-        root.setPrefWidth(Math.min(360, Math.max(280, owner.getWidth() - 20)));
+        root.setPrefWidth(Math.clamp(owner.getWidth() - 20, 280, 360));
         var bounds = anchor.localToScreen(anchor.getBoundsInLocal());
         if (bounds != null) {
             var screen = Screen.getScreensForRectangle(bounds.getMinX(), bounds.getMinY(), 1, 1).stream().findFirst().orElse(Screen.getPrimary());
-            maxListHeight = Math.max(54, Math.min(324, screen.getVisualBounds().getHeight() - 180));
+            maxListHeight = Math.clamp(screen.getVisualBounds().getHeight() - 180, 54, 324);
             show(owner, Math.min(bounds.getMinX(), owner.getX() + owner.getWidth() - root.getPrefWidth() - 8), bounds.getMaxY() + 8);
         }
     }
@@ -124,10 +125,10 @@ final class SitesPopup extends Popup {
         double scroll = bar == null ? 0 : bar.getValue();
         boolean restore = preserveScroll;
         var query = search.getText().trim().toLowerCase(Locale.ROOT);
-        var filtered = dock.getDockItems().stream().map(item -> item.getConfig())
+        var filtered = dock.getDockItems().stream().map(DockItemNode::getConfig)
                 .filter(site -> (site.name() + " " + site.url()).toLowerCase(Locale.ROOT).contains(query)).toList();
         list.setItems(FXCollections.observableArrayList(filtered));
-        list.setPrefHeight(Math.min(maxListHeight, Math.max(60, filtered.size() * 54)));
+        list.setPrefHeight(Math.clamp(filtered.size() * 54, 60, maxListHeight));
         hint.setText(query.isEmpty() ? "Drag a grip to reorder · Alt + ↑ / ↓ on a grip" : "Clear search to reorder all sites");
         if (restore && bar != null) Platform.runLater(() -> bar.setValue(scroll));
     }

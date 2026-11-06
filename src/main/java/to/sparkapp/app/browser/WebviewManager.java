@@ -1,5 +1,6 @@
 package to.sparkapp.app.browser;
 
+import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration;
@@ -40,7 +41,9 @@ public class WebviewManager {
     private final WebviewNavigator navigator;
 
     private final Queue<Runnable> pending = new ArrayDeque<>();
+    @Getter
     private volatile boolean loading = true;
+    @Getter
     private volatile String loadError;
     private volatile boolean processFailed;
     private volatile boolean recreateOnRetry;
@@ -48,9 +51,6 @@ public class WebviewManager {
     private long navigationId;
     @Setter private Consumer<Boolean> onLoadingChanged;
     @Setter private Consumer<String> onLoadError;
-
-    public boolean isLoading() { return loading; }
-    public String getLoadError() { return loadError; }
 
     private void loadingChanged(boolean value) {
         loading = value;

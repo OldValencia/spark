@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import javafx.util.Duration;
+import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.browser.WebviewManager;
@@ -55,6 +56,7 @@ public class FxWebViewPane extends StackPane {
     private final PauseTransition loadTimeout = new PauseTransition(Duration.seconds(20));
     private final AppPreferences appPreferences;
     private final String startUrl;
+    @Getter
     private String activeSiteId;
     private final WebViewLoadingOverlay overlay;
 
@@ -505,10 +507,6 @@ public class FxWebViewPane extends StackPane {
             }
             return removed;
         });
-    }
-
-    public String getActiveSiteId() {
-        return activeSiteId;
     }
 
     public void setZoomCallback(Consumer<Double> callback) {

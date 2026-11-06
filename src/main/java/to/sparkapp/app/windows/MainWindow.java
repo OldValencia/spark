@@ -41,7 +41,6 @@ public class MainWindow extends Stage {
     private GlobalHotkeyManager globalHotkeyManager;
     private WindowController windowController;
     private TopBarArea topBar;
-    private Color siteAccent = Color.web("#bcbcc6");
     private long previousForeground;
     private long lastShown;
     private final PauseTransition outsideClick = new PauseTransition(Duration.millis(100));
@@ -331,12 +330,11 @@ public class MainWindow extends Stage {
                 log.warn("Failed to initialize global hotkey manager", e);
             }
 
-            var settingsPanel = new SettingsPanel(appPreferences, globalHotkeyManager, aiConfiguration);
+            var settingsPanel = new SettingsPanel(appPreferences, globalHotkeyManager);
             settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
             settingsPanel.setOnClearCookies(fxWebViewPane::clearCookies);
             settingsPanel.setOnBackgroundMemoryChanged(fxWebViewPane::refreshResourcePolicy);
             settingsPanel.setOnZoomEnabledChanged(enabled -> fxWebViewPane.resetZoom());
-            settingsPanel.setOnProvidersChanged(this::handleProvidersChanged);
 
             settingsWindow = new SettingsWindow(this, settingsPanel);
 
@@ -366,9 +364,10 @@ public class MainWindow extends Stage {
     }
 
     private void installTopBar() {
-        topBar = new TopBarArea(aiConfiguration, fxWebViewPane, this, settingsWindow, appPreferences,
+        topBar = new TopBarArea(aiConfiguration, fxWebViewPane, this, appPreferences,
                 this::toggleSettings, this::hideMainWindow, windowController, this::handleProvidersChanged);
-        topBar.getDock().setOnAccentChanged(accent -> { siteAccent = accent; updateShellStyle(); });
+        topBar.getDock().setOnAccentChanged(accent -> {
+            updateShellStyle(); });
         rootPane.setTop(topBar);
     }
 

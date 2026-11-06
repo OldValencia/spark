@@ -1,5 +1,6 @@
 package to.sparkapp.app.ui.topbar;
 
+import lombok.Getter;
 import to.sparkapp.app.ui.topbar.components.ShellTooltip;
 
 import javafx.beans.binding.Bindings;
@@ -19,18 +20,18 @@ import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.topbar.components.AiDock;
 import to.sparkapp.app.ui.topbar.components.ShellIcon;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
-import to.sparkapp.app.windows.SettingsWindow;
 import to.sparkapp.app.windows.WindowController;
 
 public class TopBarArea extends HBox {
     public static final int HEIGHT = 52;
+    @Getter
     private final AiDock dock;
     private final SitesPopup sites;
     private final ShellPopover sizes = new ShellPopover("WINDOW SIZE", 276);
     private final ShellPopover options = new ShellPopover("WINDOW OPTIONS", 258);
 
     public TopBarArea(AiConfiguration configuration, FxWebViewPane browser, Stage frame,
-                      SettingsWindow settings, AppPreferences preferences, Runnable onSettings,
+                      AppPreferences preferences, Runnable onSettings,
                       Runnable onHide, WindowController controller, Runnable onSitesChanged) {
         getStyleClass().add("shell-bar");
         setMinHeight(HEIGHT); setPrefHeight(HEIGHT); setMaxHeight(HEIGHT);
@@ -114,7 +115,6 @@ public class TopBarArea extends HBox {
         setAlignment(Pos.CENTER_LEFT);
     }
 
-    public AiDock getDock() { return dock; }
     public void closeMenus() { sites.hide(); sizes.dismiss(); options.dismiss(); dock.cancelInteraction(); }
     public void dispose() { closeMenus(); dock.dispose(); }
 

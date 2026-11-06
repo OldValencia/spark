@@ -46,11 +46,10 @@ final class ShellPopover extends Popup {
 
     void add(Node node) { body.getChildren().add(node); }
 
-    Button action(String icon, String title, Runnable command) {
+    void action(String icon, String title, Runnable command) {
         var button = new Button(title, ShellIcon.create(icon)); button.getStyleClass().add("shell-row"); button.setMaxWidth(Double.MAX_VALUE);
         button.setGraphicTextGap(10);
         button.setOnAction(e -> { dismiss(); command.run(); }); add(button);
-        return button;
     }
 
     Button setting(String icon, String title, ObservableBooleanValue enabled, Runnable change) {

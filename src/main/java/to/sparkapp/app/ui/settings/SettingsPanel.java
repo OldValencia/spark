@@ -1,6 +1,5 @@
 package to.sparkapp.app.ui.settings;
 
-import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.Theme;
 import to.sparkapp.app.ui.settings.components.*;
@@ -27,8 +26,6 @@ public class SettingsPanel extends VBox {
     @Setter
     private Runnable onClearCookies;
     @Setter
-    private Runnable onProvidersChanged;
-    @Setter
     private Consumer<Boolean> onAutoUpdateChanged;
     @Setter
     private Consumer<Boolean> onZoomEnabledChanged;
@@ -37,13 +34,11 @@ public class SettingsPanel extends VBox {
     private Runnable onBackgroundMemoryChanged;
 
     private final AppPreferences appPreferences;
-    private final AiConfiguration aiConfiguration;
     private final GlobalHotkeyManager hotkeyManager;
 
-    public SettingsPanel(AppPreferences appPreferences, GlobalHotkeyManager hotkeyManager, AiConfiguration aiConfiguration) {
+    public SettingsPanel(AppPreferences appPreferences, GlobalHotkeyManager hotkeyManager) {
         this.appPreferences = appPreferences;
         this.hotkeyManager = hotkeyManager;
-        this.aiConfiguration = aiConfiguration;
 
         initLayout();
         buildUI();

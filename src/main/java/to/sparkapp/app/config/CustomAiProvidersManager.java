@@ -149,10 +149,6 @@ public class CustomAiProvidersManager {
         }
     }
 
-    public synchronized void addCustomProvider(String name, String url) {
-        addCustomProvider(name, url, null);
-    }
-
     public synchronized void addCustomProvider(String name, String url, String manualColor) {
         List<AiConfiguration.AiConfig> current = loadProviders();
 
@@ -169,14 +165,6 @@ public class CustomAiProvidersManager {
     private static String randomAccent() {
         var palette = new String[]{"#D99B7D", "#A2BDDC", "#B7ABD7", "#D5B679", "#8EBFBA", "#D59BB9", "#BEC3D0"};
         return palette[ThreadLocalRandom.current().nextInt(palette.length)];
-    }
-
-    public synchronized void updateProvider(String id, String name, String url, String color) {
-        updateProvider(id, name, url, color, false);
-    }
-
-    public synchronized void updateProvider(String id, String name, String url, String color, boolean useIconColor) {
-        updateProvider(id, name, url, color, useIconColor, false);
     }
 
     public synchronized void updateProvider(String id, String name, String url, String color, boolean useIconColor, boolean manualColor) {

@@ -10,6 +10,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.layout.Priority;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPaths;
@@ -39,8 +40,6 @@ public class AiDock extends StackPane {
     /** Item plus four logical pixels of vertical padding on each side. */
     static final int DOCK_HEIGHT = ITEM_HEIGHT + 8;
     static final int ITEM_MARGIN = 6;
-    static final int PAD = 9;
-    static final int GAP = 8;
 
     private static final int MAX_DOCK_WIDTH = 500;
 
@@ -59,10 +58,11 @@ public class AiDock extends StackPane {
     @Getter
     private DockItemNode selectedNode = null;
     private Consumer<Color> onAccentChanged;
+    @Setter
     private Runnable onOrderChanged;
 
     public void setOnAccentChanged(Consumer<Color> callback) { onAccentChanged = callback; updateTopBarColor(); }
-    public void setOnOrderChanged(Runnable callback) { onOrderChanged = callback; }
+
     public void orderChanged() { if (onOrderChanged != null) onOrderChanged.run(); }
     public boolean isReducedMotion() { return appPreferences.isReducedMotion(); }
 

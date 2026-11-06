@@ -8,6 +8,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import lombok.Getter;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.ui.Theme;
 
@@ -16,7 +17,10 @@ public class ProviderFormPanel extends VBox {
     private final TextField urlField;
     private final ColorPicker colorPicker;
     private final AiConfiguration.AiConfig provider;
-    private boolean manualColor, useIconColor;
+    @Getter
+    private boolean manualColor;
+    @Getter
+    private boolean useIconColor;
 
     public ProviderFormPanel(AiConfiguration.AiConfig provider) {
         this.provider = provider;
@@ -45,8 +49,7 @@ public class ProviderFormPanel extends VBox {
         if (useIconColor) return null;
         return manualColor ? Theme.toHex(colorPicker.getValue()) : provider == null ? null : provider.color();
     }
-    public boolean isUseIconColor() { return useIconColor; }
-    public boolean isManualColor() { return manualColor; }
+
     public String getNameFieldValue() { return nameField.getText().trim(); }
     public String getUrlFieldValue() { return urlField.getText().trim(); }
 }

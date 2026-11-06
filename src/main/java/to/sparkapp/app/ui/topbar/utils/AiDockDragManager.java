@@ -25,8 +25,6 @@ public class AiDockDragManager {
     private double dragNodeWidth = 0;
     private DockItemNode draggedNode;
 
-    public boolean isSorting() { return draggedNode != null; }
-
     public void cancel() {
         stopAutoscroll(); draggedNode = null;
         dragStartIndex = -1; dragCurrentTargetIndex = -1;
@@ -47,7 +45,7 @@ public class AiDockDragManager {
 
                 var step = getStep(scrollBounds);
                 if (step != 0) {
-                    dock.getScrollPane().setHvalue(Math.max(0.0, Math.min(1.0, dock.getScrollPane().getHvalue() + step)));
+                    dock.getScrollPane().setHvalue(Math.clamp(dock.getScrollPane().getHvalue() + step, 0.0, 1.0));
                     dock.refreshArrowOpacity();
 
                     if (draggedNode != null && draggedNode.isDragging()) {
