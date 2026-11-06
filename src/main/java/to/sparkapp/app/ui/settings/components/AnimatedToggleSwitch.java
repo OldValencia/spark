@@ -13,6 +13,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
+import lombok.Getter;
 import lombok.Setter;
 import to.sparkapp.app.ui.Theme;
 
@@ -24,26 +25,29 @@ public class AnimatedToggleSwitch extends Pane {
     private static final double INSET = 3;
     private static final Duration ANIM = Duration.millis(180);
 
-    private boolean enabled;
+    @Getter
+    private boolean selected;
     private final Timeline timeline;
+    private final Rectangle bgRect;
+    private final Circle thumb;
 
     @Setter
     private Consumer<Boolean> onChange;
 
     public AnimatedToggleSwitch(boolean initialState) {
-        this.enabled = initialState;
+        this.selected = initialState;
 
         this.setPrefSize(WIDTH, HEIGHT);
         this.setMinSize(WIDTH, HEIGHT);
         this.setMaxSize(WIDTH, HEIGHT);
         this.setCursor(Cursor.HAND);
 
-        var bgRect = new Rectangle(WIDTH, HEIGHT);
+        bgRect = new Rectangle(WIDTH, HEIGHT);
         bgRect.setArcWidth(HEIGHT);
         bgRect.setArcHeight(HEIGHT);
         bgRect.setFill(initialState ? Theme.TOGGLE_BG_ON : Theme.TOGGLE_BG_OFF);
 
-        var thumb = new Circle(THUMB_RADIUS, Theme.TOGGLE_THUMB);
+        thumb = new Circle(THUMB_RADIUS, Theme.TOGGLE_THUMB);
         thumb.setCenterY(HEIGHT / 2.0);
         thumb.setEffect(new DropShadow(4, 0, 1, Color.rgb(0, 0, 0, 0.35)));
 
@@ -55,26 +59,38 @@ public class AnimatedToggleSwitch extends Pane {
 
         timeline = new Timeline();
 
-        this.setOnMouseClicked(e -> toggle(bgRect, thumb, minX, maxX));
+        this.setOnMouseClicked(e -> toggle());
     }
 
-    private void toggle(Rectangle bgRect, Circle thumb, double minX, double maxX) {
-        enabled = !enabled;
+    private void toggle() {
+        if (isDisabled()) {
+            return;
+        }
+
+        setSelected(!selected);
+        if (onChange != null) {
+            onChange.accept(selected);
+        }
+    }
+
+    // Dependent settings can reset the display without submitting another preference change.
+    public void setSelected(boolean selected) {
+        if (this.selected == selected) {
+            return;
+        }
+
+        this.selected = selected;
 
         timeline.stop();
         timeline.getKeyFrames().clear();
 
-        var targetColor = enabled ? Theme.TOGGLE_BG_ON : Theme.TOGGLE_BG_OFF;
-        var targetX = enabled ? maxX : minX;
+        var targetColor = selected ? Theme.TOGGLE_BG_ON : Theme.TOGGLE_BG_OFF;
+        var targetX = selected ? WIDTH - INSET - THUMB_RADIUS : INSET + THUMB_RADIUS;
 
-        timeline.getKeyFrames()
-                .add(new KeyFrame(ANIM, new KeyValue(bgRect.fillProperty(), targetColor, Interpolator.EASE_BOTH),
+        timeline.getKeyFrames().add(
+                new KeyFrame(ANIM, new KeyValue(bgRect.fillProperty(), targetColor, Interpolator.EASE_BOTH),
                         new KeyValue(thumb.centerXProperty(), targetX, Interpolator.EASE_BOTH)));
 
         timeline.play();
-
-        if (onChange != null) {
-            onChange.accept(enabled);
-        }
     }
 }

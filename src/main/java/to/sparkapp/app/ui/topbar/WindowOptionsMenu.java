@@ -1,6 +1,5 @@
 package to.sparkapp.app.ui.topbar;
 
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
@@ -10,27 +9,11 @@ import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.topbar.components.ShellIcon;
 import to.sparkapp.app.ui.topbar.components.ShellTooltip;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
-import to.sparkapp.app.windows.WindowController;
 
 final class WindowOptionsMenu extends ShellPopover {
-    WindowOptionsMenu(AppPreferences preferences, FxWebViewPane browser, WindowController controller, Runnable onSettings) {
+    WindowOptionsMenu(AppPreferences preferences, FxWebViewPane browser, Runnable onSettings) {
         super("WINDOW OPTIONS", 258);
         action("cog-6-tooth", "Settings", onSettings);
-
-        var pill = new SimpleBooleanProperty(preferences.isTopPill());
-        var pillRow = setting("bars-2", "Top-edge pill", pill, () -> {
-            pill.set(!pill.get());
-            preferences.setTopPill(pill.get());
-            controller.refreshPill();
-        });
-        pillRow.setTooltip(ShellTooltip.create("On: keep the pill visible while Spark is hidden.\n" +
-                "Off: reveal the pill when hovering near the top edge."));
-
-        var motion = new SimpleBooleanProperty(preferences.isReducedMotion());
-        setting("bolt-slash", "Reduce motion", motion, () -> {
-            motion.set(!motion.get());
-            preferences.setReducedMotion(motion.get());
-        });
 
         var zoomOut = zoomButton("−", "Zoom out\nOn the page: Ctrl + -", browser::zoomOut);
         var reset = zoomButton("100%", "Reset zoom\nOn the page: Ctrl + 0", browser::resetZoom);

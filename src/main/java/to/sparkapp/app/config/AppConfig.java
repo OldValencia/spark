@@ -15,6 +15,7 @@ final class AppConfig {
     Boolean autoHide;
     Boolean topPill;
     Boolean topEdgeReveal;
+    Boolean fastTopEdgeReveal;
     String lastUrl;
     String lastSiteId;
     Map<String, String> siteUrls;
@@ -75,6 +76,18 @@ final class AppConfig {
 
         if (darkModeEnabled == null) {
             darkModeEnabled = Boolean.parseBoolean(AppPreferencesKeys.DARK_MODE_ENABLED.getDefaultValue());
+            changed = true;
+        }
+
+        // Keep quick access visible until auto-hide is explicitly selected.
+        if (topPill == null) {
+            topPill = true;
+            changed = true;
+        }
+
+        // Fast pointer movement opens a window only after an explicit opt-in.
+        if (fastTopEdgeReveal == null) {
+            fastTopEdgeReveal = false;
             changed = true;
         }
 

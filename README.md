@@ -20,7 +20,7 @@
 
 A compact desktop app for **ChatGPT, Claude, Gemini, Mistral, Perplexity, Copilot**, and any other website you want close at hand.
 
-Bring Spark up over your work, switch between sites, and hide it when you're done. Visited pages stay alive during the app session, keeping your drafts, scroll position, and ongoing requests when you switch or hide the window.
+_Switch between sites, and hide it when you're done. Visited pages stay alive during the app session, keeping your drafts, scroll position, and ongoing requests when you switch or hide the window._
 
 <p align="center">
   <a href="docs/screenshots/spark-main.png">
@@ -51,7 +51,7 @@ Bring Spark up over your work, switch between sites, and hide it when you're don
       Search, reorder, and edit your collection.
     </td>
     <td width="50%" align="center">
-      <a href="docs/screenshots/window-size.png"><img src="docs/screenshots/window-size.png" alt="Spark window menu with size presets, always-on-top, docking, and hover controls"></a>
+      <a href="docs/screenshots/window-size.png"><img src="docs/screenshots/window-size.png" alt="Spark window menu with size presets, always-on-top, and docking controls"></a>
       <br><strong>Your window, your way</strong><br>
       Pin it, resize it, or dock it at the top.
     </td>
@@ -63,9 +63,9 @@ Bring Spark up over your work, switch between sites, and hide it when you're don
       Pick a name, enter its URL, and choose an accent.
     </td>
     <td width="50%" align="center">
-      <a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" alt="Spark settings with global shortcut recording, remembered pages, and startup preferences"></a>
+      <a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" alt="Spark settings with Reduce motion in General and a dedicated Pill section for auto-hide, hover, and quick upward gestures"></a>
       <br><strong>Keep it personal</strong><br>
-      Configure your shortcut and everyday preferences.
+      Keep motion and pill preferences together in Settings.
     </td>
   </tr>
 </table>
@@ -97,11 +97,14 @@ Use the pencil button to edit or remove a site. Drag its grip to change the orde
 | Dock at the top | Double-click the handle, or use **Window size → Dock at the top** |
 | Resize, pin, or fill available space | **Window size** menu |
 | Hide Spark | The chevron at the right of the top bar |
-| Open settings or change motion preferences | **Window options** menu |
+| Open settings | **Window options → Settings** |
+| Reduce animations | **Settings → General → Reduce motion** |
 | Zoom the page | **Ctrl + mouse wheel**, **Ctrl + +**, or **Ctrl + −** |
 | Reset page zoom | **Ctrl + 0** |
 
-The **Top-edge pill** and **Open on top-edge hover** options control how Spark returns while hidden. Startup, background launch, remembered pages, and browser preferences live in Settings.
+The **Settings → Pill** section groups all top-edge behavior. The pill stays visible by default. Enable **Auto-hide top-edge pill** to reveal it only when approaching the top-center edge. With auto-hide enabled, you can also turn on **Quick upward gesture**: a fast upward movement opens Spark directly while the pill is hidden; a slow approach previews the pill. Quick opening is off by default and is switched off when you disable auto-hide.
+
+**Open on top-edge hover**, in the same Pill section, controls delayed opening when the pill is kept visible. **Reduce motion** lives in **Settings → General**, alongside startup and remembered-page preferences.
 
 ## Sessions and local data
 

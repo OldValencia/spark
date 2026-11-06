@@ -1,6 +1,7 @@
 package to.sparkapp.app.windows;
 
-import java.awt.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 
 import javafx.animation.PauseTransition;
@@ -20,9 +21,12 @@ final class WindowAutoHide {
     private final BooleanSupplier authentication;
     private final Runnable hideWithoutFocus;
     private final PauseTransition outsideClick = new PauseTransition(Duration.millis(100));
+    private final PauseTransition pointerDelay = new PauseTransition(Duration.millis(16));
+    private final PointerMotion motion = new PointerMotion();
+    private final AtomicReference<PointerApproach> latestApproach = new AtomicReference<>();
+    private final AtomicBoolean pointerUpdateQueued = new AtomicBoolean();
     private volatile boolean windowHidden;
     private long lastShown;
-    private long lastHoverSample;
     private Robot pointer;
 
     WindowAutoHide(Stage window, AppPreferences appPreferences, WindowController windowController, BooleanSupplier authentication, Runnable hideWithoutFocus) {
@@ -33,10 +37,13 @@ final class WindowAutoHide {
         this.hideWithoutFocus = hideWithoutFocus;
         windowHidden = !window.isShowing();
         window.showingProperty().addListener((observable, previous, showing) -> windowHidden = !showing);
+        pointerDelay.setOnFinished(event -> sampleHiddenPointer());
     }
 
     void shown() {
         lastShown = System.nanoTime();
+        motion.reset();
+        latestApproach.set(null);
     }
 
     void cancel() {
@@ -55,8 +62,8 @@ final class WindowAutoHide {
             }
 
             outsideClick.setOnFinished(e -> {
-                boolean ownForeground = SystemUtils.isWindows() ? NativeWindowUtils.isSparkForeground() : Window.getWindows()
-                        .stream().anyMatch(Window::isFocused);
+                boolean ownForeground = SystemUtils.isWindows() ? NativeWindowUtils.isSparkForeground() : Window.getWindows().stream().anyMatch(
+                        Window::isFocused);
 
                 if (window.isShowing() && appPreferences.isAutoHide() && !authentication.getAsBoolean() &&
                         !ownForeground) {
@@ -67,30 +74,39 @@ final class WindowAutoHide {
         });
     }
 
-    public void onGlobalMouseMoved() {
+    public void onGlobalMouseMoved(double x, double y, long recordedAtNanos) {
         if (!windowHidden || (appPreferences.isTopPill() && !appPreferences.isTopEdgeReveal())) {
+            motion.reset();
             return;
         }
 
-        long now = System.nanoTime();
+        if (appPreferences.isFastTopEdgeReveal()) {
+            latestApproach.set(motion.observe(x, y, recordedAtNanos));
+        } else {
+            motion.reset();
+            latestApproach.set(null);
+        }
 
-        if (now - lastHoverSample < 40_000_000L) {
+        if (pointerUpdateQueued.compareAndSet(false, true)) {
+            Platform.runLater(() -> {
+                pointerDelay.setDuration(Duration.millis(appPreferences.isFastTopEdgeReveal() ? 16 : 40));
+                pointerDelay.playFromStart();
+            });
+        }
+    }
+
+    private void sampleHiddenPointer() {
+        pointerUpdateQueued.set(false);
+        if (window.isShowing()) {
             return;
         }
 
-        lastHoverSample = now;
-        Platform.runLater(() -> {
-            if (window.isShowing() || windowController == null) {
-                return;
-            }
+        if (pointer == null) {
+            pointer = new Robot();
+        }
 
-            if (pointer == null) {
-                pointer = new Robot();
-            }
-
-            var position = pointer.getMousePosition();
-            windowController.handleHiddenPointer(position.getX(), position.getY());
-        });
+        var position = pointer.getMousePosition();
+        windowController.handleHiddenPointer(position.getX(), position.getY(), latestApproach.get());
     }
 
 }

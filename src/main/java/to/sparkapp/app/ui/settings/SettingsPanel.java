@@ -11,7 +11,15 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.Theme;
-import to.sparkapp.app.ui.settings.components.*;
+import to.sparkapp.app.ui.settings.components.AnimatedSettingsButton;
+import to.sparkapp.app.ui.settings.components.DonationSection;
+import to.sparkapp.app.ui.settings.components.GeneralSettingsCard;
+import to.sparkapp.app.ui.settings.components.HotkeySection;
+import to.sparkapp.app.ui.settings.components.PillSettingsCard;
+import to.sparkapp.app.ui.settings.components.SettingsCard;
+import to.sparkapp.app.ui.settings.components.SettingsRow;
+import to.sparkapp.app.ui.settings.components.SettingsSection;
+import to.sparkapp.app.ui.settings.components.SettingsToggleRow;
 import to.sparkapp.app.utils.GlobalHotkeyManager;
 import to.sparkapp.app.utils.UpdateChecker;
 
@@ -32,6 +40,8 @@ public class SettingsPanel extends VBox {
 
     @Setter
     private Runnable onBackgroundMemoryChanged;
+    @Setter
+    private Runnable onPillSettingsChanged;
 
     private final AppPreferences appPreferences;
     private final GlobalHotkeyManager hotkeyManager;
@@ -75,37 +85,29 @@ public class SettingsPanel extends VBox {
         buildGeneralSection();
         addStrut(SECTION_GAP);
 
+        addSection("Pill", new PillSettingsCard(appPreferences, this::pillSettingsChanged));
+        addStrut(SECTION_GAP);
+
         buildBrowserSection();
         addStrut(18);
     }
 
     private void buildGeneralSection() {
-        var card = new SettingsCard();
+        addSection("General", new GeneralSettingsCard(appPreferences, enabled -> {
+            if (onRememberLastAiChanged != null) {
+                onRememberLastAiChanged.accept(enabled);
+            }
+        }, enabled -> {
+            if (onAutoUpdateChanged != null) {
+                onAutoUpdateChanged.accept(enabled);
+            }
+        }));
+    }
 
-        card.addRow(toggleRow("Remember last site", "Reopen on the page you left", appPreferences.isRememberLastAi(),
-                val -> {
-                    if (onRememberLastAiChanged != null) {
-                        onRememberLastAiChanged.accept(val);
-                    }
-                }));
-
-        card.addRow(
-                toggleRow("Run on system startup", "Launch Spark when you sign in", appPreferences.isAutoStartEnabled(),
-                        appPreferences::setAutoStartEnabled));
-
-        card.addRow(toggleRow("Start in the background", "Stay in the tray until the hotkey is pressed",
-                appPreferences.isStartApplicationHiddenEnabled(), appPreferences::setStartApplicationHiddenEnabled));
-
-        card.addRow(toggleRow("Check for updates automatically", "Look for a new release on startup",
-                appPreferences.isCheckUpdatesOnStartupEnabled(), val -> {
-                    appPreferences.setCheckUpdatesOnStartup(val);
-
-                    if (onAutoUpdateChanged != null) {
-                        onAutoUpdateChanged.accept(val);
-                    }
-                }));
-
-        addSection("General", card);
+    private void pillSettingsChanged() {
+        if (onPillSettingsChanged != null) {
+            onPillSettingsChanged.run();
+        }
     }
 
     private void buildHotkeySection() {
@@ -156,10 +158,7 @@ public class SettingsPanel extends VBox {
     }
 
     private SettingsRow toggleRow(String title, String description, boolean initialValue, Consumer<Boolean> onChange) {
-        var toggle = new AnimatedToggleSwitch(initialValue);
-        toggle.setOnChange(onChange);
-
-        return new SettingsRow(title, description, toggle);
+        return new SettingsToggleRow(title, description, initialValue, onChange);
     }
 
     private void addStrut(double height) {

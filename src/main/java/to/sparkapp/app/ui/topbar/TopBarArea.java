@@ -28,7 +28,7 @@ public class TopBarArea extends HBox {
 
     public TopBarArea(AiConfiguration configuration, FxWebViewPane browser, Stage frame, AppPreferences preferences, Runnable onSettings, Runnable onHide, WindowController controller, Runnable onSitesChanged) {
         sizes = new WindowSizeMenu(frame, preferences, controller);
-        options = new WindowOptionsMenu(preferences, browser, controller, onSettings);
+        options = new WindowOptionsMenu(preferences, browser, onSettings);
         getStyleClass().add("shell-bar");
         setMinHeight(HEIGHT);
         setPrefHeight(HEIGHT);
@@ -42,8 +42,8 @@ public class TopBarArea extends HBox {
         dock = new AiDock(configuration.getConfigurations(), browser, preferences, browser.getActiveSiteId());
 
         double dockBudget = dock.desiredWidth();
-        dock.prefWidthProperty()
-                .bind(Bindings.createDoubleBinding(() -> Math.max(36, Math.min(dockBudget, frame.getWidth() - 240)),
+        dock.prefWidthProperty().bind(
+                Bindings.createDoubleBinding(() -> Math.max(36, Math.min(dockBudget, frame.getWidth() - 240)),
                         frame.widthProperty()));
         dock.maxWidthProperty().bind(dock.prefWidthProperty());
         dock.minWidthProperty().bind(dock.prefWidthProperty());

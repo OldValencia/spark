@@ -299,6 +299,18 @@ public class AppPreferences {
 
     public synchronized void setTopPill(boolean enabled) {
         config.topPill = enabled;
+        if (enabled) {
+            config.fastTopEdgeReveal = false;
+        }
+        saveDebounced();
+    }
+
+    public synchronized boolean isFastTopEdgeReveal() {
+        return !isTopPill() && Boolean.TRUE.equals(config.fastTopEdgeReveal);
+    }
+
+    public synchronized void setFastTopEdgeReveal(boolean enabled) {
+        config.fastTopEdgeReveal = enabled && !isTopPill();
         saveDebounced();
     }
 

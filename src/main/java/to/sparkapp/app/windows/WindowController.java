@@ -76,8 +76,8 @@ public final class WindowController {
         if (!preferences.isReducedMotion() && isDocked()) {
             settledY = stage.getY();
             revealY.set(settledY - 12);
-            reveal.getKeyFrames()
-                    .setAll(new KeyFrame(Duration.millis(120), new KeyValue(revealY, settledY, Interpolator.EASE_OUT)));
+            reveal.getKeyFrames().setAll(
+                    new KeyFrame(Duration.millis(120), new KeyValue(revealY, settledY, Interpolator.EASE_OUT)));
             visibility = Visibility.OPENING;
             reveal.setOnFinished(event -> visibility = Visibility.VISIBLE);
             reveal.playFromStart();
@@ -111,8 +111,8 @@ public final class WindowController {
         persist();
     }
 
-    public void handleHiddenPointer(double x, double y) {
-        pill.handleHiddenPointer(x, y);
+    void handleHiddenPointer(double x, double y, PointerApproach approach) {
+        pill.handleHiddenPointer(x, y, approach);
     }
 
     public void refreshPill() {

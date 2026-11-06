@@ -186,9 +186,9 @@ public class MainWindow extends Stage {
         }
     }
 
-    public void onGlobalMouseMoved() {
+    public void onGlobalMouseMoved(double x, double y, long recordedAtNanos) {
         if (autoHide != null) {
-            autoHide.onGlobalMouseMoved();
+            autoHide.onGlobalMouseMoved(x, y, recordedAtNanos);
         }
     }
 
@@ -335,6 +335,7 @@ public class MainWindow extends Stage {
             settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
             settingsPanel.setOnClearCookies(fxWebViewPane::clearCookies);
             settingsPanel.setOnBackgroundMemoryChanged(fxWebViewPane::refreshResourcePolicy);
+            settingsPanel.setOnPillSettingsChanged(windowController::refreshPill);
             settingsPanel.setOnZoomEnabledChanged(enabled -> fxWebViewPane.resetZoom());
 
             settingsWindow = new SettingsWindow(this, settingsPanel);

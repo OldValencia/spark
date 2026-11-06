@@ -235,7 +235,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
     @Override
     public void nativeMouseMoved(NativeMouseEvent e) {
         if (!recording) {
-            mainWindow.onGlobalMouseMoved();
+            mainWindow.onGlobalMouseMoved(e.getX(), e.getY(), System.nanoTime());
         }
     }
 
