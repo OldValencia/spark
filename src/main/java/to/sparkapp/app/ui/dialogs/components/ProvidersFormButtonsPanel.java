@@ -32,7 +32,13 @@ public class ProvidersFormButtonsPanel extends HBox {
     private Button createButton(String text, boolean primary) {
         var button = new Button(text);
         button.getStyleClass().add(primary ? "primary-button" : "quiet-button");
-        if (primary) button.setDefaultButton(true); else button.setCancelButton(true);
+
+        if (primary) {
+            button.setDefaultButton(true);
+        } else {
+            button.setCancelButton(true);
+        }
+
         return button;
     }
 }

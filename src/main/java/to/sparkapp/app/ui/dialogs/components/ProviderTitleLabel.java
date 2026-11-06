@@ -1,10 +1,10 @@
 package to.sparkapp.app.ui.dialogs.components;
 
-import to.sparkapp.app.ui.Theme;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import to.sparkapp.app.ui.Theme;
 
 public class ProviderTitleLabel extends Label {
 

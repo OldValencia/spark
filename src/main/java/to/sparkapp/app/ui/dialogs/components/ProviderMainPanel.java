@@ -7,7 +7,9 @@ import javafx.scene.paint.Color;
 
 public class ProviderMainPanel extends BorderPane {
 
-    /** Space the dialog scene has to reserve around the panel for the shadow. */
+    /**
+     * Space the dialog scene has to reserve around the panel for the shadow.
+     */
     public static final double SHADOW_PADDING = 20;
 
     public ProviderMainPanel() {

@@ -10,10 +10,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
-/** Replaces complete JSON files and retains the last readable configuration. */
-final class JsonFiles {
-    private JsonFiles() {}
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
+/**
+ * Replaces complete JSON files and retains the last readable configuration.
+ */
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+final class JsonFiles {
     static <T> T read(File file, ObjectReader reader) throws IOException {
         try {
             return reader.readValue(file);
@@ -32,16 +36,22 @@ final class JsonFiles {
         byte[] json = mapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(value);
         Path target = file.toPath().toAbsolutePath();
         Files.createDirectories(target.getParent());
+
         if (Files.exists(target)) {
             byte[] previous = Files.readAllBytes(target);
             boolean readable;
+
             try {
                 readable = mapper.readTree(previous) != null;
             } catch (IOException invalid) {
                 readable = false;
             }
-            if (readable) replace(backup(target), previous);
+
+            if (readable) {
+                replace(backup(target), previous);
+            }
         }
+
         replace(target, json);
     }
 
@@ -51,8 +61,10 @@ final class JsonFiles {
 
     private static void replace(Path target, byte[] bytes) throws IOException {
         Path temporary = Files.createTempFile(target.getParent(), "spark-config-", ".tmp");
+
         try {
             Files.write(temporary, bytes);
+
             try {
                 Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             } catch (AtomicMoveNotSupportedException unsupported) {

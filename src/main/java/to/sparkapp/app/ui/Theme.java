@@ -21,10 +21,16 @@ public class Theme {
     public static final Color ACCENT = Color.web("#c6c6d2");
     public static final Color BORDER = Color.web("#414247");
 
-    /** Elevated surface used by the settings cards. */
+    /**
+     * Elevated surface used by the settings cards.
+     */
     public static final Color BG_CARD = Color.web("#2d2e33");
-    /** Hairline between rows inside a card. */
+
+    /**
+     * Hairline between rows inside a card.
+     */
     public static final Color SEPARATOR = Color.rgb(48, 48, 52);
+
     public static final Color BG_ROW_HOVER = Color.rgb(45, 45, 49);
     public static final Color DANGER = Color.rgb(255, 94, 91);
 
@@ -48,28 +54,20 @@ public class Theme {
     public static final Font FONT_SETTINGS_HINT = Font.font(FONT_NAME, 11.5);
 
     public static String toHex(Color color) {
-        return String.format("#%02X%02X%02X",
-                (int) (color.getRed() * 255),
-                (int) (color.getGreen() * 255),
+        return String.format("#%02X%02X%02X", (int) (color.getRed() * 255), (int) (color.getGreen() * 255),
                 (int) (color.getBlue() * 255));
     }
 
     public static String toHexWithAlpha(Color color) {
-        return String.format("#%02X%02X%02X%02X",
-                (int) (color.getRed() * 255),
-                (int) (color.getGreen() * 255),
-                (int) (color.getBlue() * 255),
-                (int) (color.getOpacity() * 255));
+        return String.format("#%02X%02X%02X%02X", (int) (color.getRed() * 255), (int) (color.getGreen() * 255),
+                (int) (color.getBlue() * 255), (int) (color.getOpacity() * 255));
     }
 
     public static Color lerp(Color a, Color b, double t) {
         t = clamp(t);
-        return new Color(
-                a.getRed() + (b.getRed() - a.getRed()) * t,
-                a.getGreen() + (b.getGreen() - a.getGreen()) * t,
-                a.getBlue() + (b.getBlue() - a.getBlue()) * t,
-                a.getOpacity() + (b.getOpacity() - a.getOpacity()) * t
-        );
+
+        return new Color(a.getRed() + (b.getRed() - a.getRed()) * t, a.getGreen() + (b.getGreen() - a.getGreen()) * t,
+                a.getBlue() + (b.getBlue() - a.getBlue()) * t, a.getOpacity() + (b.getOpacity() - a.getOpacity()) * t);
     }
 
     public static Color withAlpha(Color c, double alpha) {
@@ -82,15 +80,19 @@ public class Theme {
 
     private static String resolveFontName() {
         var available = Font.getFamilies();
+
         if (available.contains("SF Pro Display")) {
             return "SF Pro Display";
         }
+
         if (available.contains("SF Pro Text")) {
             return "SF Pro Text";
         }
+
         if (available.contains("Segoe UI")) {
             return "Segoe UI";
         }
+
         return "SansSerif";
     }
 }

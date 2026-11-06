@@ -2,21 +2,21 @@ package to.sparkapp.app.config;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-import to.sparkapp.app.utils.AutoStartManager;
-import to.sparkapp.app.utils.UrlUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+
+import lombok.extern.slf4j.Slf4j;
+import to.sparkapp.app.config.AiConfiguration.AiConfig;
+import to.sparkapp.app.utils.AutoStartManager;
+import to.sparkapp.app.utils.UrlUtils;
 
 @Slf4j
 public class AppPreferences {
@@ -26,10 +26,12 @@ public class AppPreferences {
 
     private final ObjectMapper mapper = new ObjectMapper();
     private AppConfig config;
+    private final SiteHistory history;
 
     private final ScheduledExecutorService saveScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         var t = new Thread(r, "preferences-save");
         t.setDaemon(true);
+
         return t;
     });
     private volatile ScheduledFuture<?> pendingDebouncedSave;
@@ -42,66 +44,29 @@ public class AppPreferences {
         this.file = file;
         mapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
         load();
-        initDefaults();
+        history = new SiteHistory(config, this::save, this::saveDebounced);
+
+        if (config.initializeDefaults()) {
+            save();
+        }
     }
 
     private void load() {
         if (!file.exists() && !new File(file + ".bak").exists()) {
             config = new AppConfig();
+
             return;
         }
 
         try {
             config = JsonFiles.read(file, mapper.readerFor(AppConfig.class));
-            if (config == null) config = new AppConfig();
+
+            if (config == null) {
+                config = new AppConfig();
+            }
         } catch (IOException e) {
             log.error("Failed to load application preferences", e);
             config = new AppConfig();
-        }
-    }
-
-    private void initDefaults() {
-        boolean changed = false;
-
-        if (config.rememberLastAi == null) {
-            config.rememberLastAi = Boolean.parseBoolean(AppPreferencesKeys.REMEMBER_LAST_AI.getDefaultValue());
-            changed = true;
-        }
-        if (config.lastZoomValue == null) {
-            config.lastZoomValue = Double.parseDouble(AppPreferencesKeys.LAST_ZOOM_VALUE.getDefaultValue());
-            changed = true;
-        }
-        if (config.zoomEnabled == null) {
-            config.zoomEnabled = Boolean.parseBoolean(AppPreferencesKeys.ZOOM_ENABLED.getDefaultValue());
-            changed = true;
-        }
-        if (config.aiOrder == null) {
-            config.aiOrder = new ArrayList<>();
-            changed = true;
-        }
-        if (config.checkUpdatesOnStartup == null) {
-            config.checkUpdatesOnStartup = Boolean.parseBoolean(AppPreferencesKeys.CHECK_UPDATES_ON_STARTUP.getDefaultValue());
-            changed = true;
-        }
-        if (config.autoStartEnabled == null) {
-            config.autoStartEnabled = Boolean.parseBoolean(AppPreferencesKeys.AUTO_START_ENABLED.getDefaultValue());
-            changed = true;
-        }
-        if (config.startApplicationHiddenEnabled == null) {
-            config.startApplicationHiddenEnabled = Boolean.parseBoolean(AppPreferencesKeys.START_APPLICATION_HIDDEN_ENABLED.getDefaultValue());
-            changed = true;
-        }
-        if (config.hotkeyToStartApplication == null) {
-            config.hotkeyToStartApplication = new ArrayList<>();
-            changed = true;
-        }
-        if (config.darkModeEnabled == null) {
-            config.darkModeEnabled = Boolean.parseBoolean(AppPreferencesKeys.DARK_MODE_ENABLED.getDefaultValue());
-            changed = true;
-        }
-
-        if (changed) {
-            save();
         }
     }
 
@@ -110,6 +75,7 @@ public class AppPreferences {
      */
     private synchronized void save() {
         file.getAbsoluteFile().getParentFile().mkdirs();
+
         try {
             JsonFiles.write(file, mapper, config);
         } catch (IOException e) {
@@ -118,61 +84,48 @@ public class AppPreferences {
     }
 
     /**
-     * Deferred write — coalesces multiple rapid calls into one disk write
-     * 500 ms after the last mutation.  Used for values that can change very
-     * frequently (current URL, zoom level).
+     * Deferred write — coalesces multiple rapid calls into one disk write 500 ms after the last
+     * mutation. Used for values that can change very frequently (current URL, zoom level).
      */
     private void saveDebounced() {
         if (pendingDebouncedSave != null) {
             pendingDebouncedSave.cancel(false);
         }
+
         pendingDebouncedSave = saveScheduler.schedule(this::save, 500, TimeUnit.MILLISECONDS);
     }
 
     /**
-     * Writes any pending debounced changes straight away. Must be called before the
-     * process exits, otherwise the last URL and zoom level are silently lost.
+     * Writes any pending debounced changes straight away. Must be called before the process exits,
+     * otherwise the last URL and zoom level are silently lost.
      */
     public synchronized void flush() {
         var pending = pendingDebouncedSave;
+
         if (pending != null && !pending.isDone()) {
             pending.cancel(false);
             save();
         }
     }
 
-    public synchronized String getLastSiteId() { return config.lastSiteId; }
-
-    public synchronized String getSiteUrl(AiConfiguration.AiConfig site) {
-        if (!isRememberLastAi() || config.siteUrls == null) return null;
-        var url = config.siteUrls.get(site.id());
-        return UrlUtils.isSameHost(url, site.url()) ? url : null;
+    public synchronized String getLastSiteId() {
+        return config.lastSiteId;
     }
 
-    public synchronized void rememberSitePage(AiConfiguration.AiConfig site, String url, boolean active) {
-        if (!isRememberLastAi() || !UrlUtils.isSameHost(url, site.url())) return;
-        if (config.siteUrls == null) config.siteUrls = new HashMap<>();
-        config.siteUrls.put(site.id(), url);
-        if (active) {
-            config.lastSiteId = site.id();
-            config.lastUrl = url;
-        }
-        saveDebounced();
+    public synchronized String getSiteUrl(AiConfig site) {
+        return history.getSiteUrl(site);
+    }
+
+    public synchronized void rememberSitePage(AiConfig site, String url, boolean active) {
+        history.rememberSitePage(site, url, active);
     }
 
     public synchronized void clearSiteHistory() {
-        config.siteUrls = new HashMap<>();
-        config.lastSiteId = null;
-        config.lastUrl = null;
-        save();
+        history.clearSiteHistory();
     }
 
-    public synchronized void pruneSiteHistory(List<AiConfiguration.AiConfig> sites) {
-        if (config.siteUrls == null) return;
-        config.siteUrls.entrySet().removeIf(entry -> sites.stream().noneMatch(site ->
-                site.id().equals(entry.getKey()) && UrlUtils.isSameHost(entry.getValue(), site.url())));
-        if (sites.stream().noneMatch(site -> site.id().equals(config.lastSiteId))) config.lastSiteId = null;
-        saveDebounced();
+    public synchronized void pruneSiteHistory(List<AiConfig> sites) {
+        history.pruneSiteHistory(sites);
     }
 
     public synchronized String getLastUrl() {
@@ -182,6 +135,7 @@ public class AppPreferences {
     public synchronized void setRememberLastAi(boolean remember) {
         config.rememberLastAi = remember;
         save();
+
         if (!remember) {
             config.lastUrl = null;
             config.lastSiteId = null;
@@ -207,10 +161,12 @@ public class AppPreferences {
 
     public synchronized void setZoomEnabled(boolean zoomEnabled) {
         config.zoomEnabled = zoomEnabled;
+
         if (!zoomEnabled) {
             // Written directly: setLastZoomValue() is a no-op once zoom is disabled.
             config.lastZoomValue = 0.0;
         }
+
         save();
     }
 
@@ -261,9 +217,8 @@ public class AppPreferences {
     }
 
     public synchronized List<Integer> getHotkeyToStartApplication() {
-        return config.hotkeyToStartApplication != null
-                ? new ArrayList<>(config.hotkeyToStartApplication)
-                : new ArrayList<>();
+        return config.hotkeyToStartApplication != null ? new ArrayList<>(
+                config.hotkeyToStartApplication) : new ArrayList<>();
     }
 
     public synchronized void setDarkModeEnabled(boolean darkModeEnabled) {
@@ -285,9 +240,9 @@ public class AppPreferences {
     }
 
     /**
-     * Drops the remembered URL only when it no longer belongs to any configured
-     * provider. A deep link such as {@code gemini.google.com/app/<id>} is kept, so
-     * the app reopens on the exact conversation the user left.
+     * Drops the remembered URL only when it no longer belongs to any configured provider. A deep
+     * link such as {@code gemini.google.com/app/<id>} is kept, so the app reopens on the exact
+     * conversation the user left.
      */
     public synchronized void cleanupLastUrlIfNeeded(List<String> validUrls) {
         if (config.lastUrl == null || validUrls.contains(config.lastUrl)) {
@@ -303,54 +258,58 @@ public class AppPreferences {
         save();
     }
 
-    @Data
-    private static class AppConfig {
-        private WindowPlacement windowPlacement;
-        private Boolean alwaysOnTop;
-        private Boolean reducedMotion;
-        private Boolean autoHide;
-        private Boolean topPill;
-        private Boolean topEdgeReveal;
-        private String lastUrl;
-        private String lastSiteId;
-        private Map<String, String> siteUrls;
-        private Boolean rememberLastAi;
-        private Double lastZoomValue;
-        private Boolean zoomEnabled;
-        private List<String> aiOrder;
-        private Boolean checkUpdatesOnStartup;
-        private Boolean autoStartEnabled;
-        private Boolean startApplicationHiddenEnabled;
-        private List<Integer> hotkeyToStartApplication;
-        private Boolean darkModeEnabled;
-        private Boolean reduceBackgroundMemory;
+    public record WindowPlacement(boolean docked, double x, double y, double width, double height, double manualWidth,
+                                  double manualHeight, double monitorX, double monitorY) {
     }
 
-    public record WindowPlacement(boolean docked, double x, double y, double width, double height,
-                                  double manualWidth, double manualHeight, double monitorX, double monitorY) {}
-
-    public synchronized WindowPlacement getWindowPlacement() { return config.windowPlacement; }
+    public synchronized WindowPlacement getWindowPlacement() {
+        return config.windowPlacement;
+    }
 
     public synchronized void setWindowPlacement(WindowPlacement placement) {
         config.windowPlacement = placement;
         saveDebounced();
     }
 
-    public synchronized boolean isAlwaysOnTop() { return !Boolean.FALSE.equals(config.alwaysOnTop); }
+    public synchronized boolean isAlwaysOnTop() {
+        return !Boolean.FALSE.equals(config.alwaysOnTop);
+    }
 
     public synchronized void setAlwaysOnTop(boolean enabled) {
         config.alwaysOnTop = enabled;
         saveDebounced();
     }
 
-    public synchronized boolean isReducedMotion() { return Boolean.TRUE.equals(config.reducedMotion); }
+    public synchronized boolean isReducedMotion() {
+        return Boolean.TRUE.equals(config.reducedMotion);
+    }
 
-    public synchronized boolean isAutoHide() { return Boolean.TRUE.equals(config.autoHide); }
-    public synchronized void setAutoHide(boolean enabled) { config.autoHide = enabled; saveDebounced(); }
-    public synchronized boolean isTopPill() { return !Boolean.FALSE.equals(config.topPill); }
-    public synchronized void setTopPill(boolean enabled) { config.topPill = enabled; saveDebounced(); }
-    public synchronized boolean isTopEdgeReveal() { return !Boolean.FALSE.equals(config.topEdgeReveal); }
-    public synchronized void setTopEdgeReveal(boolean enabled) { config.topEdgeReveal = enabled; saveDebounced(); }
+    public synchronized boolean isAutoHide() {
+        return Boolean.TRUE.equals(config.autoHide);
+    }
+
+    public synchronized void setAutoHide(boolean enabled) {
+        config.autoHide = enabled;
+        saveDebounced();
+    }
+
+    public synchronized boolean isTopPill() {
+        return !Boolean.FALSE.equals(config.topPill);
+    }
+
+    public synchronized void setTopPill(boolean enabled) {
+        config.topPill = enabled;
+        saveDebounced();
+    }
+
+    public synchronized boolean isTopEdgeReveal() {
+        return !Boolean.FALSE.equals(config.topEdgeReveal);
+    }
+
+    public synchronized void setTopEdgeReveal(boolean enabled) {
+        config.topEdgeReveal = enabled;
+        saveDebounced();
+    }
 
     public synchronized void setReducedMotion(boolean enabled) {
         config.reducedMotion = enabled;

@@ -23,7 +23,9 @@ import javafx.scene.shape.StrokeLineCap;
 import javafx.util.Duration;
 import to.sparkapp.app.ui.Theme;
 
-/** Centered loading indicator with explicit recovery actions for failed navigation. */
+/**
+ * Centered loading indicator with explicit recovery actions for failed navigation.
+ */
 class WebViewLoadingOverlay extends StackPane {
     private final StackPane indicator = new StackPane();
     private final ImageView iconView = new ImageView();
@@ -43,6 +45,7 @@ class WebViewLoadingOverlay extends StackPane {
         var track = new Circle(17, Color.TRANSPARENT);
         track.setStroke(Color.web("#ffffff", 0.08));
         track.setStrokeWidth(2.5);
+
         var arc = new Arc(0, 0, 17, 17, 35, 95);
         arc.setType(ArcType.OPEN);
         arc.setFill(Color.TRANSPARENT);
@@ -50,6 +53,7 @@ class WebViewLoadingOverlay extends StackPane {
         arc.setStrokeWidth(2.5);
         arc.setStrokeLineCap(StrokeLineCap.ROUND);
         // Fix the rotation origin at the circle center, not the arc's partial bounds.
+
         var ring = new Group(track, arc);
         indicator.setMinSize(44, 44);
         indicator.setPrefSize(44, 44);
@@ -68,18 +72,24 @@ class WebViewLoadingOverlay extends StackPane {
         message.setMaxWidth(360);
         message.setStyle("-fx-text-fill: #b9beb5; -fx-text-alignment: center; -fx-font-size: 13px;");
         actions.setAlignment(Pos.CENTER);
-        retry.setStyle("-fx-background-color: #bfd6ab; -fx-text-fill: #252c25; -fx-background-radius: 7; -fx-padding: 8 18;");
-        showPage.setStyle("-fx-background-color: #30342f; -fx-text-fill: #d7dfd0; -fx-background-radius: 7; -fx-padding: 8 18;");
+        retry.setStyle("-fx-background-color: #bfd6ab; -fx-text-fill: #252c25; -fx-background-radius: 7;" +
+                " -fx-padding: 8 18;");
+        showPage.setStyle("-fx-background-color: #30342f; -fx-text-fill: #d7dfd0; -fx-background-radius: 7;" +
+                " -fx-padding: 8 18;");
+
         for (var node : new Region[]{indicator, message, actions, retry, showPage}) {
             node.managedProperty().bind(node.visibleProperty());
         }
+
         var content = new VBox(18, indicator, message, actions);
         content.setAlignment(Pos.CENTER);
         content.setMaxWidth(380);
         content.setMaxHeight(Region.USE_PREF_SIZE);
         getChildren().add(content);
         visibleProperty().addListener((observable, previous, visible) -> {
-            if (!visible) pauseAnimation();
+            if (!visible) {
+                pauseAnimation();
+            }
         });
     }
 
@@ -92,18 +102,27 @@ class WebViewLoadingOverlay extends StackPane {
         setAccessibleText("Loading site");
         toFront();
         setVisible(true);
-        if (rotation.getStatus() != Animation.Status.RUNNING) rotation.playFromStart();
+
+        if (rotation.getStatus() != Animation.Status.RUNNING) {
+            rotation.playFromStart();
+        }
+
         if (autoHideMs > 0) {
             activeTimer = new PauseTransition(Duration.millis(autoHideMs));
             activeTimer.setOnFinished(event -> {
                 deactivate();
-                if (onAutoHide != null) onAutoHide.run();
+
+                if (onAutoHide != null) {
+                    onAutoHide.run();
+                }
             });
             activeTimer.play();
         }
     }
 
-    void pauseAnimation() { rotation.stop(); }
+    void pauseAnimation() {
+        rotation.stop();
+    }
 
     void deactivate() {
         cancelTimer();
@@ -111,9 +130,13 @@ class WebViewLoadingOverlay extends StackPane {
         setVisible(false);
     }
 
-    boolean isActive() { return isVisible(); }
+    boolean isActive() {
+        return isVisible();
+    }
 
-    void showError(String text, Runnable onRetry) { showError(text, onRetry, null); }
+    void showError(String text, Runnable onRetry) {
+        showError(text, onRetry, null);
+    }
 
     void showError(String text, Runnable onRetry, Runnable onShowPage) {
         cancelTimer();
@@ -123,7 +146,11 @@ class WebViewLoadingOverlay extends StackPane {
         message.setVisible(true);
         retry.setOnAction(event -> onRetry.run());
         showPage.setVisible(onShowPage != null);
-        showPage.setOnAction(event -> { if (onShowPage != null) onShowPage.run(); });
+        showPage.setOnAction(event -> {
+            if (onShowPage != null) {
+                onShowPage.run();
+            }
+        });
         actions.setVisible(true);
         setAccessibleText(text);
         toFront();

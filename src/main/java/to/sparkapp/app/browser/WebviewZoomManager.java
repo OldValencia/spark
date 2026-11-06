@@ -1,11 +1,11 @@
 package to.sparkapp.app.browser;
 
+import java.util.Locale;
+import java.util.function.Consumer;
+
 import javafx.application.Platform;
 import lombok.Setter;
 import to.sparkapp.app.config.AppPreferences;
-
-import java.util.function.Consumer;
-import java.util.Locale;
 
 /**
  * Manages browser zoom levels, CSS injection, and zoom UI callbacks.
@@ -26,7 +26,10 @@ class WebviewZoomManager {
     }
 
     void handleZoomCommand(String direction) {
-        if (!appPreferences.isZoomEnabled()) return;
+        if (!appPreferences.isZoomEnabled()) {
+            return;
+        }
+
         switch (direction) {
             case "up" -> changeZoom(true);
             case "down" -> changeZoom(false);

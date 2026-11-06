@@ -1,6 +1,7 @@
 package to.sparkapp.app.ui.settings.components;
 
-import to.sparkapp.app.ui.Theme;
+import java.util.function.Consumer;
+
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
@@ -13,8 +14,7 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 import lombok.Setter;
-
-import java.util.function.Consumer;
+import to.sparkapp.app.ui.Theme;
 
 public class AnimatedToggleSwitch extends Pane {
 
@@ -67,12 +67,9 @@ public class AnimatedToggleSwitch extends Pane {
         var targetColor = enabled ? Theme.TOGGLE_BG_ON : Theme.TOGGLE_BG_OFF;
         var targetX = enabled ? maxX : minX;
 
-        timeline.getKeyFrames().add(
-                new KeyFrame(ANIM,
-                        new KeyValue(bgRect.fillProperty(), targetColor, Interpolator.EASE_BOTH),
-                        new KeyValue(thumb.centerXProperty(), targetX, Interpolator.EASE_BOTH)
-                )
-        );
+        timeline.getKeyFrames()
+                .add(new KeyFrame(ANIM, new KeyValue(bgRect.fillProperty(), targetColor, Interpolator.EASE_BOTH),
+                        new KeyValue(thumb.centerXProperty(), targetX, Interpolator.EASE_BOTH)));
 
         timeline.play();
 

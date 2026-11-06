@@ -1,14 +1,18 @@
 package to.sparkapp.app.browser;
 
-import org.junit.jupiter.api.Test;
-import java.util.ArrayList;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.ArrayList;
+
+import org.junit.jupiter.api.Test;
+
 class WebviewNavigatorTest {
-    @Test void pageChangesUpdateRecoveryUrlWithoutRememberingAuthentication() {
+    @Test
+    void pageChangesUpdateRecoveryUrlWithoutRememberingAuthentication() {
         var navigator = new WebviewNavigator(null, null);
         var notifications = new ArrayList<String>();
         navigator.setOnUrlChanged(notifications::add);
+
         try {
             navigator.handleUrlChange("https://example.com/conversation/123");
             assertEquals("https://example.com/conversation/123", navigator.getCurrentUrl());
@@ -23,7 +27,8 @@ class WebviewNavigatorTest {
         }
     }
 
-    @Test void authenticationUsesParsedHostAndPath() {
+    @Test
+    void authenticationUsesParsedHostAndPath() {
         assertTrue(WebviewNavigator.isAuthUrl("https://accounts.google.com/o/oauth2/auth"));
         assertTrue(WebviewNavigator.isAuthUrl("https://example.com/login"));
         assertTrue(WebviewNavigator.isAuthUrl("https://example.com/oauth/callback"));

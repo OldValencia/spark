@@ -26,8 +26,10 @@ public class AiDockDragManager {
     private DockItemNode draggedNode;
 
     public void cancel() {
-        stopAutoscroll(); draggedNode = null;
-        dragStartIndex = -1; dragCurrentTargetIndex = -1;
+        stopAutoscroll();
+        draggedNode = null;
+        dragStartIndex = -1;
+        dragCurrentTargetIndex = -1;
         dock.getDockItems().forEach(DockItemNode::cancelDrag);
     }
 
@@ -38,12 +40,17 @@ public class AiDockDragManager {
 
     public void startAutoscrollIfNeeded(double sceneX) {
         this.lastDragSceneX = sceneX;
+
         if (autoscrollTimeline == null) {
             autoscrollTimeline = new Timeline(new KeyFrame(Duration.millis(16), e -> {
                 var scrollBounds = dock.getScrollPane().localToScene(dock.getScrollPane().getBoundsInLocal());
-                if (scrollBounds == null) return;
+
+                if (scrollBounds == null) {
+                    return;
+                }
 
                 var step = getStep(scrollBounds);
+
                 if (step != 0) {
                     dock.getScrollPane().setHvalue(Math.clamp(dock.getScrollPane().getHvalue() + step, 0.0, 1.0));
                     dock.refreshArrowOpacity();
@@ -55,6 +62,7 @@ public class AiDockDragManager {
             }));
             autoscrollTimeline.setCycleCount(Animation.INDEFINITE);
         }
+
         autoscrollTimeline.play();
     }
 
@@ -63,6 +71,7 @@ public class AiDockDragManager {
         double rightThreshold = scrollBounds.getMaxX() - 30;
 
         double step = 0;
+
         if (lastDragSceneX < leftThreshold) {
             double ratio = (leftThreshold - lastDragSceneX) / 30.0;
             step = -HOLD_SCROLL_RATE * Math.min(2.0, ratio);
@@ -70,6 +79,7 @@ public class AiDockDragManager {
             double ratio = (lastDragSceneX - rightThreshold) / 30.0;
             step = HOLD_SCROLL_RATE * Math.min(2.0, ratio);
         }
+
         return step;
     }
 
@@ -81,6 +91,7 @@ public class AiDockDragManager {
 
     public void onDragStart(DockItemNode draggedNode) {
         this.draggedNode = draggedNode;
+
         var children = dock.getDockContainer().getChildren();
         dragStartIndex = children.indexOf(draggedNode);
         dragCurrentTargetIndex = dragStartIndex;
@@ -97,16 +108,21 @@ public class AiDockDragManager {
             dragCurrentTargetIndex = insertIndex;
 
             for (int i = 0; i < children.size(); i++) {
-                if (i == dragStartIndex) continue;
+                if (i == dragStartIndex) {
+                    continue;
+                }
+
                 var child = children.get(i);
                 var targetTranslateX = getTargetTranslateX(i);
 
                 var oldAnim = (Timeline) child.getProperties().get("dragAnim");
-                if (oldAnim != null) oldAnim.stop();
+
+                if (oldAnim != null) {
+                    oldAnim.stop();
+                }
 
                 var anim = new Timeline(new KeyFrame(Duration.millis(appPreferences.isReducedMotion() ? 1 : 150),
-                    new KeyValue(child.translateXProperty(), targetTranslateX)
-                ));
+                        new KeyValue(child.translateXProperty(), targetTranslateX)));
                 child.getProperties().put("dragAnim", anim);
                 anim.play();
             }
@@ -125,14 +141,17 @@ public class AiDockDragManager {
                 targetTranslateX = dragNodeWidth;
             }
         }
+
         return targetTranslateX;
     }
 
     private int getInsertIndex(double visualCenterX, ObservableList<Node> children) {
         int newTargetIndex = dragStartIndex;
+
         for (int i = 0; i < children.size(); i++) {
             var child = children.get(i);
             double centerX = child.getLayoutX() + child.getLayoutBounds().getWidth() / 2.0;
+
             if (visualCenterX < centerX) {
                 newTargetIndex = i;
                 break;
@@ -142,16 +161,19 @@ public class AiDockDragManager {
         }
 
         int insertIndex;
+
         if (newTargetIndex > dragStartIndex) {
             insertIndex = newTargetIndex - 1;
         } else {
             insertIndex = newTargetIndex;
         }
+
         return insertIndex;
     }
 
     public void onDragEnd(DockItemNode draggedNode) {
         draggedNode.setViewOrder(0.0);
+
         var children = dock.getDockContainer().getChildren();
 
         if (dragCurrentTargetIndex != dragStartIndex && dragCurrentTargetIndex >= 0) {
@@ -168,9 +190,13 @@ public class AiDockDragManager {
             draggedNode.setTranslateX(draggedNode.getTranslateX() - diff);
 
             dock.getDockItems().clear();
+
             for (var child : children) {
-                if (child instanceof DockItemNode din) dock.getDockItems().add(din);
+                if (child instanceof DockItemNode din) {
+                    dock.getDockItems().add(din);
+                }
             }
+
             AiDockOrderUtils.saveCurrentOrder(dock.getDockItems(), appPreferences);
             dock.orderChanged();
         }
@@ -178,7 +204,11 @@ public class AiDockDragManager {
         for (var child : children) {
             if (child != draggedNode) {
                 Timeline oldAnim = (Timeline) child.getProperties().get("dragAnim");
-                if (oldAnim != null) oldAnim.stop();
+
+                if (oldAnim != null) {
+                    oldAnim.stop();
+                }
+
                 child.setTranslateX(0);
             }
         }
