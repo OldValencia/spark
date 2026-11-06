@@ -1,76 +1,52 @@
 package to.sparkapp.app.ui.dialogs.components;
 
-import to.sparkapp.app.config.AiConfiguration;
-import to.sparkapp.app.ui.Theme;
-import javafx.geometry.Insets;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.Region;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontPosture;
+import javafx.scene.paint.Color;
+import to.sparkapp.app.config.AiConfiguration;
+import to.sparkapp.app.ui.Theme;
 
 public class ProviderFormPanel extends VBox {
-
     private final TextField nameField;
     private final TextField urlField;
+    private final ColorPicker colorPicker;
+    private final AiConfiguration.AiConfig provider;
+    private boolean manualColor, useIconColor;
 
     public ProviderFormPanel(AiConfiguration.AiConfig provider) {
-        this.setSpacing(8);
-
-        this.getChildren().add(createLabel("Provider Name:"));
-        nameField = createTextField(provider != null ? provider.name() : "");
-        this.getChildren().add(nameField);
-
-        // Custom spacer
-        var spacer = new Region();
-        spacer.setMinHeight(4);
-        this.getChildren().add(spacer);
-
-        this.getChildren().add(createLabel("Website URL:"));
-        urlField = createTextField(provider != null ? provider.url() : "https://");
-        this.getChildren().add(urlField);
-
-        var hintLabel = new Label("Icon and color will be automatically extracted from the website");
-        hintLabel.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), FontPosture.ITALIC, 11));
-        hintLabel.setTextFill(Theme.TEXT_TERTIARY);
-        this.getChildren().add(hintLabel);
+        this.provider = provider;
+        setSpacing(14);
+        nameField = new TextField(provider == null ? "" : provider.name());
+        nameField.setPromptText("Site name"); nameField.setAccessibleText("Site name");
+        urlField = new TextField(provider == null ? "https://" : provider.url());
+        urlField.setAccessibleText("Website address");
+        var hint = new Label("The site icon is fetched automatically.");
+        hint.getStyleClass().add("field-hint"); hint.setWrapText(true);
+        Color initial = Color.web("#bcbcc6");
+        if (provider != null) { try { initial = Color.web(provider.color()); } catch (RuntimeException ignored) {} }
+        colorPicker = new ColorPicker(initial); colorPicker.setAccessibleText("Site accent color");
+        colorPicker.setOnAction(e -> { manualColor = true; useIconColor = false; hint.setText("Your color will be kept for this site."); });
+        var automatic = new Button("Use icon color"); automatic.getStyleClass().add("quiet-button");
+        automatic.setOnAction(e -> { useIconColor = true; manualColor = false; hint.setText("The accent will be taken from the icon when saved."); });
+        getChildren().addAll(field("Name", nameField), field("Website", urlField), field("Accent", new HBox(8, colorPicker, automatic)), hint);
     }
 
-    public String getNameFieldValue() {
-        return nameField.getText().trim();
+    private VBox field(String title, Node control) {
+        var label = new Label(title); label.getStyleClass().add("field-label");
+        return new VBox(6, label, control);
     }
 
-    public String getUrlFieldValue() {
-        return urlField.getText().trim();
+    public String getColorValue() {
+        if (useIconColor) return null;
+        return manualColor ? Theme.toHex(colorPicker.getValue()) : provider == null ? null : provider.color();
     }
-
-    private Label createLabel(String text) {
-        var label = new Label(text);
-        label.setFont(Theme.FONT_SETTINGS);
-        label.setTextFill(Theme.TEXT_SECONDARY);
-        label.setPadding(new Insets(0, 0, 4, 0));
-        return label;
-    }
-
-    private TextField createTextField(String text) {
-        var field = new TextField(text);
-        field.setFont(Theme.FONT_SETTINGS);
-
-        // CSS to match the custom Swing look
-        var bg = Theme.toHex(Theme.BG_POPUP);
-        var border = Theme.toHex(Theme.BORDER);
-        var textFill = Theme.toHex(Theme.TEXT_PRIMARY);
-
-        field.setStyle("""
-                    -fx-background-color: %s;
-                    -fx-border-color: %s;
-                    -fx-text-fill: %s;
-                    -fx-padding: 8 12 8 12;
-                    -fx-border-radius: 4;
-                    -fx-background-radius: 4;
-                """.formatted(bg, border, textFill)
-        );
-        return field;
-    }
+    public boolean isUseIconColor() { return useIconColor; }
+    public boolean isManualColor() { return manualColor; }
+    public String getNameFieldValue() { return nameField.getText().trim(); }
+    public String getUrlFieldValue() { return urlField.getText().trim(); }
 }

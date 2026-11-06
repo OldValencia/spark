@@ -18,9 +18,9 @@ import java.util.function.Consumer;
 
 public class AnimatedToggleSwitch extends Pane {
 
-    private static final double WIDTH = 44;
-    private static final double HEIGHT = 26;
-    private static final double THUMB_RADIUS = 10;
+    private static final double WIDTH = 36;
+    private static final double HEIGHT = 22;
+    private static final double THUMB_RADIUS = 8;
     private static final double INSET = 3;
     private static final Duration ANIM = Duration.millis(180);
 

@@ -24,7 +24,7 @@ public class AiDockIconUtils {
     private static final int RENDER_SIZE = AiDock.ICON_SIZE * RENDER_SCALE;
 
     public static void preloadIcon(AiConfiguration.AiConfig cfg, File userIconsDir) {
-        if (cfg.icon() == null) {
+        if (cfg.icon() == null || cfg.icon().isBlank()) {
             return;
         }
 

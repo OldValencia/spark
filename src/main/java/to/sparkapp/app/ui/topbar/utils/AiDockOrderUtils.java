@@ -17,13 +17,9 @@ public class AiDockOrderUtils {
         }
 
         var ordered = new ArrayList<AiConfiguration.AiConfig>();
-        for (var url : savedOrder) {
-            if (url.startsWith("http")) {
-                configs.stream()
-                        .filter(c -> c.url().equals(url))
-                        .findFirst()
-                        .ifPresent(ordered::add);
-            }
+        for (var key : savedOrder) {
+            configs.stream().filter(c -> c.id().equals(key) || c.url().equals(key))
+                    .filter(c -> !ordered.contains(c)).findFirst().ifPresent(ordered::add);
         }
 
         for (var config : configs) {
@@ -37,7 +33,7 @@ public class AiDockOrderUtils {
 
     public static void saveCurrentOrder(List<DockItemNode> dockItems, AppPreferences appPreferences) {
         var urls = dockItems.stream()
-                .map(item -> item.getConfig().url())
+                .map(item -> item.getConfig().id())
                 .collect(Collectors.toList());
         appPreferences.setAiOrder(urls);
     }

@@ -314,6 +314,12 @@ public class AppPreferences {
 
     @Data
     private static class AppConfig {
+        private WindowPlacement windowPlacement;
+        private Boolean alwaysOnTop;
+        private Boolean reducedMotion;
+        private Boolean autoHide;
+        private Boolean topPill;
+        private Boolean topEdgeReveal;
         private String lastUrl;
         private String lastSiteId;
         private Map<String, String> siteUrls;
@@ -327,5 +333,36 @@ public class AppPreferences {
         private List<Integer> hotkeyToStartApplication;
         private Boolean darkModeEnabled;
         private Boolean reduceBackgroundMemory;
+    }
+
+    public record WindowPlacement(boolean docked, double x, double y, double width, double height,
+                                  double manualWidth, double manualHeight, double monitorX, double monitorY) {}
+
+    public synchronized WindowPlacement getWindowPlacement() { return config.windowPlacement; }
+
+    public synchronized void setWindowPlacement(WindowPlacement placement) {
+        config.windowPlacement = placement;
+        saveDebounced();
+    }
+
+    public synchronized boolean isAlwaysOnTop() { return !Boolean.FALSE.equals(config.alwaysOnTop); }
+
+    public synchronized void setAlwaysOnTop(boolean enabled) {
+        config.alwaysOnTop = enabled;
+        saveDebounced();
+    }
+
+    public synchronized boolean isReducedMotion() { return Boolean.TRUE.equals(config.reducedMotion); }
+
+    public synchronized boolean isAutoHide() { return Boolean.TRUE.equals(config.autoHide); }
+    public synchronized void setAutoHide(boolean enabled) { config.autoHide = enabled; saveDebounced(); }
+    public synchronized boolean isTopPill() { return !Boolean.FALSE.equals(config.topPill); }
+    public synchronized void setTopPill(boolean enabled) { config.topPill = enabled; saveDebounced(); }
+    public synchronized boolean isTopEdgeReveal() { return !Boolean.FALSE.equals(config.topEdgeReveal); }
+    public synchronized void setTopEdgeReveal(boolean enabled) { config.topEdgeReveal = enabled; saveDebounced(); }
+
+    public synchronized void setReducedMotion(boolean enabled) {
+        config.reducedMotion = enabled;
+        saveDebounced();
     }
 }

@@ -55,6 +55,7 @@ public class FxWebViewPane extends StackPane {
     private final PauseTransition loadTimeout = new PauseTransition(Duration.seconds(20));
     private final AppPreferences appPreferences;
     private final String startUrl;
+    private String activeSiteId;
     private final WebViewLoadingOverlay overlay;
 
     private boolean bridgeStarted = false;
@@ -80,7 +81,6 @@ public class FxWebViewPane extends StackPane {
     private final Timeline hostGeometryWatchdog = new Timeline(
             new KeyFrame(Duration.millis(400), e -> checkHostGeometry()));
 
-    @Setter
     private Consumer<Double> zoomCallback;
     @Setter
     private Consumer<Boolean> onAuthPageDetected;
@@ -456,6 +456,7 @@ public class FxWebViewPane extends StackPane {
      */
     public void setCurrentConfig(AiConfiguration.AiConfig config, String targetUrl) {
         if (disposed || clearingData) return;
+        activeSiteId = config.id();
         var existing = sessions.get(config.id());
         var previousConfig = existing == null ? null : sites.get(existing);
         if (previousConfig != null && !previousConfig.url().equals(config.url())) {
@@ -465,6 +466,7 @@ public class FxWebViewPane extends StackPane {
             sessions.remove(config.id());
             existing = null;
         }
+        if (existing != null) sites.put(existing, config);
         if (existing == bridge) return;
         bridge.hibernate();
         if (existing == null) {
@@ -478,6 +480,7 @@ public class FxWebViewPane extends StackPane {
         } else {
             bridge = existing;
         }
+        if (zoomCallback != null) zoomCallback.accept(bridge.getZoomPercent());
         bridgeStarted = started.contains(bridge);
         var url = targetUrl != null ? targetUrl : appPreferences.getSiteUrl(config);
         appPreferences.rememberSitePage(config, url != null ? url : config.url(), true);
@@ -502,6 +505,15 @@ public class FxWebViewPane extends StackPane {
             }
             return removed;
         });
+    }
+
+    public String getActiveSiteId() {
+        return activeSiteId;
+    }
+
+    public void setZoomCallback(Consumer<Double> callback) {
+        zoomCallback = callback;
+        if (callback != null) callback.accept(bridge.getZoomPercent());
     }
 
     public void clearCookies() {
@@ -537,6 +549,8 @@ public class FxWebViewPane extends StackPane {
     }
 
     public void resetZoom() { bridge.resetZoom(); }
+    public void zoomIn() { bridge.zoomIn(); }
+    public void zoomOut() { bridge.zoomOut(); }
 
     public void shutdown(Runnable onComplete) {
         overlay.deactivate();

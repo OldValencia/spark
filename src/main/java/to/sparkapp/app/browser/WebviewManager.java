@@ -462,6 +462,10 @@ public class WebviewManager {
         zoomManager.setZoomCallback(callback);
     }
 
+    public double getZoomPercent() { return zoomManager.getZoomPercent(); }
+    public void zoomIn() { zoomManager.handleZoomCommand("up"); }
+    public void zoomOut() { zoomManager.handleZoomCommand("down"); }
+
     public void setOnUrlChanged(Consumer<String> callback) {
         navigator.setOnUrlChanged(callback);
     }

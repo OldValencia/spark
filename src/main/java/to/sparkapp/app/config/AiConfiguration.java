@@ -47,6 +47,11 @@ public class AiConfiguration {
             String name,
             String url,
             String color,
-            String icon
-    ) {}
+            String icon,
+            String colorSource
+    ) {
+        public AiConfig(String id, String name, String url, String color, String icon) {
+            this(id, name, url, color, icon, null);
+        }
+    }
 }

@@ -58,6 +58,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
             GlobalScreen.registerNativeHook();
             GlobalScreen.addNativeKeyListener(this);
             GlobalScreen.addNativeMouseListener(this);
+            GlobalScreen.addNativeMouseMotionListener(this);
             watchdogTimer.start();
             initialized = true;
         } catch (NativeHookException e) {
@@ -74,6 +75,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
             watchdogTimer.stop();
             GlobalScreen.removeNativeKeyListener(this);
             GlobalScreen.removeNativeMouseListener(this);
+            GlobalScreen.removeNativeMouseMotionListener(this);
             GlobalScreen.unregisterNativeHook();
         } catch (NativeHookException ignored) {
         }
@@ -172,6 +174,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
 
         if (!recording) {
             tryTriggerHotkey();
+            mainWindow.onGlobalMousePressed();
         }
     }
 
@@ -220,6 +223,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
 
     @Override
     public void nativeMouseMoved(NativeMouseEvent e) {
+        if (!recording) mainWindow.onGlobalMouseMoved();
     }
 
     @Override

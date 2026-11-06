@@ -5,6 +5,7 @@ import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef;
 import com.sun.jna.platform.win32.WinUser;
+import com.sun.jna.ptr.IntByReference;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,44 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class NativeWindowUtils {
+
+    public static long foregroundWindow() {
+        if (!SystemUtils.isWindows()) return 0;
+        var window = User32.INSTANCE.GetForegroundWindow();
+        return window == null ? 0 : Pointer.nativeValue(window.getPointer());
+    }
+
+    public static boolean isSparkForeground() {
+        if (!SystemUtils.isWindows()) return false;
+        var foreground = User32.INSTANCE.GetForegroundWindow();
+        if (foreground == null) return false;
+        // Root owner covers embedded browser children, popups and native file dialogs.
+        var owner = User32.INSTANCE.GetAncestor(foreground, 3);
+        var process = new IntByReference();
+        User32.INSTANCE.GetWindowThreadProcessId(owner != null ? owner : foreground, process);
+        return Integer.toUnsignedLong(process.getValue()) == ProcessHandle.current().pid();
+    }
+
+    public static void restoreForeground(long handle) {
+        if (!SystemUtils.isWindows() || handle == 0) return;
+        var window = new WinDef.HWND(new Pointer(handle));
+        if (User32.INSTANCE.IsWindow(window)) User32.INSTANCE.SetForegroundWindow(window);
+    }
+
+    public static void makeNonActivatingToolWindow(String title) {
+        if (!SystemUtils.isWindows()) return;
+        var handle = getJavaFXWindowHandle(title);
+        if (handle == 0) return;
+        var window = new WinDef.HWND(new Pointer(handle));
+        boolean visible = User32.INSTANCE.IsWindowVisible(window);
+        // Windows requires hide/change/show to remove an existing taskbar button.
+        if (visible) User32.INSTANCE.ShowWindow(window, WinUser.SW_HIDE);
+        int style = getWindowLong(window, GWL_EXSTYLE);
+        setWindowLong(window, GWL_EXSTYLE, (style & ~WS_EX_APPWINDOW) | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
+        User32.INSTANCE.SetWindowPos(window, null, 0, 0, 0, 0,
+                SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+        if (visible) User32.INSTANCE.ShowWindow(window, WinUser.SW_SHOWNOACTIVATE);
+    }
 
     /**
      * GetDpiForWindow is not exposed by JNA's User32 mapping, so it is bound separately.
@@ -47,6 +86,8 @@ public final class NativeWindowUtils {
     private static final int WS_EX_CLIENTEDGE = 0x00000200;
     private static final int WS_EX_STATICEDGE = 0x00020000;
     private static final int WS_EX_APPWINDOW = 0x00040000;
+    private static final int WS_EX_TOOLWINDOW = 0x00000080;
+    private static final int WS_EX_NOACTIVATE = 0x08000000;
 
     private static final int SWP_NOSIZE = 0x0001;
     private static final int SWP_NOMOVE = 0x0002;

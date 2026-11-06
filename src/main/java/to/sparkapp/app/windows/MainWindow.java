@@ -10,6 +10,13 @@ import to.sparkapp.app.ui.topbar.components.AiDock;
 import to.sparkapp.app.utils.GlobalHotkeyManager;
 import javafx.application.Platform;
 import javafx.scene.Scene;
+import javafx.geometry.Insets;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
+import javafx.stage.Window;
+import javafx.scene.robot.Robot;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -19,7 +26,8 @@ import lombok.extern.slf4j.Slf4j;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.io.IOException;
-import java.util.stream.Collectors;
+import to.sparkapp.app.utils.NativeWindowUtils;
+import to.sparkapp.app.utils.SystemUtils;
 
 @Slf4j
 public class MainWindow extends Stage {
@@ -31,6 +39,15 @@ public class MainWindow extends Stage {
     private SettingsWindow settingsWindow;
     private BorderPane rootPane;
     private GlobalHotkeyManager globalHotkeyManager;
+    private WindowController windowController;
+    private TopBarArea topBar;
+    private Color siteAccent = Color.web("#bcbcc6");
+    private long previousForeground;
+    private long lastShown;
+    private final PauseTransition outsideClick = new PauseTransition(Duration.millis(100));
+    private volatile boolean windowHidden = true;
+    private long lastHoverSample;
+    private Robot pointer;
 
     // Сохраняем иконку трея, чтобы можно было удалить её при выходе
     private TrayIcon trayIcon;
@@ -38,7 +55,7 @@ public class MainWindow extends Stage {
     private boolean authMode = false;
 
     public static final int HEIGHT = 700;
-    private static final int WIDTH = 820;
+    private static final int WIDTH = 860;
     private static final int RADIUS = 14;
 
     public MainWindow(AiConfiguration aiConfiguration, AppPreferences appPreferences) {
@@ -47,7 +64,7 @@ public class MainWindow extends Stage {
 
         this.setTitle("Spark");
         this.initStyle(StageStyle.TRANSPARENT);
-        this.setAlwaysOnTop(true);
+        this.setAlwaysOnTop(appPreferences.isAlwaysOnTop());
         this.setWidth(WIDTH);
         this.setHeight(HEIGHT);
         this.centerOnScreen();
@@ -55,15 +72,9 @@ public class MainWindow extends Stage {
         Platform.setImplicitExit(false);
 
         this.focusedProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal) {
-                if (authMode && this.isAlwaysOnTop()) {
-                    this.setAlwaysOnTop(false);
-                }
-            } else {
-                if (!this.isAlwaysOnTop()) {
-                    this.setAlwaysOnTop(true);
-                }
-            }
+            this.setAlwaysOnTop(appPreferences.isAlwaysOnTop() && (newVal || !authMode));
+            if (!newVal && windowController != null) windowController.cancelInteraction();
+            if (!newVal && topBar != null) topBar.getDock().cancelInteraction();
         });
 
         this.setOnCloseRequest(e -> {
@@ -75,6 +86,7 @@ public class MainWindow extends Stage {
         });
 
         this.showingProperty().addListener((obs, oldVal, isShowing) -> {
+            windowHidden = !isShowing;
             if (!isShowing && settingsWindow != null) settingsWindow.close();
         });
 
@@ -93,9 +105,7 @@ public class MainWindow extends Stage {
 
     public void setAuthMode(boolean isAuth) {
         this.authMode = isAuth;
-        if (!isAuth && !this.isAlwaysOnTop()) {
-            this.setAlwaysOnTop(true);
-        }
+        this.setAlwaysOnTop(appPreferences.isAlwaysOnTop() && (!isAuth || isFocused()));
     }
 
     /**
@@ -107,6 +117,10 @@ public class MainWindow extends Stage {
     }
 
     public void showMainWindow(long requestedAt) {
+        if (!isShowing() && !NativeWindowUtils.isSparkForeground()) previousForeground = NativeWindowUtils.foregroundWindow();
+        lastShown = System.nanoTime();
+        if (windowController != null) windowController.opening();
+        setAlwaysOnTop(appPreferences.isAlwaysOnTop());
         this.show();
         this.setIconified(false);
         this.toFront();
@@ -122,6 +136,13 @@ public class MainWindow extends Stage {
      * Public so that GlobalHotkeyManager can use it alongside showMainWindow().
      */
     public void hideMainWindow() {
+        hideMainWindow(true);
+    }
+
+    private void hideMainWindow(boolean restoreFocus) {
+        outsideClick.stop();
+        if (windowController != null) windowController.closing();
+        if (topBar != null) topBar.closeMenus();
         if (settingsWindow != null && settingsWindow.isOpen()) {
             settingsWindow.close();
         }
@@ -129,15 +150,38 @@ public class MainWindow extends Stage {
             fxWebViewPane.onWindowHidden();
         }
         this.hide();
+        if (restoreFocus) NativeWindowUtils.restoreForeground(previousForeground);
+    }
+
+    public void onGlobalMousePressed() {
+        if (!appPreferences.isAutoHide()) return;
+        Platform.runLater(() -> {
+            if (!appPreferences.isAutoHide() || !isShowing() || authMode || System.nanoTime() - lastShown < 250_000_000L) return;
+            outsideClick.setOnFinished(e -> {
+                boolean ownForeground = SystemUtils.isWindows() ? NativeWindowUtils.isSparkForeground()
+                        : Window.getWindows().stream().anyMatch(Window::isFocused);
+                if (isShowing() && appPreferences.isAutoHide() && !authMode && !ownForeground) hideMainWindow(false);
+            });
+            outsideClick.playFromStart();
+        });
+    }
+
+    public void onGlobalMouseMoved() {
+        if (!windowHidden || (appPreferences.isTopPill() && !appPreferences.isTopEdgeReveal())) return;
+        long now = System.nanoTime();
+        if (now - lastHoverSample < 40_000_000L) return;
+        lastHoverSample = now;
+        Platform.runLater(() -> {
+            if (isShowing() || windowController == null) return;
+            if (pointer == null) pointer = new Robot();
+            var position = pointer.getMousePosition();
+            windowController.handleHiddenPointer(position.getX(), position.getY());
+        });
     }
 
     private void handleProvidersChanged() {
         Platform.runLater(() -> {
-            var activeIcons = aiConfiguration.getConfigurations().stream()
-                    .map(AiConfiguration.AiConfig::icon)
-                    .filter(icon -> icon != null && !icon.isEmpty())
-                    .collect(Collectors.toList());
-            AiDock.pruneIconCache(activeIcons);
+            AiDock.clearIconCache();
             reloadTopBar();
         });
     }
@@ -146,12 +190,9 @@ public class MainWindow extends Stage {
         Platform.runLater(() -> {
             aiConfiguration.reload();
             fxWebViewPane.reconcileSites(aiConfiguration.getConfigurations());
+            if (topBar != null) topBar.dispose();
             rootPane.setTop(null);
-
-            var newTopBarArea = new TopBarArea(aiConfiguration, fxWebViewPane, this, settingsWindow, appPreferences,
-                    this::toggleSettings, this::hideMainWindow);
-
-            rootPane.setTop(newTopBarArea);
+            installTopBar();
             log.info("TopBar reloaded with {} providers", aiConfiguration.getConfigurations().size());
         });
     }
@@ -233,6 +274,9 @@ public class MainWindow extends Stage {
             settingsWindow.close();
         }
 
+        if (windowController != null) windowController.dispose();
+        outsideClick.stop();
+        if (topBar != null) topBar.dispose();
         this.hide();
         AiDock.clearIconCache();
         appPreferences.flush();
@@ -261,6 +305,16 @@ public class MainWindow extends Stage {
             rootPane = createRootPane();
             Scene scene = new Scene(rootPane, WIDTH, HEIGHT, Color.TRANSPARENT);
             this.setScene(scene);
+            scene.getStylesheets().add(getClass().getResource("/css/shell.css").toExternalForm());
+            windowController = new WindowController(this, appPreferences);
+            windowController.setOnReveal(this::showMainWindow);
+            windowController.dockedProperty().addListener((o, before, docked) -> updateShellStyle());
+            var grip = new Region(); grip.setPrefSize(36, 3); grip.setMaxSize(36, 3);
+            grip.setStyle("-fx-background-color:#90909c77;-fx-background-radius:3;");
+            var foot = new StackPane(grip); foot.setMinHeight(12); foot.setPrefHeight(12); foot.setMaxHeight(12);
+            rootPane.setBottom(foot);
+            windowController.installResize(scene, foot);
+            updateShellStyle();
 
             fxWebViewPane = getFxWebViewPane();
             rootPane.setCenter(fxWebViewPane);
@@ -286,15 +340,13 @@ public class MainWindow extends Stage {
 
             settingsWindow = new SettingsWindow(this, settingsPanel);
 
-            var topBarArea = new TopBarArea(aiConfiguration, fxWebViewPane, this, settingsWindow, appPreferences,
-                    this::toggleSettings, this::hideMainWindow);
-            rootPane.setTop(topBarArea);
+            installTopBar();
 
             setupTray();
 
             if (!appPreferences.isStartApplicationHiddenEnabled()) {
-                show();
-            }
+                showMainWindow();
+            } else windowController.refreshPill();
 
         } catch (Exception e) {
             log.error("Failed to initialize application", e);
@@ -304,12 +356,28 @@ public class MainWindow extends Stage {
 
     private BorderPane createRootPane() {
         var pane = new BorderPane();
+        pane.setPadding(new Insets(0, 5, 0, 5));
         pane.setStyle(
                 "-fx-background-color: " + Theme.toHex(Theme.BG_DEEP) + ";" +
                         "-fx-background-radius: " + RADIUS + "px;" +
                         "-fx-border-radius: " + RADIUS + "px;"
         );
         return pane;
+    }
+
+    private void installTopBar() {
+        topBar = new TopBarArea(aiConfiguration, fxWebViewPane, this, settingsWindow, appPreferences,
+                this::toggleSettings, this::hideMainWindow, windowController, this::handleProvidersChanged);
+        topBar.getDock().setOnAccentChanged(accent -> { siteAccent = accent; updateShellStyle(); });
+        rootPane.setTop(topBar);
+    }
+
+    private void updateShellStyle() {
+        if (rootPane == null) return;
+        var radius = windowController != null && windowController.isDocked() ? "0 0 16 16" : "16";
+        var outline = "#414247";
+        rootPane.setStyle("-fx-background-color:#25262a;-fx-background-radius:" + radius
+                + ";-fx-border-radius:" + radius + ";-fx-border-color:" + outline + ";-fx-border-width:1;");
     }
 
     private FxWebViewPane getFxWebViewPane() {

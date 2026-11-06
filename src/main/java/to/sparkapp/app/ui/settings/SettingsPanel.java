@@ -62,52 +62,31 @@ public class SettingsPanel extends VBox {
 
     private void initLayout() {
         this.setStyle("-fx-background-color: " + Theme.toHex(Theme.BG_BAR) + ";");
-        this.setPadding(new Insets(20, 22, 18, 22));
-        this.setMaxWidth(820);
+        this.setPadding(new Insets(14, 20, 18, 20));
+        this.setMaxWidth(Double.MAX_VALUE);
         this.setFillWidth(true);
     }
 
     private void buildUI() {
         this.getChildren().add(new DonationSection());
         addStrut(SECTION_GAP);
-
-        buildProvidersSection();
-        addStrut(SECTION_GAP);
-
-        buildGeneralSection();
-        addStrut(SECTION_GAP);
-
         if (hotkeyManager != null) {
             buildHotkeySection();
             addStrut(SECTION_GAP);
         }
 
+        buildGeneralSection();
+        addStrut(SECTION_GAP);
+
         buildBrowserSection();
         addStrut(18);
 
-        this.getChildren().add(new GithubLinkPanel());
-        addStrut(4);
-    }
-
-    private void buildProvidersSection() {
-        this.getChildren().add(new ProvidersManagementPanel(
-                aiConfiguration.getCustomProvidersManager(),
-                v -> {
-                    aiConfiguration.reload();
-                    if (onProvidersChanged != null) {
-                        onProvidersChanged.run();
-                    }
-                },
-                new ProvidersResetHandler(aiConfiguration, () -> {
-                    if (onProvidersChanged != null) onProvidersChanged.run();
-                })
-        ));
     }
 
     private void buildGeneralSection() {
         var card = new SettingsCard();
 
-        card.addRow(toggleRow("Remember last used AI",
+        card.addRow(toggleRow("Remember last site",
                 "Reopen on the page you left",
                 appPreferences.isRememberLastAi(),
                 val -> {

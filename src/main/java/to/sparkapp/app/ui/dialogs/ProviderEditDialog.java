@@ -5,22 +5,30 @@ import to.sparkapp.app.ui.dialogs.components.ProviderFormPanel;
 import to.sparkapp.app.ui.dialogs.components.ProviderMainPanel;
 import to.sparkapp.app.ui.dialogs.components.ProviderTitleLabel;
 import to.sparkapp.app.ui.dialogs.components.ProvidersFormButtonsPanel;
-import to.sparkapp.app.utils.SystemUtils;
 import to.sparkapp.app.utils.UrlUtils;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
+import javafx.scene.control.Label;
+import javafx.scene.control.Button;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
+import javafx.stage.Screen;
 import lombok.Getter;
+import java.util.List;
 
 public class ProviderEditDialog extends Stage {
 
     private final ProviderFormPanel providerFormPanel;
+    private final Label errorLabel = new Label();
+    @Getter private boolean deleted;
 
     @Getter
     private boolean confirmed = false;
@@ -34,12 +42,13 @@ public class ProviderEditDialog extends Stage {
         mainPanel.setTop(new ProviderTitleLabel(provider == null));
 
         providerFormPanel = new ProviderFormPanel(provider);
-        mainPanel.setCenter(providerFormPanel);
+        errorLabel.getStyleClass().add("field-error"); errorLabel.setWrapText(true); errorLabel.setMinHeight(18);
+        mainPanel.setCenter(new VBox(6, providerFormPanel, errorLabel));
 
         mainPanel.setBottom(buildButtonsPanel(provider));
 
         double width = 420;
-        double height = SystemUtils.isWindows() ? 330 : 290;
+        double height = 410;
 
         // The stage is transparent, so the shadow needs padding around the panel to
         // have somewhere to fall.
@@ -50,7 +59,14 @@ public class ProviderEditDialog extends Stage {
         root.setPickOnBounds(false);
 
         var scene = new Scene(root, width + pad * 2, height + pad * 2, Color.TRANSPARENT);
+        scene.getStylesheets().add(getClass().getResource("/css/shell.css").toExternalForm());
         this.setScene(scene);
+        setOnShown(e -> {
+            var work = Screen.getScreensForRectangle(owner.getX(), owner.getY(), owner.getWidth(), owner.getHeight())
+                    .stream().findFirst().orElse(Screen.getPrimary()).getVisualBounds();
+            setX(Math.clamp(owner.getX() + (owner.getWidth() - getWidth()) / 2, work.getMinX(), Math.max(work.getMinX(), work.getMaxX() - getWidth())));
+            setY(Math.clamp(owner.getY() + (owner.getHeight() - getHeight()) / 2, work.getMinY(), Math.max(work.getMinY(), work.getMaxY() - getHeight())));
+        });
     }
 
     private ProvidersFormButtonsPanel buildButtonsPanel(AiConfiguration.AiConfig provider) {
@@ -65,7 +81,17 @@ public class ProviderEditDialog extends Stage {
             this.close();
         };
 
-        return new ProvidersFormButtonsPanel(provider == null, actionConfirmed, actionCancelled);
+        var buttons = new ProvidersFormButtonsPanel(provider == null, actionConfirmed, actionCancelled);
+        if (provider != null) {
+            var remove = new Button("Remove site"); remove.getStyleClass().add("quiet-button");
+            remove.setOnAction(e -> {
+                if (remove.getText().equals("Confirm removal")) { deleted = true; confirmed = true; close(); }
+                else { remove.setText("Confirm removal"); errorLabel.setText("This removes the site and its unsent text. Click again to confirm."); }
+            });
+            var space = new Region(); HBox.setHgrow(space, Priority.ALWAYS);
+            buttons.getChildren().addAll(0, List.of(remove, space));
+        }
+        return buttons;
     }
 
     private boolean validateForm() {
@@ -73,7 +99,7 @@ public class ProviderEditDialog extends Stage {
         var url = getProviderUrl();
 
         if (name.isEmpty()) {
-            showValidationError("Please enter a provider name");
+            showValidationError("Enter a name for this site.");
             return false;
         }
 
@@ -86,16 +112,7 @@ public class ProviderEditDialog extends Stage {
     }
 
     private void showValidationError(String message) {
-        var alert = new Alert(Alert.AlertType.ERROR);
-        alert.initOwner(this);
-        alert.setTitle("Validation Error");
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-
-        var stage = (Stage) alert.getDialogPane().getScene().getWindow();
-        stage.setAlwaysOnTop(true);
-
-        alert.showAndWait();
+        errorLabel.setText(message);
     }
 
     public String getProviderName() {
@@ -105,4 +122,8 @@ public class ProviderEditDialog extends Stage {
     public String getProviderUrl() {
         return providerFormPanel.getUrlFieldValue();
     }
+
+    public String getProviderColor() { return providerFormPanel.getColorValue(); }
+    public boolean isUseIconColor() { return providerFormPanel.isUseIconColor(); }
+    public boolean isManualColor() { return providerFormPanel.isManualColor(); }
 }

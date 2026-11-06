@@ -40,6 +40,7 @@ public class SettingsRow extends HBox {
 
     private static Node buildTextBlock(String title, String description) {
         var titleLabel = new Label(title);
+        titleLabel.getStyleClass().add("setting-title");
         titleLabel.setFont(Theme.FONT_SETTINGS_TITLE);
         titleLabel.setTextFill(Theme.TEXT_PRIMARY);
 
@@ -48,11 +49,13 @@ public class SettingsRow extends HBox {
         }
 
         var descriptionLabel = new Label(description);
+        descriptionLabel.getStyleClass().add("setting-description");
         descriptionLabel.setFont(Theme.FONT_SETTINGS_HINT);
         descriptionLabel.setTextFill(Theme.TEXT_TERTIARY);
         descriptionLabel.setWrapText(true);
 
         var textBlock = new VBox(3, titleLabel, descriptionLabel);
+        textBlock.setMinWidth(0); HBox.setHgrow(textBlock, Priority.ALWAYS);
         textBlock.setAlignment(Pos.CENTER_LEFT);
         return textBlock;
     }

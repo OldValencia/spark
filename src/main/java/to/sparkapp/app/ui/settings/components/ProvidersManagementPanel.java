@@ -73,8 +73,8 @@ public class ProvidersManagementPanel extends VBox {
         if (dialog.isConfirmed()) {
             var name = dialog.getProviderName();
             var url = dialog.getProviderUrl();
-
-            executeAsyncOp(() -> providersManager.addCustomProvider(name, url));
+            var color = dialog.getProviderColor();
+            executeAsyncOp(() -> providersManager.addCustomProvider(name, url, color));
         }
     }
 
@@ -86,8 +86,10 @@ public class ProvidersManagementPanel extends VBox {
         if (dialog.isConfirmed()) {
             var name = dialog.getProviderName();
             var url = dialog.getProviderUrl();
-
-            executeAsyncOp(() -> providersManager.updateProvider(provider.id(), name, url, provider.color()));
+            var color = dialog.getProviderColor();
+            var auto = dialog.isUseIconColor();
+            var manual = dialog.isManualColor();
+            executeAsyncOp(() -> providersManager.updateProvider(provider.id(), name, url, color, auto, manual));
         }
     }
 

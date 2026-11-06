@@ -10,19 +10,19 @@ import lombok.NoArgsConstructor;
 public class Theme {
 
     public static final Color BG_DEEP = Color.rgb(22, 22, 24);
-    public static final Color BG_BAR = Color.rgb(28, 28, 30);
-    public static final Color BG_POPUP = Color.rgb(32, 32, 35);
+    public static final Color BG_BAR = Color.web("#25262a");
+    public static final Color BG_POPUP = Color.web("#2d2e33");
     public static final Color BG_HOVER = Color.rgb(42, 42, 46);
 
     public static final Color TEXT_PRIMARY = Color.rgb(230, 230, 232);
     public static final Color TEXT_SECONDARY = Color.rgb(160, 160, 165);
     public static final Color TEXT_TERTIARY = Color.rgb(120, 120, 125);
 
-    public static final Color ACCENT = Color.rgb(100, 160, 255);
-    public static final Color BORDER = Color.rgb(50, 50, 54);
+    public static final Color ACCENT = Color.web("#c6c6d2");
+    public static final Color BORDER = Color.web("#414247");
 
     /** Elevated surface used by the settings cards. */
-    public static final Color BG_CARD = Color.rgb(36, 36, 39);
+    public static final Color BG_CARD = Color.web("#2d2e33");
     /** Hairline between rows inside a card. */
     public static final Color SEPARATOR = Color.rgb(48, 48, 52);
     public static final Color BG_ROW_HOVER = Color.rgb(45, 45, 49);
@@ -36,15 +36,15 @@ public class Theme {
     public static final Color BTN_RING = Color.rgb(80, 80, 90);
 
     public static final Color TOGGLE_BG_OFF = Color.rgb(60, 60, 64);
-    public static final Color TOGGLE_BG_ON = ACCENT;
+    public static final Color TOGGLE_BG_ON = Color.web("#6da784");
     public static final Color TOGGLE_THUMB = Color.rgb(250, 250, 252);
 
     public static final String FONT_NAME = resolveFontName();
     public static final Font FONT_RIGHT_TOP_BAR_AREA = Font.font("SansSerif", 17);
     public static final Font FONT_SELECTOR = Font.font(FONT_NAME, 14);
-    public static final Font FONT_SETTINGS = Font.font(FONT_NAME, 15);
+    public static final Font FONT_SETTINGS = Font.font(FONT_NAME, 13);
     public static final Font FONT_SETTINGS_SECTION = Font.font(FONT_NAME, FontWeight.BOLD, 12);
-    public static final Font FONT_SETTINGS_TITLE = Font.font(FONT_NAME, FontWeight.MEDIUM, 14.5);
+    public static final Font FONT_SETTINGS_TITLE = Font.font(FONT_NAME, FontWeight.MEDIUM, 13);
     public static final Font FONT_SETTINGS_HINT = Font.font(FONT_NAME, 11.5);
 
     public static String toHex(Color color) {

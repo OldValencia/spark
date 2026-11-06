@@ -9,7 +9,8 @@ import javafx.scene.text.FontWeight;
 public class ProviderTitleLabel extends Label {
 
     public ProviderTitleLabel(boolean isAddDialog) {
-        super(isAddDialog ? "Add New AI Provider" : "Edit AI Provider");
+        super(isAddDialog ? "Add site" : "Edit site");
+        getStyleClass().add("dialog-title");
         this.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), FontWeight.BOLD, 18));
         this.setTextFill(Theme.TEXT_PRIMARY);
         this.setPadding(new Insets(0, 0, 16, 0));

@@ -1,7 +1,5 @@
 package to.sparkapp.app.ui.topbar.components;
 
-import to.sparkapp.app.config.AiConfiguration;
-import to.sparkapp.app.ui.Theme;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
@@ -9,226 +7,102 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
-import javafx.scene.layout.CornerRadii;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
-import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
 import lombok.Getter;
+import to.sparkapp.app.config.AiConfiguration;
+import to.sparkapp.app.ui.Theme;
 
+/** A stable tab: hovering and selecting never change its width. */
 public class DockItemNode extends HBox {
+    @Getter private final AiConfiguration.AiConfig config;
+    @Getter private final double expandedWidth;
+    @Getter private boolean isDragging;
+    private final AiDock dock;
+    private boolean selected, pressed;
+    private double pressX, pressY, dragStartLocalX;
 
-    @Getter
-    private final AiConfiguration.AiConfig config;
-    private final AiDock parentDock;
-    private final Label textLabel;
-    private final Timeline timeline;
-
-    private boolean isSelected = false;
-    private boolean isDockHovered = false;
-    private boolean isItemHovered = false;
-    @Getter
-    private boolean isDragging = false;
-    private double dragStartLocalX = 0;
-
-    private final double expandedWidth;
-    private final double iconWidth;
-
-    public DockItemNode(AiConfiguration.AiConfig config, AiDock parentDock) {
-        this.config = config;
-        this.parentDock = parentDock;
-
-        this.setHeight(AiDock.ITEM_HEIGHT);
-        this.setAlignment(Pos.CENTER_LEFT);
-        this.setSpacing(AiDock.GAP);
-        this.setCursor(Cursor.HAND);
-
-        this.setBackground(createBackground(Theme.BG_POPUP));
-        this.setStyle("""
-                    -fx-border-color: %s;
-                    -fx-border-radius: %spx;
-                    -fx-background-radius: %spx;
-                """.formatted(Theme.toHex(Theme.BORDER), AiDock.ITEM_HEIGHT, AiDock.ITEM_HEIGHT));
-
-        var image = AiDock.ICON_CACHE.get(config.icon());
+    public DockItemNode(AiConfiguration.AiConfig config, AiDock dock) {
+        this.config = config; this.dock = dock;
+        getStyleClass().add("site-tab");
+        setAlignment(Pos.CENTER_LEFT); setSpacing(7); setPadding(new Insets(0, 9, 0, 9));
+        setCursor(Cursor.HAND); setFocusTraversable(true); setAccessibleText(config.name());
+        Tooltip.install(this, ShellTooltip.create(config.name()));
+        var image = config.icon() == null ? null : AiDock.ICON_CACHE.get(config.icon());
         if (image != null && image.getWidth() > 1) {
-            var imageView = new ImageView(image);
-            imageView.setFitWidth(AiDock.ICON_SIZE);
-            imageView.setFitHeight(AiDock.ICON_SIZE);
-            imageView.setPreserveRatio(true);
-            imageView.setSmooth(true);
-            this.getChildren().add(imageView);
+            var icon = new ImageView(image); icon.setFitWidth(17); icon.setFitHeight(17); icon.setPreserveRatio(true);
+            getChildren().add(icon);
         } else {
-            var circle = new Circle(AiDock.ICON_SIZE / 2.0, Color.GRAY);
-            this.getChildren().add(circle);
+            var icon = new Label("↗"); icon.setMinWidth(17); icon.setTextFill(Theme.TEXT_SECONDARY); getChildren().add(icon);
         }
-
-        textLabel = new Label(config.name());
-        textLabel.setFont(Theme.FONT_SELECTOR);
-        textLabel.setTextFill(Theme.TEXT_PRIMARY);
-        textLabel.setOpacity(0.0);
-        this.getChildren().add(textLabel);
-
-        var tempText = new Text(config.name());
-        tempText.setFont(Theme.FONT_SELECTOR);
-        var textWidth = tempText.getLayoutBounds().getWidth();
-
-        this.expandedWidth = AiDock.PAD + AiDock.ICON_SIZE + AiDock.GAP + textWidth + AiDock.PAD;
-        this.iconWidth = AiDock.PAD + AiDock.ICON_SIZE + AiDock.PAD;
-
-        this.setPrefWidth(0);
-        this.setMaxWidth(0);
-
-        var clipRect = new Rectangle();
-        clipRect.widthProperty().bind(this.widthProperty());
-        clipRect.heightProperty().bind(this.heightProperty());
-        this.setClip(clipRect);
-
-        timeline = new Timeline();
-
-        setupInteraction();
-        updateState();
-    }
-
-    private void setupInteraction() {
-        this.setOnMouseEntered(e -> {
-            isItemHovered = true;
-            updateState();
-            if (!isSelected) {
-                this.setBackground(createBackground(Theme.BG_HOVER));
-            }
+        var name = new Label(config.name()); name.setFont(Font.font(Theme.FONT_NAME, 12));
+        name.setTextFill(Color.web("#b9b9c3")); name.setMinWidth(0);
+        getChildren().add(name);
+        var measured = new Text(config.name()); measured.setFont(name.getFont());
+        expandedWidth = 18 + 17 + 7 + 4 + Math.ceil(Math.min(112, measured.getLayoutBounds().getWidth()));
+        setMinWidth(expandedWidth); setPrefWidth(expandedWidth); setMaxWidth(expandedWidth);
+        setMinHeight(32); setPrefHeight(32); setMaxHeight(32);
+        setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ENTER || e.getCode() == KeyCode.SPACE) { dock.selectItem(this); e.consume(); }
         });
-
-        this.setOnMouseExited(e -> {
-            isItemHovered = false;
-            updateState();
-            if (!isSelected) {
-                this.setBackground(createBackground(Theme.BG_POPUP));
-            }
+        setOnMousePressed(e -> {
+            if (e.getButton() != MouseButton.PRIMARY) return;
+            pressed = true; isDragging = false;
+            pressX = e.getScreenX(); pressY = e.getScreenY();
+            dragStartLocalX = dock.getDockContainer().sceneToLocal(e.getSceneX(), e.getSceneY()).getX();
+            e.consume();
         });
-
-        this.setOnMousePressed(e -> {
-            parentDock.selectItem(this);
-            dragStartLocalX = parentDock.getDockContainer().sceneToLocal(e.getSceneX(), e.getSceneY()).getX();
-            isDragging = false;
-        });
-
-        this.setOnMouseDragged(e -> {
-            isItemHovered = true;
-            if (!isDragging) {
-                isDragging = true;
-                this.timeline.stop();
-                this.setPrefWidth(this.expandedWidth);
-                this.setMaxWidth(this.expandedWidth);
-                this.textLabel.setOpacity(1.0);
-                parentDock.getDragManager().onDragStart(this);
-            }
+        setOnMouseDragged(e -> {
+            if (!pressed || !e.isPrimaryButtonDown()) return;
+            if (!isDragging && Math.hypot(e.getScreenX() - pressX, e.getScreenY() - pressY) < 5) return;
+            if (!isDragging) { isDragging = true; dock.getDragManager().onDragStart(this); }
             updateDragPosition(e.getSceneX());
-            parentDock.getDragManager().startAutoscrollIfNeeded(e.getSceneX());
+            dock.getDragManager().startAutoscrollIfNeeded(e.getSceneX()); e.consume();
         });
-
-        this.setOnMouseReleased(e -> {
-            parentDock.getDragManager().stopAutoscroll();
+        setOnMouseReleased(e -> {
+            if (e.getButton() != MouseButton.PRIMARY || !pressed) return;
+            pressed = false; dock.getDragManager().stopAutoscroll();
             if (isDragging) {
-                isDragging = false;
-                parentDock.getDragManager().onDragEnd(this);
-                
-                Timeline oldAnim = (Timeline) this.getProperties().get("dragAnim");
-                if (oldAnim != null) oldAnim.stop();
-
-                Timeline anim = new Timeline(new KeyFrame(
-                    Duration.millis(150),
-                    new KeyValue(this.translateXProperty(), 0.0)
-                ));
-                this.getProperties().put("dragAnim", anim);
-                anim.setOnFinished(evt -> updateState());
-                anim.play();
-            }
+                isDragging = false; dock.getDragManager().onDragEnd(this);
+                var animation = new Timeline(new KeyFrame(Duration.millis(dock.isReducedMotion() ? 1 : 120),
+                        new KeyValue(translateXProperty(), 0)));
+                getProperties().put("dragAnim", animation); animation.play();
+            } else dock.selectItem(this);
+            e.consume();
         });
+        refreshState();
     }
 
     public void updateDragPosition(double sceneX) {
-        double currentLocalX = parentDock.getDockContainer().sceneToLocal(sceneX, 0).getX();
-        double deltaX = currentLocalX - dragStartLocalX;
-        this.setTranslateX(deltaX);
-        double visualCenterX = this.getLayoutX() + deltaX + this.getLayoutBounds().getWidth() / 2.0;
-        parentDock.getDragManager().onDrag(visualCenterX);
+        double x = dock.getDockContainer().sceneToLocal(sceneX, 0).getX() - dragStartLocalX;
+        setTranslateX(x); dock.getDragManager().onDrag(getLayoutX() + x + getWidth() / 2);
     }
 
-    public void setDockHovered(boolean dockHovered) {
-        this.isDockHovered = dockHovered;
-        updateState();
+    public void setSelected(boolean selected) { this.selected = selected; refreshState(); }
+
+    public void refreshState() {
+        ((Label) getChildren().getLast()).setTextFill(Color.web(selected ? "#eeeeF3" : "#b9b9c3"));
+        if (!selected) { setStyle(""); return; }
+        Color accent = Color.web("#bcbcc6");
+        try { accent = Color.web(config.color()); } catch (RuntimeException ignored) {}
+        String wash = Theme.toHex(Theme.lerp(Color.web("#25262a"), accent, .13));
+        String border = Theme.toHex(Theme.lerp(Color.web("#25262a"), accent, .30));
+        setStyle("-fx-background-color:" + wash + ";-fx-border-color:" + border + ";");
     }
 
-    public void setSelected(boolean selected) {
-        this.isSelected = selected;
-        if (selected) {
-            var accent = Theme.ACCENT;
-            try {
-                if (config.color() != null) {
-                    accent = Color.web(config.color());
-                }
-            } catch (Exception ignored) {
-            }
-            this.setBackground(createBackground(accent));
-            this.setStyle("-fx-border-color: transparent; -fx-background-radius: " + AiDock.ITEM_HEIGHT + "px;");
-        } else {
-            this.setBackground(createBackground(Theme.BG_POPUP));
-            this.setStyle("""
-                        -fx-border-color: %s;
-                        -fx-border-radius: %dpx;
-                        -fx-background-radius: %dpx;
-                    """.formatted(Theme.toHex(Theme.BORDER), AiDock.ITEM_HEIGHT, AiDock.ITEM_HEIGHT));
-        }
-        updateState();
+    public void cancelDrag() {
+        pressed = false; isDragging = false;
+        var animation = (Timeline) getProperties().remove("dragAnim");
+        if (animation != null) animation.stop();
+        setTranslateX(0); setViewOrder(0);
     }
 
-    private void updateState() {
-        if (isDragging) {
-            return;
-        }
-        timeline.stop();
-        timeline.getKeyFrames().clear();
-
-        var targetWidth = 0.0;
-        var textOpacity = 0.0;
-
-        if (isSelected) {
-            targetWidth = expandedWidth;
-            textOpacity = 1.0;
-        } else {
-            if (isDockHovered || isItemHovered) {
-                if (isItemHovered) {
-                    targetWidth = expandedWidth;
-                    textOpacity = 1.0;
-                } else {
-                    targetWidth = iconWidth;
-                    textOpacity = 0.0;
-                }
-            } else {
-                targetWidth = 0.0;
-                textOpacity = 0.0;
-            }
-        }
-
-        var paddingLeft = (targetWidth == iconWidth) ? (iconWidth - AiDock.ICON_SIZE) / 2.0 : AiDock.PAD;
-        this.setPadding(new Insets(0, 0, 0, paddingLeft));
-
-        timeline.getKeyFrames().add(new KeyFrame(Duration.millis(200),
-                new KeyValue(this.prefWidthProperty(), targetWidth),
-                new KeyValue(this.maxWidthProperty(), targetWidth),
-                new KeyValue(textLabel.opacityProperty(), textOpacity)
-        ));
-
-        timeline.play();
-    }
-
-    private Background createBackground(Color color) {
-        return new Background(new BackgroundFill(color, new CornerRadii(AiDock.ITEM_HEIGHT), Insets.EMPTY));
-    }
+    public void dispose() { cancelDrag(); }
 }

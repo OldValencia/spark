@@ -4,6 +4,7 @@ import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
+import java.awt.image.BufferedImage;
 
 /**
  * Picks the colour that represents a site logo, used as the provider accent.
@@ -41,7 +42,7 @@ public final class DominantColorExtractor {
             return null;
         }
 
-        java.awt.image.BufferedImage image;
+        BufferedImage image;
         try {
             image = ImageIO.read(imageFile);
         } catch (IOException | RuntimeException e) {
@@ -50,6 +51,11 @@ public final class DominantColorExtractor {
         if (image == null) {
             return null;
         }
+        return fromImage(image);
+    }
+
+    public static String fromImage(BufferedImage image) {
+        if (image == null) return null;
 
         var weights = new double[HUE_BUCKETS];
         var sinSum = new double[HUE_BUCKETS];
@@ -81,7 +87,7 @@ public final class DominantColorExtractor {
                 }
 
                 // Vivid pixels carry more of the brand than washed-out ones.
-                var weight = saturation * brightness;
+                var weight = saturation * brightness * (((argb >>> 24) & 0xFF) / 255.0);
                 var bucket = Math.min(HUE_BUCKETS - 1, (int) (hue * HUE_BUCKETS));
                 var radians = hue * 2 * Math.PI;
 
@@ -101,7 +107,7 @@ public final class DominantColorExtractor {
         }
 
         if (weights[winner] <= 0) {
-            return opaquePixels > 0 ? neutralFor(opaqueBrightnessSum / opaquePixels) : NEUTRAL;
+            return opaquePixels > 0 ? neutralFor(opaqueBrightnessSum / opaquePixels) : null;
         }
 
         // Averaging the hue as a vector avoids the wrap-around at red.

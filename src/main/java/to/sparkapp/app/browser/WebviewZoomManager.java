@@ -45,6 +45,10 @@ class WebviewZoomManager {
         setZoomInternal(0.0);
     }
 
+    public double getZoomPercent() {
+        return Math.round(Math.pow(1.2, appPreferences.isZoomEnabled() ? currentZoom : 0) * 100);
+    }
+
     private void setZoomInternal(double level) {
         this.currentZoom = level;
         appPreferences.setLastZoomValue(level);
@@ -64,7 +68,7 @@ class WebviewZoomManager {
     private void updateZoomDisplay(double level) {
         if (zoomCallback != null) {
             var pct = Math.pow(1.2, level) * 100.0;
-            var displayVal = Math.round(pct / 5.0) * 5.0;
+            var displayVal = (double) Math.round(pct);
             Platform.runLater(() -> zoomCallback.accept(displayVal));
         }
     }

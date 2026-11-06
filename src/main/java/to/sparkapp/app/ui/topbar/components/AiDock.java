@@ -1,18 +1,14 @@
 package to.sparkapp.app.ui.topbar.components;
 
-import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
-import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.ScrollEvent;
-import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import javafx.util.Duration;
+import javafx.scene.layout.Priority;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration;
@@ -30,18 +26,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+import javafx.scene.image.Image;
 
 @Slf4j
 public class AiDock extends StackPane {
 
-    public static final Map<String, javafx.scene.image.Image> ICON_CACHE = new ConcurrentHashMap<>();
-    public static final int ICON_SIZE = 24;
+    public static final Map<String, Image> ICON_CACHE = new ConcurrentHashMap<>();
+    public static final int ICON_SIZE = 18;
 
     static final int ITEM_HEIGHT = 32;
-    /** Item plus the 8 px breathing room above and below it. */
-    static final int DOCK_HEIGHT = ITEM_HEIGHT + 16;
+    /** Item plus four logical pixels of vertical padding on each side. */
+    static final int DOCK_HEIGHT = ITEM_HEIGHT + 8;
     static final int ITEM_MARGIN = 6;
-    static final int PAD = 12;
+    static final int PAD = 9;
     static final int GAP = 8;
 
     private static final int MAX_DOCK_WIDTH = 500;
@@ -57,16 +55,76 @@ public class AiDock extends StackPane {
 
     private final StackPane leftArrow;
     private final StackPane rightArrow;
-    private final Timeline arrowFadeTimeline = new Timeline();
 
     @Getter
     private DockItemNode selectedNode = null;
-    private boolean isDockHovered = false;
+    private Consumer<Color> onAccentChanged;
+    private Runnable onOrderChanged;
+
+    public void setOnAccentChanged(Consumer<Color> callback) { onAccentChanged = callback; updateTopBarColor(); }
+    public void setOnOrderChanged(Runnable callback) { onOrderChanged = callback; }
+    public void orderChanged() { if (onOrderChanged != null) onOrderChanged.run(); }
+    public boolean isReducedMotion() { return appPreferences.isReducedMotion(); }
+
+    public String getSelectedId() { return selectedNode == null ? null : selectedNode.getConfig().id(); }
+
+    public void selectSite(String id) {
+        dockItems.stream().filter(item -> item.getConfig().id().equals(id)).findFirst().ifPresent(this::selectItem);
+    }
+
+    public void revealSelection() {
+        Platform.runLater(() -> {
+            if (selectedNode == null) return;
+            dockContainer.applyCss(); dockContainer.layout();
+            double overflow = dockContainer.getWidth() - scrollPane.getViewportBounds().getWidth();
+            if (overflow <= 0) return;
+            double left = scrollPane.getHvalue() * overflow, x = selectedNode.getLayoutX();
+            if (x < left) scrollPane.setHvalue(Math.clamp(x / overflow, 0, 1));
+            else if (x + selectedNode.getWidth() > left + scrollPane.getViewportBounds().getWidth())
+                scrollPane.setHvalue(Math.clamp((x + selectedNode.getWidth() - scrollPane.getViewportBounds().getWidth()) / overflow, 0, 1));
+        });
+    }
+
+    public double desiredWidth() {
+        double total = dockItems.stream().mapToDouble(DockItemNode::getExpandedWidth).sum()
+                + Math.max(0, dockItems.size() - 1) * ITEM_MARGIN;
+        double budget = Math.min(MAX_DOCK_WIDTH, dockItems.stream().limit(4).mapToDouble(DockItemNode::getExpandedWidth).sum()
+                + Math.max(0, Math.min(4, dockItems.size()) - 1) * ITEM_MARGIN + 40);
+        return Math.min(total, budget);
+    }
+
+    public void reorder(String id, String target, boolean after) {
+        if (id.equals(target)) return;
+        var from = dockItems.stream().filter(item -> item.getConfig().id().equals(id)).findFirst().orElse(null);
+        var to = dockItems.stream().filter(item -> item.getConfig().id().equals(target)).findFirst().orElse(null);
+        if (from == null || to == null) return;
+        dockItems.remove(from);
+        dockItems.add(dockItems.indexOf(to) + (after ? 1 : 0), from);
+        dockContainer.getChildren().setAll(dockItems);
+        AiDockOrderUtils.saveCurrentOrder(dockItems, appPreferences);
+        orderChanged();
+    }
+
+    public void dispose() {
+        cancelInteraction();
+        prefWidthProperty().unbind(); minWidthProperty().unbind(); maxWidthProperty().unbind();
+        dockItems.forEach(DockItemNode::dispose);
+    }
+
+    public void cancelInteraction() {
+        dragManager.cancel();
+        if (leftArrow instanceof AiDockScrollArrow arrow) arrow.cancel();
+        if (rightArrow instanceof AiDockScrollArrow arrow) arrow.cancel();
+    }
 
     @Getter
     private final AiDockDragManager dragManager;
 
     public AiDock(List<AiConfiguration.AiConfig> configs, FxWebViewPane fxWebViewPane, AppPreferences appPreferences) {
+        this(configs, fxWebViewPane, appPreferences, null);
+    }
+
+    public AiDock(List<AiConfiguration.AiConfig> configs, FxWebViewPane fxWebViewPane, AppPreferences appPreferences, String activeId) {
         this.fxWebViewPane = fxWebViewPane;
         this.appPreferences = appPreferences;
         this.dragManager = new AiDockDragManager(this, appPreferences);
@@ -75,18 +133,21 @@ public class AiDock extends StackPane {
 
         this.setAlignment(Pos.CENTER_LEFT);
         this.setMaxWidth(MAX_DOCK_WIDTH);
+        this.setMinWidth(0);
         this.setMinHeight(DOCK_HEIGHT);
         this.setPrefHeight(DOCK_HEIGHT);
         this.setMaxHeight(DOCK_HEIGHT);
         this.setStyle("-fx-background-color: transparent;");
 
         scrollPane = new ScrollPane();
+        scrollPane.getStyleClass().add("shell-dock");
         scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollPane.setFitToHeight(true);
         scrollPane.setPannable(false);
         scrollPane.setMaxWidth(MAX_DOCK_WIDTH);
+        scrollPane.setMinWidth(0);
         scrollPane.setMinHeight(DOCK_HEIGHT);
         scrollPane.setPrefHeight(DOCK_HEIGHT);
         scrollPane.setMaxHeight(DOCK_HEIGHT);
@@ -94,51 +155,31 @@ public class AiDock extends StackPane {
         dockContainer = new HBox();
         dockContainer.setSpacing(ITEM_MARGIN);
         dockContainer.setStyle("-fx-background-color: transparent;");
-        dockContainer.setPadding(new Insets(8, 0, 8, 0));
+        dockContainer.setPadding(new Insets(4, 0, 4, 0));
         scrollPane.setContent(dockContainer);
 
         scrollPane.addEventFilter(ScrollEvent.SCROLL, e -> {
-            double delta = e.getDeltaY();
+            double delta = Math.abs(e.getDeltaX()) > Math.abs(e.getDeltaY()) ? e.getDeltaX() : e.getDeltaY();
             if (delta != 0) {
-                scrollPane.setHvalue(Math.clamp(scrollPane.getHvalue() - delta / 200.0, 0.0, 1.0));
-                e.consume();
+                double overflow = dockContainer.getWidth() - scrollPane.getViewportBounds().getWidth();
+                if (overflow > 0) scrollPane.setHvalue(Math.clamp(scrollPane.getHvalue() - delta / overflow, 0.0, 1.0));
             }
+            e.consume();
         });
 
         leftArrow  = new AiDockScrollArrow(true, this);
         rightArrow = new AiDockScrollArrow(false, this);
 
-        var arrowOverlay = new AnchorPane(leftArrow, rightArrow);
-        arrowOverlay.setPickOnBounds(false);
-        AnchorPane.setLeftAnchor(leftArrow, 0.0);
-        AnchorPane.setTopAnchor(leftArrow, 3.0);
-        AnchorPane.setBottomAnchor(leftArrow, 3.0);
-        AnchorPane.setRightAnchor(rightArrow, 0.0);
-        AnchorPane.setTopAnchor(rightArrow, 3.0);
-        AnchorPane.setBottomAnchor(rightArrow, 3.0);
-
-        leftArrow.setOpacity(0.0);
-        rightArrow.setOpacity(0.0);
-
-        this.getChildren().addAll(scrollPane, arrowOverlay);
-
-        this.setOnMouseEntered(e -> {
-            isDockHovered = true;
-            for (var item : dockItems) item.setDockHovered(true);
-            Platform.runLater(this::updateArrowVisibility);
-        });
-        this.setOnMouseExited(e -> {
-            isDockHovered = false;
-            for (var item : dockItems) item.setDockHovered(false);
-            fadeArrows(0.0, 0.0);
-        });
-
-        scrollPane.hvalueProperty().addListener((obs, old, val) -> {
-            if (isDockHovered) refreshArrowOpacity();
-        });
-        dockContainer.widthProperty().addListener((obs, old, val) -> {
-            if (isDockHovered) Platform.runLater(this::updateArrowVisibility);
-        });
+        leftArrow.managedProperty().bind(leftArrow.visibleProperty());
+        rightArrow.managedProperty().bind(rightArrow.visibleProperty());
+        var rail = new HBox(leftArrow, scrollPane, rightArrow);
+        rail.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(scrollPane, Priority.ALWAYS);
+        getChildren().add(rail);
+        scrollPane.hvalueProperty().addListener((obs, old, value) -> refreshArrowOpacity());
+        dockContainer.widthProperty().addListener((obs, old, value) -> refreshArrowOpacity());
+        widthProperty().addListener((obs, old, value) -> refreshArrowOpacity());
+        scrollPane.viewportBoundsProperty().addListener((obs, old, value) -> refreshArrowOpacity());
 
         var orderedConfigs = AiDockOrderUtils.applyCustomOrder(configs, appPreferences);
         var lastUrl = appPreferences.getLastUrl();
@@ -168,6 +209,11 @@ public class AiDock extends StackPane {
                 }
             }
         }
+        if (activeId != null) {
+            for (int i = 0; i < orderedConfigs.size(); i++) {
+                if (orderedConfigs.get(i).id().equals(activeId)) { initialIndex = i; initialUrl = null; break; }
+            }
+        }
         for (var config : orderedConfigs) {
             AiDockIconUtils.preloadIcon(config, userIconsDir);
             var node = new DockItemNode(config, this);
@@ -179,7 +225,7 @@ public class AiDock extends StackPane {
     }
 
     private boolean hasOverflow() {
-        return dockContainer.getWidth() > scrollPane.getWidth() + 2;
+        return dockContainer.getWidth() > getWidth() + 2;
     }
 
     private boolean canScrollLeft() {
@@ -190,31 +236,10 @@ public class AiDock extends StackPane {
         return hasOverflow() && scrollPane.getHvalue() < 0.995;
     }
 
-    private void updateArrowVisibility() {
-        if (!isDockHovered || !hasOverflow()) {
-            fadeArrows(0.0, 0.0);
-            return;
-        }
-        fadeArrows(
-                canScrollLeft()  ? 1.0 : 0.25,
-                canScrollRight() ? 1.0 : 0.25
-        );
-    }
-
     public void refreshArrowOpacity() {
-        if (!isDockHovered || !hasOverflow()) return;
-        leftArrow.setOpacity(canScrollLeft()  ? 1.0 : 0.25);
-        rightArrow.setOpacity(canScrollRight() ? 1.0 : 0.25);
-    }
-
-    private void fadeArrows(double leftTarget, double rightTarget) {
-        arrowFadeTimeline.stop();
-        arrowFadeTimeline.getKeyFrames().clear();
-        arrowFadeTimeline.getKeyFrames().add(new KeyFrame(Duration.millis(180),
-                new KeyValue(leftArrow.opacityProperty(), leftTarget),
-                new KeyValue(rightArrow.opacityProperty(), rightTarget)
-        ));
-        arrowFadeTimeline.play();
+        boolean overflow = hasOverflow();
+        leftArrow.setVisible(overflow); rightArrow.setVisible(overflow);
+        leftArrow.setDisable(!canScrollLeft()); rightArrow.setDisable(!canScrollRight());
     }
 
     public static void clearIconCache() {
@@ -241,10 +266,17 @@ public class AiDock extends StackPane {
         selectedNode.setSelected(true);
         fxWebViewPane.setCurrentConfig(node.getConfig(), targetUrl);
         updateTopBarColor();
+        revealSelection();
     }
 
     private void updateTopBarColor() {
         Platform.runLater(() -> {
+            if (selectedNode == null) return;
+            if (onAccentChanged != null) {
+                try { onAccentChanged.accept(Color.web(selectedNode.getConfig().color())); }
+                catch (IllegalArgumentException | NullPointerException ignored) { onAccentChanged.accept(Color.web("#bcbcc6")); }
+                return;
+            }
             var parent = this.getParent();
             while (parent != null && !(parent instanceof GradientPanel)) {
                 parent = parent.getParent();
