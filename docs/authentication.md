@@ -8,7 +8,7 @@ There is no authentication-domain allowlist or login-path classifier. Navigation
 
 `window.open`, a blank window that is navigated later, and `target="_blank"` are handled by WebView2. Its native popup behavior preserves the browsing context, opener relationship where the page permits it, and browser profile. Site-supplied `noopener`, COOP and other browser security policies still apply. Spark does not install its application bridge in these native popup windows or manage their contents. A middle-click explicitly opens an HTTP(S) link in the default browser; that browser has a separate login session.
 
-The options menu offers **Back** and **Return to site**. Alt-arrow browser history shortcuts are no longer blocked by Spark's page script. Returning to the configured start address is an explicit action and can discard the currently displayed page, just like navigating normally.
+The options menu offers **Back**, **Close page**, and **Open start page**. **Back** navigates through the active page's history or closes an extra page if it has no earlier history. **Close page** appears only while an extra page is open and returns to its live parent without reloading it. **Open start page** closes extra pages and opens the site's configured start address. Alt-arrow browser history shortcuts are no longer blocked by Spark's page script. Opening the configured start address is an explicit action and can discard the currently displayed page, just like navigating normally.
 
 ## Focus and platform dialogs
 

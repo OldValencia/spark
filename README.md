@@ -54,7 +54,7 @@ The little spark in the corner has volunteered to show you around.
 
 **Three dots → Settings** is where the shortcut, startup behavior and top-edge pill live. Page zoom is right in the three-dot menu.
 
-Links and sign-in windows follow the website's normal browser behavior. Use **Three dots → Back** or **Return to site** to find your way back; middle-click a link to send it to your default browser. Login windows share Spark's browser profile. Passkeys use the browser and Windows dialogs, with compatibility depending on the website and installed WebView2 runtime.
+Links and sign-in windows follow the website's normal browser behavior. Use **Three dots → Back** to go back, **Close page** to close an extra page, or **Open start page** to close extra pages and open the site's configured start address. **Close page** appears only while an extra page is open. Middle-click a link to send it to your default browser. Login windows share Spark's browser profile. Passkeys use the browser and Windows dialogs, with compatibility depending on the website and installed WebView2 runtime.
 
 The mascot follows your pointer, peeks at the site list, and briefly gets gear eyes when you open settings. Click it for a hello. **General → Reduce motion** keeps it still; **Show mascot** lets it sit this one out.
 

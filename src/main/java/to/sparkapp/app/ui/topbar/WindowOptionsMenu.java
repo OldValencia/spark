@@ -15,9 +15,10 @@ final class WindowOptionsMenu extends ShellPopover {
         super("WINDOW OPTIONS", 258, preferences::isReducedMotion);
         action("cog-6-tooth", "Settings", onSettings);
         action("arrow-uturn-left", "Back", browser::goBack);
-        var closePage = action("x-mark", "Close extra page", browser::closeExtraPage);
-        closePage.disableProperty().bind(browser.extraPageOpenProperty().not());
-        action("bookmark", "Return to site", browser::returnToSite);
+        var closePage = action("x-mark", "Close page", browser::closeExtraPage);
+        closePage.visibleProperty().bind(browser.extraPageOpenProperty());
+        closePage.managedProperty().bind(closePage.visibleProperty());
+        action("bookmark", "Open start page", browser::returnToSite);
 
         var zoomOut = zoomButton("−", "Zoom out\nOn the page: Ctrl + -", browser::zoomOut);
         var reset = zoomButton("100%", "Reset zoom\nOn the page: Ctrl + 0", browser::resetZoom);
