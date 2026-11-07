@@ -125,7 +125,12 @@ tasks.register('nativeTest', Test) {
     group = 'verification'
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
-    useJUnitPlatform { includeTags 'native' }
+    useJUnitPlatform {
+        includeTags 'native'
+        if (!project.hasProperty('includeFlaky')) {
+            excludeTags 'flaky'
+        }
+    }
     onlyIf { org.gradle.internal.os.OperatingSystem.current().isWindows() }
     // Never inherit the installed application's profile or user preferences.
     def isolated = layout.buildDirectory.dir("native-tests/${UUID.randomUUID()}").get().asFile

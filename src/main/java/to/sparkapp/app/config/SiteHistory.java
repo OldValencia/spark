@@ -23,11 +23,11 @@ final class SiteHistory {
 
         var url = config.siteUrls.get(site.id());
 
-        return UrlUtils.isSameHost(url, site.url()) ? url : null;
+        return UrlUtils.isRestorablePage(url, site.url()) ? url : null;
     }
 
     void rememberSitePage(AiConfig site, String url, boolean active) {
-        if (!Boolean.TRUE.equals(config.rememberLastAi) || !UrlUtils.isSameHost(url, site.url())) {
+        if (!Boolean.TRUE.equals(config.rememberLastAi) || !UrlUtils.isRestorablePage(url, site.url())) {
             return;
         }
 
@@ -58,7 +58,11 @@ final class SiteHistory {
         }
 
         config.siteUrls.entrySet().removeIf(entry -> sites.stream().noneMatch(
-                site -> site.id().equals(entry.getKey()) && UrlUtils.isSameHost(entry.getValue(), site.url())));
+                site -> site.id().equals(entry.getKey()) && UrlUtils.isRestorablePage(entry.getValue(), site.url())));
+
+        if (sites.stream().noneMatch(site -> UrlUtils.isRestorablePage(config.lastUrl, site.url()))) {
+            config.lastUrl = null;
+        }
 
         if (sites.stream().noneMatch(site -> site.id().equals(config.lastSiteId))) {
             config.lastSiteId = null;

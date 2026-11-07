@@ -40,6 +40,8 @@ public class WebviewManager {
     private volatile boolean processFailed;
     private volatile boolean recreateOnRetry;
     private volatile boolean restartRequested;
+    @Getter
+    private volatile boolean extraPageOpen;
     private long navigationId;
     @Setter
     private Consumer<Boolean> onLoadingChanged;
@@ -58,11 +60,14 @@ public class WebviewManager {
     @Setter
     private Runnable onReadyCallback;
 
+    @Setter
+    private Consumer<Boolean> onExtraPageChanged;
+
     public WebviewManager(AppPreferences appPreferences) {
         this.appPreferences = appPreferences;
         this.presentation = new BrowserPresentation(appPreferences);
         this.zoomManager = new WebviewZoomManager(appPreferences, this);
-        this.navigator = new WebviewNavigator(this, zoomManager);
+        this.navigator = new WebviewNavigator(this::dispatch, this::loadURL, zoomManager::applyZoomCss);
     }
 
     public void init(String startUrl, long parentHandle, int x, int y, int width, int height) {
@@ -132,6 +137,13 @@ public class WebviewManager {
         browser.observeProcessFailures(this::handleProcessFailure);
         browser.observe(this::navigationStarting, this::navigationCompleted);
         browser.observeDocument(this::documentReady);
+        browser.observeSource(url -> Platform.runLater(() -> navigator.handleUrlChange(url)));
+        browser.setExtraPageChanged(extra -> {
+            extraPageOpen = extra;
+            if (onExtraPageChanged != null) {
+                Platform.runLater(() -> onExtraPageChanged.accept(extra));
+            }
+        });
     }
 
     private void documentReady(long id) {
@@ -219,6 +231,7 @@ public class WebviewManager {
 
     private void finishBrowserThread() {
         var active = webview;
+        extraPageOpen = false;
 
         try {
             if (active != null) {
@@ -325,6 +338,33 @@ public class WebviewManager {
 
     public void updateBounds(int x, int y, int width, int height) {
         presentation.updateBounds(x, y, width, height, ready.get());
+        refreshResourcePolicy();
+    }
+
+    public void goBack() {
+        dispatch(() -> {
+            if (SystemUtils.isWindows()) {
+                webview.windows().back();
+            } else {
+                webview.eval("history.back()");
+            }
+        });
+    }
+
+    public void closeExtraPage() {
+        dispatch(() -> {
+            if (SystemUtils.isWindows()) {
+                webview.windows().closeExtraPage();
+            }
+        });
+    }
+
+    public void returnToRoot() {
+        dispatch(() -> {
+            if (SystemUtils.isWindows()) {
+                webview.windows().returnToRoot();
+            }
+        });
     }
 
     public void hibernate() {
@@ -349,6 +389,7 @@ public class WebviewManager {
 
     private void applyPresentation() {
         if (!disposed.get() && !(processFailed && recreateOnRetry) && SystemUtils.isWindows() && webview != null) {
+            webview.windows().setBackgroundMemoryReduction(appPreferences.isBackgroundMemoryReductionEnabled());
             presentation.apply(webview, disposed::get);
         }
     }
@@ -415,6 +456,14 @@ public class WebviewManager {
 
     public void setOnUrlChanged(Consumer<String> callback) {
         navigator.setOnUrlChanged(callback);
+    }
+
+    public boolean isExternalPage(String url) {
+        return navigator.isExternalPage(url);
+    }
+
+    public boolean isExternalPage() {
+        return navigator.isExternalPage();
     }
 
     public void setCurrentConfig(AiConfig config, String targetUrl) {

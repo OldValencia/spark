@@ -41,7 +41,7 @@ public class MainWindow extends Stage {
     private final SparkTray tray = new SparkTray(this::showMainWindow, this::performShutdown);
     private WindowAutoHide autoHide;
 
-    private boolean authMode = false;
+    private boolean externalPage = false;
 
     public static final int HEIGHT = 700;
     private static final int WIDTH = 860;
@@ -61,7 +61,7 @@ public class MainWindow extends Stage {
         Platform.setImplicitExit(false);
 
         this.focusedProperty().addListener((obs, oldVal, newVal) -> {
-            this.setAlwaysOnTop(appPreferences.isAlwaysOnTop() && (newVal || !authMode));
+            this.setAlwaysOnTop(appPreferences.isAlwaysOnTop() && (newVal || !externalPage));
 
             if (!newVal && windowController != null) {
                 windowController.cancelInteraction();
@@ -108,9 +108,9 @@ public class MainWindow extends Stage {
         Platform.runLater(this::initializeOnFX);
     }
 
-    public void setAuthMode(boolean isAuth) {
-        this.authMode = isAuth;
-        this.setAlwaysOnTop(appPreferences.isAlwaysOnTop() && (!isAuth || isFocused()));
+    public void setExternalPage(boolean external) {
+        this.externalPage = external;
+        this.setAlwaysOnTop(appPreferences.isAlwaysOnTop() && (!external || isFocused()));
     }
 
     /**
@@ -308,8 +308,13 @@ public class MainWindow extends Stage {
             scene.getStylesheets().add(getClass().getResource("/css/shell.css").toExternalForm());
             windowController = new WindowController(this, appPreferences);
             windowController.setOnReveal(this::showMainWindow);
-            autoHide = new WindowAutoHide(this, appPreferences, windowController, () -> authMode,
-                    () -> hideMainWindow(false));
+            autoHide = new WindowAutoHide(
+                    this,
+                    appPreferences,
+                    windowController,
+                    () -> externalPage,
+                    () -> hideMainWindow(false)
+            );
             windowController.dockedProperty().addListener((o, before, docked) -> updateShellStyle());
 
             var grip = new Region();
@@ -419,7 +424,7 @@ public class MainWindow extends Stage {
         }
 
         var pane = new FxWebViewPane(startUrl, appPreferences);
-        pane.setOnAuthPageDetected(this::setAuthMode);
+        pane.setOnExternalPage(this::setExternalPage);
         var editor = new SitesEditor(this, aiConfiguration, this::handleProvidersChanged);
         pane.setOnEditSite(editor::edit);
 

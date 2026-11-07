@@ -95,12 +95,12 @@ class EarlyPagePresentationTest {
                 }
             });
             assertTrue(browser.isLoading(), "The native navigation must still be waiting for the image");
-            browser.eval("document.querySelector('#draft').value='unsent';history.replaceState({},'', '/page?draft=unsent')");
-            await(() -> preferences.getLastUrl() != null && preferences.getLastUrl().endsWith("draft=unsent"));
+            browser.eval("document.querySelector('#draft').value='unsent';history.replaceState({},'', '/page/draft/unsent')");
+            await(() -> preferences.getLastUrl() != null && preferences.getLastUrl().endsWith("draft/unsent"));
             releaseImage.countDown();
             await(() -> !browser.isLoading());
-            browser.eval("history.replaceState({},'', '/page?kept='+document.querySelector('#draft').value)");
-            await(() -> preferences.getLastUrl() != null && preferences.getLastUrl().endsWith("kept=unsent"));
+            browser.eval("history.replaceState({},'', '/page/kept/'+document.querySelector('#draft').value)");
+            await(() -> preferences.getLastUrl() != null && preferences.getLastUrl().endsWith("kept/unsent"));
             assertFalse(browser.isLoading());
             System.out.println("Usable document exposed while image remained pending; draft survived completion.");
         } finally {

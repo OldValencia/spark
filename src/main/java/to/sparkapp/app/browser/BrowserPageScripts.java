@@ -14,12 +14,6 @@ final class BrowserPageScripts {
                 }, {passive: false});
 
                 document.addEventListener('keydown', function(e) {
-                    // Block Alt + Left / Alt + Right (Browser Back/Forward)
-                    if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-                        e.preventDefault();
-                        return;
-                    }
-
                     if (!e.ctrlKey) return;
 
                     // Zoom with support for non-English layouts using e.code
@@ -29,23 +23,6 @@ final class BrowserPageScripts {
                         e.preventDefault(); window.sparkCall('zoom', 'down');
                     } else if (e.code === 'Digit0' || e.code === 'Numpad0' || e.key === '0') {
                         e.preventDefault(); window.sparkCall('zoom', 'reset');
-                    }
-                });
-
-                document.addEventListener('click', function(e) {
-                    var a = e.target.closest('a');
-                    if (a && a.href && (a.href.startsWith('http://') || a.href.startsWith('https://'))) {
-                        try {
-                            var currentHost = window.location.hostname;
-                            var targetHost = new URL(a.href).hostname;
-
-                            if (currentHost !== targetHost || a.target === '_blank') {
-                                e.preventDefault();
-                                window.sparkCall('linkClicked', a.href);
-                            }
-                        } catch (err) {
-                            console.error('SparkLinkIntercept Error:', err);
-                        }
                     }
                 });
 

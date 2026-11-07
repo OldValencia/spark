@@ -70,7 +70,7 @@ class ShellPopover extends Popup {
         body.getChildren().add(node);
     }
 
-    void action(String icon, String title, Runnable command) {
+    Button action(String icon, String title, Runnable command) {
         var button = new Button(title, ShellIcon.create(icon));
         button.getStyleClass().add("shell-row");
         button.setMaxWidth(Double.MAX_VALUE);
@@ -80,6 +80,8 @@ class ShellPopover extends Popup {
             command.run();
         });
         add(button);
+
+        return button;
     }
 
     Button setting(String icon, String title, ObservableBooleanValue enabled, Runnable change) {

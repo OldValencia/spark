@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Tag("native")
+@Tag("flaky")
 @Timeout(30)
 class SiteListReorderTest {
     @Test

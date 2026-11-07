@@ -5,7 +5,6 @@ import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef;
 import com.sun.jna.platform.win32.WinUser;
-import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.win32.StdCallLibrary;
 import com.sun.jna.win32.W32APIOptions;
 import lombok.AccessLevel;
@@ -43,18 +42,11 @@ public final class NativeWindowUtils {
             return false;
         }
 
-        var foreground = User32.INSTANCE.GetForegroundWindow();
+        return WindowsInteraction.ownsForeground();
+    }
 
-        if (foreground == null) {
-            return false;
-        }
-        // Root owner covers embedded browser children, popups and native file dialogs.
-
-        var owner = User32.INSTANCE.GetAncestor(foreground, 3);
-        var process = new IntByReference();
-        User32.INSTANCE.GetWindowThreadProcessId(owner != null ? owner : foreground, process);
-
-        return Integer.toUnsignedLong(process.getValue()) == ProcessHandle.current().pid();
+    public static boolean isSparkInteractionActive() {
+        return SystemUtils.isWindows() && (WindowsInteraction.ownsForeground() || WindowsInteraction.hasModalWindow());
     }
 
     public static void restoreForeground(long handle) {

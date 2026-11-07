@@ -54,6 +54,8 @@ The little spark in the corner has volunteered to show you around.
 
 **Three dots → Settings** is where the shortcut, startup behavior and top-edge pill live. Page zoom is right in the three-dot menu.
 
+Links and sign-in windows follow the website's normal browser behavior. Use **Three dots → Back** or **Return to site** to find your way back; middle-click a link to send it to your default browser. Login windows share Spark's browser profile. Passkeys use the browser and Windows dialogs, with compatibility depending on the website and installed WebView2 runtime.
+
 The mascot follows your pointer, peeks at the site list, and briefly gets gear eyes when you open settings. Click it for a hello. **General → Reduce motion** keeps it still; **Show mascot** lets it sit this one out.
 
 <sub>The tour and mascot cards are illustrations. The screenshots show the Windows app in 0.3.0; click one for a closer look. <a href="docs/previews/0.3.1-mascot-topbar-860.png">Current header</a> · <a href="docs/previews/0.3.1-mascot-settings.png">Gear eyes</a></sub>
@@ -92,7 +94,7 @@ With auto-hide enabled, **Quick upward gesture** can open Spark directly on a fa
 
 Visited pages stay loaded until you remove the site or quit Spark. Switching sites or hiding the window preserves the live page, including drafts, scrolling and ongoing requests. New visits appear once the document is ready; **Show page** is available while the rest loads.
 
-After a restart, **Remember last site** restores saved page addresses. Drafts and conversations across restarts depend on what the website itself saves.
+After a restart, **Remember last site** restores saved page addresses from the configured site. Addresses containing `?` query parameters or `#` fragments are skipped by automatic history, so temporary sign-in parameters are not written to preferences. Sites that identify pages only through those parameters return to the previous saved address or the configured start page. Drafts and conversations across restarts depend on what the website itself saves.
 
 Each loaded website uses memory. **Settings → Browser → Reduce background memory** lets Windows reclaim memory from hidden pages while keeping them alive. The total depends on the sites you've opened.
 

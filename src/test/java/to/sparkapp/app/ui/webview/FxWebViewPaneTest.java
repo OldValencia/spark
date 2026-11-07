@@ -145,7 +145,7 @@ class FxWebViewPaneTest {
             }
 
             active(pane.get()).eval(
-                    "clearInterval(window.testInterval);history.replaceState({},'', '/first?draft='+document.querySelector('#draft').value+'&scroll='+scrollY+'&ticks='+window.testCounter+'&hidden='+window.hiddenDuringPause+'&network='+Boolean(window.requestCompleted))");
+                    "clearInterval(window.testInterval);history.replaceState({},'', '/first/draft='+document.querySelector('#draft').value+'&scroll='+scrollY+'&ticks='+window.testCounter+'&hidden='+window.hiddenDuringPause+'&network='+Boolean(window.requestCompleted))");
             await(() -> preferences.getLastUrl() != null && preferences.getLastUrl().contains("draft=unsent"));
             assertTrue(preferences.getLastUrl().contains("scroll=420"));
             assertFalse(preferences.getLastUrl().contains("ticks=0&"));
@@ -167,7 +167,7 @@ class FxWebViewPaneTest {
             });
             assertNull(active(pane.get()).getLoadError());
             active(pane.get()).eval(
-                    "history.replaceState({},'', '/second?draft='+document.querySelector('#draft').value)");
+                    "history.replaceState({},'', '/second/draft='+document.querySelector('#draft').value)");
             await(() -> preferences.getSiteUrl(second).contains("draft=second-unsent"));
             fx(() -> {
                 pane.get().setCurrentConfig(first, null);
@@ -323,10 +323,13 @@ class FxWebViewPaneTest {
                 windowsMethod.setAccessible(true);
 
                 var windows = windowsMethod.invoke(view);
-                var coreField = windows.getClass().getDeclaredField("core");
+                var rootField = windows.getClass().getDeclaredField("root");
+                rootField.setAccessible(true);
+                var context = rootField.get(windows);
+                var coreField = context.getClass().getDeclaredField("core");
                 coreField.setAccessible(true);
 
-                var core = (Pointer) coreField.get(windows);
+                var core = (Pointer) coreField.get(context);
                 var pid = new IntByReference();
                 var function = Function.getFunction(core.getPointer(0).getPointer(37L * Native.POINTER_SIZE),
                         Function.ALT_CONVENTION);

@@ -77,6 +77,13 @@ class Webview implements Closeable {
      */
     void loadURL(String url) {
         requireOwner();
+
+        if (windows != null && windows.hasExtraPage()) {
+            windows.activeContext().navigate(url != null ? url : "about:blank");
+
+            return;
+        }
+
         check("navigate", api.webview_navigate(nativePointer, url != null ? url : "about:blank"));
     }
 
@@ -103,7 +110,11 @@ class Webview implements Closeable {
         dispatch(() -> {
             String safeScript = String.format(
                     "try { %s } catch (e) { console.error('[Webview] Eval Error:'," + " e); }", script);
-            check("eval", api.webview_eval(nativePointer, safeScript));
+            if (windows != null && windows.hasExtraPage()) {
+                windows.activeContext().evaluate(safeScript);
+            } else {
+                check("eval", api.webview_eval(nativePointer, safeScript));
+            }
         });
     }
 
@@ -253,7 +264,7 @@ class Webview implements Closeable {
         }
 
         if (windows == null) {
-            windows = new WindowsBrowser(api.webview_get_native_handle(nativePointer, 2));
+            windows = new WindowsBrowser(api.webview_get_native_handle(nativePointer, 2), this::dispatch);
         }
 
         return windows;

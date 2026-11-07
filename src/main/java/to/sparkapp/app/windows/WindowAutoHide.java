@@ -18,7 +18,7 @@ final class WindowAutoHide {
     private final Stage window;
     private final AppPreferences appPreferences;
     private final WindowController windowController;
-    private final BooleanSupplier authentication;
+    private final BooleanSupplier externalPage;
     private final Runnable hideWithoutFocus;
     private final PauseTransition outsideClick = new PauseTransition(Duration.millis(100));
     private final PauseTransition pointerDelay = new PauseTransition(Duration.millis(16));
@@ -29,11 +29,11 @@ final class WindowAutoHide {
     private long lastShown;
     private Robot pointer;
 
-    WindowAutoHide(Stage window, AppPreferences appPreferences, WindowController windowController, BooleanSupplier authentication, Runnable hideWithoutFocus) {
+    WindowAutoHide(Stage window, AppPreferences appPreferences, WindowController windowController, BooleanSupplier externalPage, Runnable hideWithoutFocus) {
         this.window = window;
         this.appPreferences = appPreferences;
         this.windowController = windowController;
-        this.authentication = authentication;
+        this.externalPage = externalPage;
         this.hideWithoutFocus = hideWithoutFocus;
         windowHidden = !window.isShowing();
         window.showingProperty().addListener((observable, previous, showing) -> windowHidden = !showing);
@@ -56,16 +56,16 @@ final class WindowAutoHide {
         }
 
         Platform.runLater(() -> {
-            if (!appPreferences.isAutoHide() || !window.isShowing() || authentication.getAsBoolean() ||
+            if (!appPreferences.isAutoHide() || !window.isShowing() || externalPage.getAsBoolean() ||
                     System.nanoTime() - lastShown < 250_000_000L) {
                 return;
             }
 
             outsideClick.setOnFinished(e -> {
-                boolean ownForeground = SystemUtils.isWindows() ? NativeWindowUtils.isSparkForeground() : Window.getWindows().stream().anyMatch(
+                boolean ownForeground = SystemUtils.isWindows() ? NativeWindowUtils.isSparkInteractionActive() : Window.getWindows().stream().anyMatch(
                         Window::isFocused);
 
-                if (window.isShowing() && appPreferences.isAutoHide() && !authentication.getAsBoolean() &&
+                if (window.isShowing() && appPreferences.isAutoHide() && !externalPage.getAsBoolean() &&
                         !ownForeground) {
                     hideWithoutFocus.run();
                 }

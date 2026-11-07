@@ -179,9 +179,7 @@ class WindowsBrowserTest {
         var count = new CompletableFuture<Integer>();
         browser.run(view -> {
             try {
-                var field = WindowsBrowser.class.getDeclaredField("handlers");
-                field.setAccessible(true);
-                count.complete(((List<?>) field.get(view.windows())).size());
+                count.complete(view.windows().activeContext().getEvents().retainedCount());
             } catch (Throwable failure) {
                 count.completeExceptionally(failure);
             }

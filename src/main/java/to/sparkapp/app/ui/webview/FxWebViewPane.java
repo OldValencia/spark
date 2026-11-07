@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import javafx.animation.PauseTransition;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.layout.Region;
@@ -14,7 +16,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.browser.WebviewManager;
-import to.sparkapp.app.browser.WebviewNavigator;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.Theme;
@@ -48,10 +49,11 @@ public class FxWebViewPane extends StackPane {
     private boolean windowListenersAttached = false;
 
     private final BrowserViewport viewport;
+    private final ReadOnlyBooleanWrapper extraPageOpen = new ReadOnlyBooleanWrapper();
 
     private Consumer<Double> zoomCallback;
     @Setter
-    private Consumer<Boolean> onAuthPageDetected;
+    private Consumer<Boolean> onExternalPage;
     @Setter
     private Consumer<AiConfig> onEditSite;
 
@@ -118,16 +120,21 @@ public class FxWebViewPane extends StackPane {
                 return;
             }
 
-            boolean auth = WebviewNavigator.isAuthUrl(url);
+            boolean external = source.isExternalPage(url);
 
-            if (bridge == source && onAuthPageDetected != null) {
-                onAuthPageDetected.accept(auth);
+            if (bridge == source && onExternalPage != null) {
+                onExternalPage.accept(external);
             }
 
             var site = sessions.findSite(source);
 
-            if (site != null && !auth) {
+            if (site != null) {
                 appPreferences.rememberSitePage(site, url, bridge == source);
+            }
+        });
+        source.setOnExtraPageChanged(extra -> {
+            if (!disposed && bridge == source) {
+                extraPageOpen.set(extra);
             }
         });
     }
@@ -326,6 +333,11 @@ public class FxWebViewPane extends StackPane {
         }
 
         bridge = sessions.getActive();
+        extraPageOpen.set(bridge.isExtraPageOpen());
+
+        if (onExternalPage != null) {
+            onExternalPage.accept(bridge.isExternalPage());
+        }
 
         if (zoomCallback != null) {
             zoomCallback.accept(bridge.getZoomPercent());
@@ -375,6 +387,27 @@ public class FxWebViewPane extends StackPane {
 
     public void resetZoom() {
         bridge.resetZoom();
+    }
+
+    public void goBack() {
+        bridge.goBack();
+    }
+
+    public ReadOnlyBooleanProperty extraPageOpenProperty() {
+        return extraPageOpen.getReadOnlyProperty();
+    }
+
+    public void closeExtraPage() {
+        bridge.closeExtraPage();
+    }
+
+    public void returnToSite() {
+        var site = sessions.findSite(bridge);
+
+        if (site != null) {
+            bridge.returnToRoot();
+            bridge.setCurrentConfig(site, site.url());
+        }
     }
 
     public void zoomIn() {
