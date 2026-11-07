@@ -24,13 +24,13 @@ class BrowserAuthenticationTest {
                             "setTimeout(()=>loginPopup.location='" + server.identity + "/popup',0)"}) {
                 browser.eval(open);
                 assertEquals("popup:true:unsent", browser.message());
-                InlineBrowserPagesTest.awaitExtra(browser, false);
+                InlineBrowserPagesTest.awaitExtra(browser);
                 browser.eval("(()=>{const closing=setInterval(()=>{if(loginPopup.closed){clearInterval(closing);window.probe('closed:true')}},20)})()");
                 assertEquals("closed:true", browser.message());
             }
             browser.eval("document.querySelector('#separate').click()");
             assertEquals("popup:true:unsent", browser.message(), "target=_blank must remain a separate browsing context");
-            InlineBrowserPagesTest.awaitExtra(browser, false);
+            InlineBrowserPagesTest.awaitExtra(browser);
             browser.loads.clear();
             browser.eval("document.querySelector('#login').requestSubmit()");
             assertEquals(Boolean.TRUE, browser.loads.poll(20, TimeUnit.SECONDS));

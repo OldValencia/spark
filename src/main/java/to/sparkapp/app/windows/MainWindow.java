@@ -390,9 +390,7 @@ public class MainWindow extends Stage {
     private void installTopBar() {
         topBar = new TopBarArea(aiConfiguration, fxWebViewPane, this, appPreferences, this::toggleSettings,
                 this::hideMainWindow, windowController, this::handleProvidersChanged);
-        topBar.getDock().setOnAccentChanged(accent -> {
-            updateShellStyle();
-        });
+        topBar.getDock().setOnAccentChanged(accent -> updateShellStyle());
         rootPane.setTop(topBar);
     }
 

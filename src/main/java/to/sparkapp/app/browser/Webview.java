@@ -172,21 +172,18 @@ class Webview implements Closeable {
 
         var holder = new DispatchCallback[1];
 
-        holder[0] = new DispatchCallback() {
-            @Override
-            public void callback(Pointer pointer, Pointer arg) {
-                try {
-                    if (!destroyed) {
-                        requireOwner();
-                        handler.run();
-                    }
-                } catch (Throwable failure) {
-                    // Java exceptions must not escape through the native callback boundary.
-                    log.error("Dispatched browser task failed", failure);
-                } finally {
-                    // Remove self from GC shield after execution
-                    activeDispatches.remove(holder[0]);
+        holder[0] = (pointer, arg) -> {
+            try {
+                if (!destroyed) {
+                    requireOwner();
+                    handler.run();
                 }
+            } catch (Throwable failure) {
+                // Java exceptions must not escape through the native callback boundary.
+                log.error("Dispatched browser task failed", failure);
+            } finally {
+                // Remove self from GC shield after execution
+                activeDispatches.remove(holder[0]);
             }
         };
 

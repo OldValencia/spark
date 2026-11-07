@@ -67,11 +67,11 @@ class InlineBrowserPagesTest {
         });
     }
 
-    static void awaitExtra(WindowsBrowserTest.Harness browser, boolean expected) throws Exception {
+    static void awaitExtra(WindowsBrowserTest.Harness browser) throws Exception {
         var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
 
         while (System.nanoTime() < deadline) {
-            if (call(browser, view -> view.windows().hasExtraPage()) == expected) {
+            if (!call(browser, view -> view.windows().hasExtraPage())) {
                 return;
             }
 

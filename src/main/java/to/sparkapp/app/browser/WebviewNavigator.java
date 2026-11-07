@@ -93,7 +93,7 @@ public class WebviewNavigator {
             }
         });
 
-        schedule(500, () -> {
+        schedule(() -> {
             if (navId == currentNavId) {
                 dispatch.accept(applyZoom);
             }
@@ -112,13 +112,13 @@ public class WebviewNavigator {
         scheduler.shutdownNow();
     }
 
-    private void schedule(long delayMs, Runnable task) {
+    private void schedule(Runnable task) {
         if (scheduler.isShutdown()) {
             return;
         }
 
         try {
-            scheduler.schedule(task, delayMs, TimeUnit.MILLISECONDS);
+            scheduler.schedule(task, 500, TimeUnit.MILLISECONDS);
         } catch (RejectedExecutionException stopped) {
             if (!scheduler.isShutdown()) {
                 throw stopped;
