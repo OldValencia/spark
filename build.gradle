@@ -81,6 +81,20 @@ application {
     applicationDefaultJvmArgs = javaOpts
 }
 
+distributions {
+    main {
+        contents {
+            // jpackage uses lib as its input, so legal notices belong here too.
+            into('lib/legal') {
+                from('LICENSE', 'THIRD_PARTY_NOTICES.md')
+                into('third-party-licenses') {
+                    from('third-party-licenses')
+                }
+            }
+        }
+    }
+}
+
 dependencies {
     implementation 'net.java.dev.jna:jna:5.14.0'
     implementation 'net.java.dev.jna:jna-platform:5.14.0'

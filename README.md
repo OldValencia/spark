@@ -129,7 +129,7 @@ cd spark
 .\gradlew.bat createInstaller   # Windows installer; requires WiX on PATH
 ```
 
-Distributions go to `build/install/Spark/`, installers to `build/installer/`. Native tests use disposable profiles under `build/native-tests/` and leave installed sessions alone. More detail: [browser validation](docs/p1-validation.md), [P3 interactions](docs/p3-validation.md), [native libraries](docs/native/README.md).
+Distributions go to `build/install/Spark/`, installers to `build/installer/`. Native tests use disposable profiles under `build/native-tests/` and leave installed sessions alone. More detail: [browser validation](docs/p1-validation.md), [P3 interactions](docs/p3-validation.md), [memory and background work](docs/p4-validation.md), [native libraries](docs/native/README.md).
 
 macOS packaging and libraries for other targets are in the repository, but remain experimental. On macOS/Linux, use `./gradlew`.
 
@@ -139,4 +139,4 @@ Found a bug, or have a small thing that would make Spark nicer to use? [Open an 
 
 You can also buy the developer a coffee through [Buy Me a Coffee](https://buymeacoffee.com/oldvalencia) or [Ko-fi](https://ko-fi.com/oldvalencia).
 
-[GNU AGPL v3](LICENSE).
+Spark's own code and artwork are available under the [MIT license](LICENSE). The browser bridge and bundled libraries retain their respective licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).
