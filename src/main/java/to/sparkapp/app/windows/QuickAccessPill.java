@@ -49,7 +49,7 @@ final class QuickAccessPill {
             return;
         }
 
-        var atEdge = nearPill(x, y, false);
+        var atEdge = preferences.isTopPill() ? nearPill(x, y, false) : nearTopEdge(x, y, false, 200);
         if (!atEdge) {
             edgeArmed = true;
         }
@@ -91,7 +91,7 @@ final class QuickAccessPill {
     }
 
     private boolean canRevealQuickly(boolean atEdge, PointerApproach approach) {
-        if (!atEdge || !edgeArmed || pill.isShowing() || !preferences.isFastTopEdgeReveal() || approach == null) {
+        if (!atEdge || !edgeArmed || !preferences.isFastTopEdgeReveal() || approach == null) {
             return false;
         }
 
@@ -105,10 +105,14 @@ final class QuickAccessPill {
     }
 
     private boolean nearPill(double x, double y, boolean includePill) {
+        return nearTopEdge(x, y, includePill, 110);
+    }
+
+    private boolean nearTopEdge(double x, double y, boolean includePill, double halfWidth) {
         var bounds = targetScreen().getBounds();
         var center = monitor.get().getMinX() + monitor.get().getWidth() / 2;
         var bottom = includePill ? monitor.get().getMinY() + 36 : bounds.getMinY() + 10;
-        return Math.abs(x - center) <= 110 && y >= bounds.getMinY() && y <= bottom;
+        return Math.abs(x - center) <= halfWidth && y >= bounds.getMinY() && y <= bottom;
     }
 
     void refreshPill() {

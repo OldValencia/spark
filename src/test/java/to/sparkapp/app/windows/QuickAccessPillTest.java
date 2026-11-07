@@ -63,12 +63,47 @@ class QuickAccessPillTest {
     }
 
     @Test
+    void quickOpeningUsesAWiderZoneThanThePillPreview() throws Exception {
+        JavaFxTestRuntime.call(() -> {
+            try (var fixture = new QuickAccessPillFixture(true, true)) {
+                for (var offset : new int[]{-180, 180}) {
+                    fixture.pill.handleHiddenPointer(fixture.centerX(), fixture.edgeY() + 200, null);
+                    fixture.pill.handleHiddenPointer(fixture.centerX() + offset, fixture.edgeY(),
+                            fixture.approach(100, 150_000_000));
+                    assertEquals(0, fixture.visiblePills());
+                    fixture.pill.handleHiddenPointer(fixture.centerX() + offset, fixture.edgeY(),
+                            fixture.approach(200, 100_000_000));
+                }
+                assertEquals(2, fixture.opens.get());
+            }
+            return null;
+        });
+    }
+
+    @Test
+    void visiblePreviewDoesNotBlockTheNextQuickApproach() throws Exception {
+        JavaFxTestRuntime.call(() -> {
+            try (var fixture = new QuickAccessPillFixture(true, true)) {
+                fixture.pill.handleHiddenPointer(fixture.centerX(), fixture.edgeY(),
+                        fixture.approach(100, 150_000_000));
+                assertEquals(1, fixture.visiblePills());
+                fixture.pill.handleHiddenPointer(fixture.centerX(), fixture.edgeY(),
+                        fixture.approach(200, 100_000_000));
+                assertEquals(1, fixture.opens.get());
+            }
+            return null;
+        });
+    }
+
+    @Test
     void anOpenedWindowRequiresLeavingTheEdgeBeforeTheNextGesture() throws Exception {
         JavaFxTestRuntime.call(() -> {
             try (var fixture = new QuickAccessPillFixture(true, true)) {
                 fixture.pill.handleHiddenPointer(fixture.centerX(), fixture.edgeY(),
                         fixture.approach(200, 100_000_000));
                 fixture.pill.windowShown();
+                fixture.pill.handleHiddenPointer(fixture.centerX() + 180, fixture.edgeY(),
+                        fixture.approach(200, 100_000_000));
                 fixture.pill.handleHiddenPointer(fixture.centerX(), fixture.edgeY(),
                         fixture.approach(200, 100_000_000));
                 assertEquals(1, fixture.opens.get());
