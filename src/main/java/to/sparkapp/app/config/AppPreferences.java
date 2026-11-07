@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
+import to.sparkapp.app.config.WindowSizePreset.Slot;
 import to.sparkapp.app.utils.AutoStartManager;
 import to.sparkapp.app.utils.UrlUtils;
 
@@ -264,6 +265,32 @@ public class AppPreferences {
 
     public synchronized WindowPlacement getWindowPlacement() {
         return config.windowPlacement;
+    }
+
+    public synchronized WindowSizePreset getWindowSizePreset(Slot slot) {
+        var preset = config.windowSizePresets == null ? null : config.windowSizePresets.get(slot.name());
+
+        return preset != null && preset.isValid() ? preset : slot.getDefaultPreset();
+    }
+
+    public synchronized void setWindowSizePreset(Slot slot, WindowSizePreset preset) {
+        if (preset == null || !preset.isValid()) {
+            throw new IllegalArgumentException("A size preset requires a name and positive dimensions");
+        }
+
+        if (config.windowSizePresets == null) {
+            config.windowSizePresets = new HashMap<>();
+        }
+
+        config.windowSizePresets.put(slot.name(), preset);
+        save();
+    }
+
+    public synchronized void resetWindowSizePreset(Slot slot) {
+        if (config.windowSizePresets != null) {
+            config.windowSizePresets.remove(slot.name());
+            save();
+        }
     }
 
     public synchronized void setWindowPlacement(WindowPlacement placement) {

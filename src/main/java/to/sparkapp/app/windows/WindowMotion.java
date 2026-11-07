@@ -4,29 +4,25 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 
-import javafx.animation.Animation;
 import javafx.animation.Interpolator;
-import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
-import javafx.animation.Timeline;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.stage.Stage;
-import javafx.util.Duration;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.windows.WindowController.Visibility;
 
 /** Animates the native window position while keeping saved geometry at rest. */
 final class WindowMotion {
-    private static final Interpolator EASE = Interpolator.SPLINE(0.2, 0.8, 0.2, 1);
+    private static final Interpolator OPEN_EASE = Interpolator.SPLINE(0.2, 0, 0.2, 1);
+    private static final Interpolator CLOSE_EASE = Interpolator.SPLINE(0.4, 0, 0.8, 1);
     private final Stage stage;
     private final AppPreferences preferences;
     private final BooleanSupplier docked;
     private final DoubleSupplier top;
     private final Consumer<Visibility> state;
-    private final Timeline animation = new Timeline();
-    private final SimpleDoubleProperty y = new SimpleDoubleProperty();
+    private final WindowPositionAnimation animation;
     private double restingY;
+    private double restingOpacity;
     private boolean closing;
+    private boolean prepared;
     private Runnable completion;
 
     WindowMotion(Stage stage, AppPreferences preferences, BooleanSupplier docked, DoubleSupplier top, Consumer<Visibility> state) {
@@ -35,31 +31,45 @@ final class WindowMotion {
         this.docked = docked;
         this.top = top;
         this.state = state;
-        y.addListener((observable, before, value) -> stage.setY(value.doubleValue()));
-        animation.setOnFinished(event -> finish());
+        animation = new WindowPositionAnimation(stage::setY);
     }
 
     boolean running() {
-        return animation.getStatus() == Animation.Status.RUNNING;
+        return animation.running();
     }
 
     double restingY() {
-        return running() ? restingY : stage.getY();
+        return prepared || running() ? restingY : stage.getY();
+    }
+
+    void prepareOpen() {
+        if (prepared || running()) {
+            return;
+        }
+
+        restingY = stage.getY();
+        restingOpacity = stage.getOpacity();
+        prepared = true;
+
+        if (!preferences.isReducedMotion()) {
+            stage.setOpacity(0);
+            stage.setY(hiddenY());
+        }
     }
 
     void open() {
-        boolean reversing = running();
+        prepareOpen();
 
-        if (!reversing) {
-            restingY = stage.getY();
+        if (prepared) {
+            // Native creation may adjust the bounds supplied before the first show.
+            stage.setY(preferences.isReducedMotion() ? restingY : hiddenY());
+            stage.setOpacity(restingOpacity);
         }
 
-        if (!reversing && !preferences.isReducedMotion()) {
-            stage.setY(hiddenY());
-        }
+        prepared = false;
 
         closing = false;
-        move(restingY, 200, () -> state.accept(Visibility.VISIBLE));
+        move(restingY, 340, OPEN_EASE, () -> state.accept(Visibility.VISIBLE));
         state.accept(running() ? Visibility.OPENING : Visibility.VISIBLE);
     }
 
@@ -70,9 +80,9 @@ final class WindowMotion {
 
         closing = true;
         state.accept(Visibility.CLOSING);
-        move(hiddenY(), 140, () -> {
-            stage.setY(restingY);
+        move(hiddenY(), 200, CLOSE_EASE, () -> {
             completed.run();
+            stage.setY(restingY);
         });
     }
 
@@ -80,7 +90,7 @@ final class WindowMotion {
         return docked.getAsBoolean() ? top.getAsDouble() - stage.getHeight() - 2 : restingY - 8;
     }
 
-    private void move(double target, double milliseconds, Runnable completed) {
+    private void move(double target, double milliseconds, Interpolator easing, Runnable completed) {
         animation.stop();
         completion = completed;
 
@@ -91,10 +101,7 @@ final class WindowMotion {
             return;
         }
 
-        y.set(stage.getY());
-        animation.getKeyFrames().setAll(new KeyFrame(Duration.ZERO, new KeyValue(y, stage.getY())),
-                new KeyFrame(Duration.millis(milliseconds), new KeyValue(y, target, EASE)));
-        animation.playFromStart();
+        animation.play(stage.getY(), target, milliseconds, easing, this::finish);
     }
 
     private void finish() {
@@ -107,12 +114,16 @@ final class WindowMotion {
     }
 
     void settle() {
-        if (!running()) {
+        if (!prepared && !running()) {
             return;
         }
 
         animation.stop();
         completion = null;
+        if (prepared) {
+            stage.setOpacity(restingOpacity);
+        }
+        prepared = false;
         stage.setY(restingY);
         closing = false;
         state.accept(stage.isShowing() ? Visibility.VISIBLE : Visibility.HIDDEN);

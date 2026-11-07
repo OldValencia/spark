@@ -31,7 +31,7 @@ class PointerMotionTest {
     }
 
     @Test
-    void horizontalAndDiagonalPassesDoNotCountAsUpwardGestures() {
+    void mostlyHorizontalPassesDoNotCountAsUpwardGestures() {
         motion.observe(100, 180, START);
         var diagonal = motion.observe(400, 0, START + 80_000_000);
         assertFalse(diagonal.isFastUpward(1, 1, START + 80_000_000));
@@ -40,6 +40,21 @@ class PointerMotionTest {
         motion.observe(100, 0, START);
         var horizontal = motion.observe(400, 0, START + 80_000_000);
         assertFalse(horizontal.isFastUpward(1, 1, START + 80_000_000));
+    }
+
+    @Test
+    void deliberateDiagonalApproachesWorkInBothDirectionsAndAtHighDpi() {
+        for (var direction : new int[]{-1, 1}) {
+            motion.reset();
+            motion.observe(500, 200, START);
+            var diagonal = motion.observe(500 + direction * 240, 0, START + 100_000_000);
+            assertTrue(diagonal.isFastUpward(1, 1, START + 100_000_000));
+
+            motion.reset();
+            motion.observe(1000, 400, START);
+            var scaled = motion.observe(1000 + direction * 480, 0, START + 100_000_000);
+            assertTrue(scaled.isFastUpward(2, 2, START + 100_000_000));
+        }
     }
 
     @Test

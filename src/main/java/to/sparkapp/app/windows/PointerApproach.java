@@ -14,7 +14,7 @@ record PointerApproach(double horizontalPixels, double upwardPixels, long durati
         var upward = upwardPixels / scaleY;
         var speed = upward * 1_000_000_000.0 / durationNanos;
 
-        // Require a deliberate vertical approach rather than edge jitter or a diagonal pass.
-        return upward >= MINIMUM_UPWARD_DISTANCE && speed >= MINIMUM_UPWARD_SPEED && horizontal <= upward * 0.75;
+        // Allow a diagonal upward flick while rejecting mostly horizontal passes and edge jitter.
+        return upward >= MINIMUM_UPWARD_DISTANCE && speed >= MINIMUM_UPWARD_SPEED && horizontal <= upward * 1.25;
     }
 }

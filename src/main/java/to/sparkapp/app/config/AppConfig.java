@@ -10,6 +10,7 @@ import to.sparkapp.app.config.AppPreferences.WindowPlacement;
 @Data
 final class AppConfig {
     WindowPlacement windowPlacement;
+    Map<String, WindowSizePreset> windowSizePresets;
     Boolean alwaysOnTop;
     Boolean reducedMotion;
     Boolean mascotEnabled;

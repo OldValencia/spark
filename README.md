@@ -41,7 +41,7 @@ The little spark in the corner has volunteered to show you around.
     </td>
     <td width="50%" valign="top">
       <img src="docs/readme/guide-window.svg" alt="The mascot introduces floating, docking and window sizing" width="600">
-      <p><strong>Drag the handle to move the window.</strong> Double-click it to dock at the top. Resize by the edges, or use S / M / L in the size menu.</p>
+      <p><strong>Drag the handle to move the window.</strong> Double-click it to dock at the top. Resize by the edges, or use S / M / L in the size menu. Each preset's arrow lets you save the current size, rename the preset, or reset it to its default. Hover over a preset to see its full name and dimensions.</p>
       <p>Pin Spark above other apps when you want it handy. Hide on outside click is a separate choice. Your size and placement are remembered.</p>
       <a href="docs/screenshots/window-size.png"><img src="docs/screenshots/window-size.png" alt="Window size menu with presets, always-on-top, outside-click hiding and docking" width="600"></a>
     </td>
@@ -54,7 +54,7 @@ The little spark in the corner has volunteered to show you around.
 
 **Three dots → Settings** is where the shortcut, startup behavior and top-edge pill live. Page zoom is right in the three-dot menu.
 
-Links and sign-in windows follow the website's normal browser behavior. Use **Three dots → Back** or **Return to site** to find your way back; middle-click a link to send it to your default browser. Login windows share Spark's browser profile. Passkeys use the browser and Windows dialogs, with compatibility depending on the website and installed WebView2 runtime.
+Links and sign-in windows follow the website's normal browser behavior. Use **Three dots → Back** to go back, **Close page** to close an extra page, or **Open start page** to close extra pages and open the site's configured start address. **Close page** appears only while an extra page is open. Middle-click a link to send it to your default browser. Login windows share Spark's browser profile. Passkeys use the browser and Windows dialogs, with compatibility depending on the website and installed WebView2 runtime.
 
 The mascot follows your pointer, peeks at the site list, and briefly gets gear eyes when you open settings. Click it for a hello. **General → Reduce motion** keeps it still; **Show mascot** lets it sit this one out.
 

@@ -22,7 +22,7 @@ final class WindowSizeMenu extends ShellPopover {
             preferences.setAutoHide(autoHide.get());
         });
 
-        add(new WindowSizePresets(frame, controller, this::dismiss));
+        add(new WindowSizePresets(frame, preferences, controller, this::dismiss));
         action("arrows-pointing-out", "Fill available space", controller::fill);
         action("arrow-uturn-left", "Restore manual size", controller::restoreManualSize);
         setting("arrow-up-tray", "Dock at the top", controller.dockedProperty(), controller::toggleDock);

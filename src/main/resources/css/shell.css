@@ -43,12 +43,18 @@
 .size-preset { -fx-background-color: #ffffff06; -fx-border-color: #ffffff17; -fx-border-radius: 8; -fx-background-radius: 8; -fx-text-fill: #e2e2e8; -fx-padding: 12 0; -fx-font-size: 14; -fx-cursor: hand; }
 .size-preset:hover { -fx-background-color: #ffffff13; -fx-border-color: #ffffff35; }
 .size-preset:current { -fx-background-color: #ffffff18; -fx-border-color: #a4b9a9; }
+.size-preset.split-menu-button { -fx-padding: 0; }
+.size-preset.split-menu-button > .label { -fx-background-color: transparent; -fx-text-fill: #e2e2e8; -fx-padding: 12 6; -fx-alignment: center; }
+.size-preset.split-menu-button > .arrow-button { -fx-background-color: #ffffff06; -fx-background-radius: 0 7 7 0; -fx-padding: 0 6; }
+.size-preset.split-menu-button > .arrow-button:hover { -fx-background-color: #ffffff18; }
+.size-preset.split-menu-button > .arrow-button > .arrow { -fx-background-color: #a6a6b2; -fx-padding: 2 3; }
 .shell-popup .check-box { -fx-padding: 9 7; -fx-cursor: hand; }
 .shell-popup .check-box .box { -fx-background-color: #222328; -fx-border-color: #686873; -fx-border-radius: 3; -fx-background-radius: 3; }
 .shell-popup .check-box:selected .mark { -fx-background-color: #dddde5; }
 .shell-popup .check-box:selected .box { -fx-background-color: #555660; }
 .shell-dialog { -fx-background-color: #2d2e33; -fx-background-radius: 14; -fx-border-color: #50515b; -fx-border-radius: 14; -fx-padding: 22; }
 .shell-dialog .label { -fx-text-fill: #ceced8; }
+.preset-name-dialog { -fx-effect: dropshadow(gaussian, #00000047, 14, 0, 0, 5); }
 .dialog-title { -fx-font-size: 18; -fx-font-weight: 600; }
 .field-label { -fx-font-size: 11; -fx-text-fill: #b0b0bc !important; }
 .field-hint { -fx-font-size: 11; -fx-text-fill: #9999a7 !important; }
