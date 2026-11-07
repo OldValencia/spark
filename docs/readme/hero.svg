@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-labelledby="title desc">
+  <title id="title">Spark — your favorite websites, one shortcut away</title><desc id="desc">The Spark mascot beside the app name on a quiet graphite background.</desc>
+  <g font-family="Segoe UI, system-ui, sans-serif">
+  <rect width="1200" height="300" rx="24" fill="#191a1e"/>
+  <path d="M64 240H832" stroke="#34343c"/>
+  <text x="64" y="76" font-size="13" fill="#dfb584" letter-spacing="2">A SMALL WINDOW FOR YOUR REGULAR TABS</text>
+  <text x="60" y="164" font-size="88" fill="#f2eadc" font-weight="600" letter-spacing="-4">Spark</text>
+  <text x="64" y="206" font-size="24" fill="#b3b1b9" >Your favorite websites, one shortcut away.</text>
+  <ellipse cx="1010" cy="250" rx="62" ry="7" fill="#000000" opacity=".18"/>
+  <g transform="translate(930 62) scale(4)">
+    <path d="M16 12C16 9 18 8 20 5C22 8 24 9 24 12Z" fill="#dfb584"/>
+    <rect x="4" y="11" width="32" height="28" rx="10" fill="#45434a" stroke="#b19470" stroke-opacity=".8"/>
+    <g fill="#f7e7ca" transform="translate(-1 0)">
+      <ellipse cx="14" cy="25" rx="2.6" ry="4.5"/>
+      <ellipse cx="26" cy="25" rx="2.6" ry="4.5"/></g></g>
+  <text x="64" y="270" font-size="14" fill="#b3b1b9" >Windows desktop app · your websites, your accounts</text>
+  </g>
+</svg>
