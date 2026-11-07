@@ -6,6 +6,7 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import lombok.Getter;
 import lombok.Setter;
 import to.sparkapp.app.config.AppPreferences;
@@ -37,6 +38,7 @@ public final class WindowController {
         pointer = new WindowPointerInteraction(stage, geometry, this::settleReveal);
         pill = new QuickAccessPill(stage, preferences, () -> geometry.monitor, this::revealWindow);
         Screen.getScreens().addListener(screensChanged);
+        stage.addEventHandler(WindowEvent.WINDOW_SHOWING, event -> motion.prepareOpen());
         stage.showingProperty().addListener((observable, previous, shown) -> updateVisibility(shown));
     }
 
