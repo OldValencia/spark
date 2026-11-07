@@ -4,6 +4,7 @@
 
 <p align="center">
   <strong><a href="https://github.com/OldValencia/spark/releases">Download for Windows</a></strong>
+  &nbsp;·&nbsp; <a href="#watch-spark">Watch Spark</a>
   &nbsp;·&nbsp; <a href="#a-quick-tour">Take a look around</a>
   &nbsp;·&nbsp; <a href="#start-here">Get started</a>
   &nbsp;·&nbsp; <a href="#build-it">Build it</a>
@@ -13,9 +14,13 @@ Spark started with a shortcut on a spare mouse button: ask something, hide the w
 
 Keep **ChatGPT, Claude, Gemini, Mistral, Perplexity, Copilot**, or your own regular sites in a small desktop window. A question comes up, you open Spark, use the website, and put it away again. Your draft and scroll position stay with the page while Spark is running.
 
+## Watch Spark
+
+Thirty seconds: open it, switch sites, find a link, try a smaller window, and have a look at the settings. No sound.
+
 <p align="center">
-  <a href="docs/screenshots/spark-main.png"><img src="docs/screenshots/spark-main.png" alt="The live ChatGPT website inside Spark on Windows" width="1000"></a>
-  <br><sub>ChatGPT inside Spark. Screenshot from 0.3.0, captured with a separate, signed-out profile.</sub>
+  <a href="docs/media/spark-tour.mp4"><img src="docs/media/spark-tour.gif" alt="A silent tour of Spark 0.3.1: opening the window, switching between ChatGPT and Wikipedia, searching sites, filling the add-site form, resizing, settings, zoom, floating and hiding" width="960"></a>
+  <br><sub>Recorded in Spark 0.3.1 with a separate, signed-out profile. <a href="docs/media/spark-tour.mp4">MP4</a> · <a href="docs/media/spark-tour-poster.png">Still image</a></sub>
 </p>
 
 ## A quick tour
