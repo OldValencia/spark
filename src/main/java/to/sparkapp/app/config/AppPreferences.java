@@ -284,6 +284,15 @@ public class AppPreferences {
         return Boolean.TRUE.equals(config.reducedMotion);
     }
 
+    public synchronized boolean isMascotEnabled() {
+        return !Boolean.FALSE.equals(config.mascotEnabled);
+    }
+
+    public synchronized void setMascotEnabled(boolean enabled) {
+        config.mascotEnabled = enabled;
+        saveDebounced();
+    }
+
     public synchronized boolean isAutoHide() {
         return Boolean.TRUE.equals(config.autoHide);
     }

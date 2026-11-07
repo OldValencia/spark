@@ -13,16 +13,19 @@ final class BrowserLoadingView {
     private final BooleanSupplier visible;
     private final Runnable syncBounds;
     private final Supplier<Runnable> editSite;
+    private final BooleanSupplier reducedMotion;
+    private WebviewManager presented;
     private final PauseTransition loadTimeout = new PauseTransition(Duration.seconds(20));
     @Getter
     private final WebViewLoadingOverlay overlay = new WebViewLoadingOverlay();
 
     BrowserLoadingView(Supplier<WebviewManager> browser, BooleanSupplier visible, Runnable syncBounds,
-                       Supplier<Runnable> editSite) {
+                       Supplier<Runnable> editSite, BooleanSupplier reducedMotion) {
         this.browser = browser;
         this.visible = visible;
         this.syncBounds = syncBounds;
         this.editSite = editSite;
+        this.reducedMotion = reducedMotion;
     }
 
     void refresh() {
@@ -35,22 +38,25 @@ final class BrowserLoadingView {
         var active = browser.get();
 
         if (active.getLoadError() != null) {
+            presented = null;
             active.setVisible(false);
             overlay.showError(active.getLoadError(), () -> browser.get().reload(), null, editSite.get());
-        } else if (active.isLoading()) {
+        } else if (active.isLoading() && !active.isPagePresentable()) {
+            presented = null;
             active.setVisible(false);
             overlay.activate(null, 0, null);
+            overlay.showLoading(this::showPage, reducedMotion.getAsBoolean());
             loadTimeout.setOnFinished(event -> showTimeout());
             loadTimeout.playFromStart();
         } else {
             overlay.deactivate();
             syncBounds.run();
-            showPage();
+            presentPage();
         }
     }
 
     private void showTimeout() {
-        if (!visible.getAsBoolean() || !browser.get().isLoading()) {
+        if (!visible.getAsBoolean() || !browser.get().isLoading() || browser.get().isPagePresentable()) {
             return;
         }
 
@@ -59,12 +65,23 @@ final class BrowserLoadingView {
     }
 
     private void showPage() {
+        browser.get().allowPagePresentation();
+        syncBounds.run();
+        presentPage();
+    }
+
+    private void presentPage() {
         overlay.deactivate();
         browser.get().setVisible(true);
-        browser.get().focusBrowser();
+
+        if (presented != browser.get()) {
+            browser.get().focusBrowser();
+            presented = browser.get();
+        }
     }
 
     void pause() {
+        presented = null;
         overlay.pauseAnimation();
         loadTimeout.stop();
     }

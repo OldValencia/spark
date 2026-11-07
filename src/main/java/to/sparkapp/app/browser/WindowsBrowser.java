@@ -35,6 +35,7 @@ final class WindowsBrowser implements AutoCloseable {
     private final BrowserMemoryPolicy memoryPolicy;
     private Boolean visible;
     private boolean browserProcessExited;
+    private Pointer documentEvents;
 
     /**
      * Changes resource policy without suspending or navigating the page.
@@ -105,7 +106,21 @@ final class WindowsBrowser implements AutoCloseable {
         });
     }
 
+    void observeDocument(Consumer<Long> ready) {
+        requireOwner();
+        documentEvents = query(core, "9e8f0cf8-e670-4b5e-b2bc-73e061e3184c");
+        listen(documentEvents, 64, 65, "4bac7e9c-199e-49ed-87ed-249303acf019", args -> {
+            var id = new LongByReference();
+            check(call(args, 3, id));
+            ready.accept(id.getValue());
+        });
+    }
+
     private void listen(int add, int remove, String iid, Consumer<Pointer> listener) {
+        listen(core, add, remove, iid, listener);
+    }
+
+    private void listen(Pointer target, int add, int remove, String iid, Consumer<Pointer> listener) {
         BrowserEvent invoke = (self, sender, args) -> {
             try {
                 listener.accept(args);
@@ -119,8 +134,8 @@ final class WindowsBrowser implements AutoCloseable {
         handlers.add(handler);
 
         var token = new LongByReference();
-        check(call(core, add, handler.pointer, token));
-        removals.add(() -> call(core, remove, token.getValue()));
+        check(call(target, add, handler.pointer, token));
+        removals.add(() -> call(target, remove, token.getValue()));
     }
 
     void clearBrowsingData(Consumer<Boolean> completed) {
@@ -201,6 +216,8 @@ final class WindowsBrowser implements AutoCloseable {
             }
             // A failed browser has already closed its controllers.
         } finally {
+            release(documentEvents);
+            documentEvents = null;
             memoryPolicy.close();
             release(core);
         }

@@ -7,7 +7,7 @@ import to.sparkapp.app.windows.WindowController;
 
 final class WindowSizeMenu extends ShellPopover {
     WindowSizeMenu(Stage frame, AppPreferences preferences, WindowController controller) {
-        super("WINDOW SIZE", 276);
+        super("WINDOW SIZE", 276, preferences::isReducedMotion);
 
         var pinned = new SimpleBooleanProperty(preferences.isAlwaysOnTop());
         setting("pin", "Always on top", pinned, () -> {

@@ -121,8 +121,12 @@ final class WindowGeometry {
     }
 
     public void persist() {
+        persist(stage.getY());
+    }
+
+    void persist(double restingY) {
         preferences.setWindowPlacement(
-                new WindowPlacement(isDocked(), stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight(),
+                new WindowPlacement(isDocked(), stage.getX(), restingY, stage.getWidth(), stage.getHeight(),
                         manualWidth, manualHeight, monitor.getMinX(), monitor.getMinY()));
     }
 

@@ -42,6 +42,8 @@ public class SettingsPanel extends VBox {
     private Runnable onBackgroundMemoryChanged;
     @Setter
     private Runnable onPillSettingsChanged;
+    @Setter
+    private Runnable onAppearanceChanged;
 
     private final AppPreferences appPreferences;
     private final GlobalHotkeyManager hotkeyManager;
@@ -101,7 +103,13 @@ public class SettingsPanel extends VBox {
             if (onAutoUpdateChanged != null) {
                 onAutoUpdateChanged.accept(enabled);
             }
-        }));
+        }, this::appearanceChanged));
+    }
+
+    private void appearanceChanged() {
+        if (onAppearanceChanged != null) {
+            onAppearanceChanged.run();
+        }
     }
 
     private void pillSettingsChanged() {

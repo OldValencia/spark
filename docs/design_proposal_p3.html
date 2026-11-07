@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spark — P3 interaction study</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --paper: #151619; --surface: #25262a; --raised: #303136;
+      --line: #ffffff16; --text: #eeeef1; --muted: #aaabb5;
+      --accent: #d99a7c; --ease: cubic-bezier(.2,.8,.2,1);
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--paper); color: var(--text); font: 14px/1.6 "Segoe UI", system-ui, sans-serif; }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; color: inherit; }
+    button, a, input, textarea { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #e6c3a7; outline-offset: 4px; }
+    button { border: 1px solid var(--line); background: var(--surface); border-radius: 9px; padding: 8px 13px; transition: background 120ms, border-color 120ms; }
+    button:hover { background: #38393e; border-color: #ffffff30; }
+    button:disabled { opacity: .4; cursor: default; }
+    a { color: #e6c3a7; text-underline-offset: 4px; }
+    .wrap { max-width: 1456px; margin: auto; padding: 44px 48px 64px; }
+    .eyebrow { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .16em; }
+    .intro { display: flex; justify-content: space-between; gap: 40px; align-items: end; margin-bottom: 30px; }
+    h1 { font-size: clamp(28px, 3.2vw, 44px); line-height: 1.2; font-weight: 500; letter-spacing: -.045em; margin: 10px 0 12px; }
+    .intro p { color: var(--muted); margin: 0; max-width: 640px; }
+    .edition { white-space: nowrap; border: 1px solid var(--line); border-radius: 20px; padding: 6px 12px; font-size: 12px; color: #c5c6ce; }
+    .lab { display: grid; grid-template-columns: minmax(0, 1fr) 270px; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+    .stage { position: relative; min-height: 690px; overflow: hidden; background: radial-gradient(ellipse at 50% 80%, #35332e 0, #242528 52%, #202125 90%); }
+    .desktop-note { position: absolute; bottom: 27px; width: 100%; text-align: center; color: #a2a2ac; font-size: 11px; padding: 0 20px; }
+    .desktop-note kbd { border: 1px solid #ffffff28; border-radius: 4px; padding: 2px 6px; font: inherit; }
+    .pill { display: flex; gap: 8px; align-items: center; position: absolute; left: 50%; top: 0; transform: translateX(-50%); border-radius: 0 0 11px 11px; background: #303136; z-index: 1; padding: 5px 18px; font-size: 11px; }
+    .pill::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+    .panel { position: absolute; top: 0; left: 22px; right: 22px; height: 605px; background: var(--surface); border: 1px solid #ffffff25; border-top: 0; border-radius: 0 0 15px 15px; box-shadow: 0 24px 60px #0006; transform-origin: top center; transition: transform 200ms var(--ease), opacity 160ms ease-out; }
+    .panel.concealed { transform: translateY(calc(-100% - 16px)); opacity: 0; pointer-events: none; transition-duration: 140ms, 120ms; }
+    .panel.floating { top: 46px; left: 32px; right: 32px; height: 565px; border-radius: 15px; border-top: 1px solid #ffffff25; }
+    .panel.floating.concealed { transform: translateY(-8px); opacity: 0; }
+    .shell-header { height: 52px; display: flex; align-items: center; gap: 6px; padding: 0 10px; }
+    .icon-button { border: 1px solid transparent; background: transparent; padding: 0; height: 30px; width: 30px; flex: none; display: grid; place-items: center; }
+    .icon-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .mascot { position: relative; border: 0; border-radius: 10px; background: transparent; }
+    .mascot::before { content: ""; position: absolute; width: 24px; height: 22px; top: 5px; left: 3px; background: #414046; border: 1px solid #8a7762a6; border-radius: 9px; }
+    .mascot::after { content: ""; position: absolute; width: 5px; height: 7px; top: 1px; left: 16px; background: #d3ae81; border-radius: 80% 30% 70% 50%; transform: rotate(28deg); }
+    .eyes { position: relative; z-index: 1; display: flex; gap: 5px; transform: translate(var(--eye-x, 0px), var(--eye-y, 0px)); transition: transform 90ms ease-out; }
+    .eyes i { display: block; width: 4px; height: 8px; border-radius: 5px; background: #e5d5bd; }
+    .mascot.blink .eyes { animation: blink 260ms ease-in-out; }
+    .mascot.blink { animation: greet 360ms var(--ease); }
+    @keyframes blink { 45%, 65% { transform: scaleY(.15); } }
+    @keyframes greet { 35% { transform: translateY(-3px) rotate(-7deg); } }
+    .mascot.off { visibility: hidden; }
+    .tabs { display: flex; min-width: 0; gap: 5px; overflow-x: auto; scrollbar-width: thin; }
+    .site { display: flex; gap: 7px; align-items: center; background: transparent; border-color: transparent; padding: 6px 10px; white-space: nowrap; font-size: 12px; min-height: 32px; }
+    .site img { width: 15px; height: 15px; }
+    .site[aria-pressed="true"] { border-color: color-mix(in srgb, var(--accent) 28%, transparent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+    .drag-space { min-width: 15px; flex: 1; text-align: center; color: #656670; font-size: 12px; user-select: none; }
+    .viewport { position: absolute; inset: 52px 6px 12px; border-radius: 2px 2px 7px 7px; overflow: hidden; background: #f6f5f1; color: #35332f; }
+    .site-page { height: 100%; display: flex; flex-direction: column; }
+    .web-header { height: 46px; padding: 0 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #39352b16; font-size: 13px; }
+    .web-header .domain { margin-left: auto; font-size: 10px; color: #78776e; }
+    .mock-content { width: min(590px, 86%); margin: auto; padding: 24px 0; }
+    .mock-content .greeting { font-size: 12px; color: #8c7969; }
+    .mock-content h2 { font: 36px/1.25 Georgia, serif; letter-spacing: -.025em; margin: 18px 0; }
+    .mock-content p { color: #7a7770; font-size: 12px; }
+    .draft { display: block; width: 100%; height: 116px; resize: none; border: 1px solid #dedbd2; border-radius: 14px; margin-top: 40px; padding: 16px; background: #fffdf9; color: #37342f; font-size: 13px; }
+    .mock-label { text-align: center; color: #8b887f; font-size: 10px; margin: 10px 0 0; }
+    .load-line { position: absolute; top: 52px; left: 7px; right: 7px; height: 2px; overflow: hidden; z-index: 4; pointer-events: none; }
+    .load-line::after { content: ""; display: block; width: 35%; height: 100%; background: var(--accent); animation: loading 1.4s ease-in-out infinite; }
+    @keyframes loading { from { transform: translateX(-100%); } to { transform: translateX(390%); } }
+    .load-cover { position: absolute; inset: 0; display: grid; place-items: center; background: #25262a; color: var(--text); text-align: center; padding: 24px; z-index: 2; }
+    .load-cover h2 { font-size: 18px; font-weight: 500; margin: 15px 0 5px; }
+    .load-cover p { color: var(--muted); max-width: 330px; font-size: 12px; margin: 0 auto 20px; }
+    .loading-icon { width: 32px; height: 32px; margin: auto; padding: 6px; background: #ffffff08; border-radius: 9px; }
+    .loading-icon img { width: 20px; height: 20px; }
+    .load-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+    .load-actions button { font-size: 12px; }
+    .load-actions .primary { color: #242529; background: #e6e2d9; }
+    .bottom-handle { position: absolute; bottom: 4px; left: calc(50% - 17px); width: 34px; height: 3px; background: #ffffff35; border-radius: 4px; }
+    .menu { position: absolute; right: 10px; top: 46px; width: min(270px, calc(100% - 20px)); padding: 10px; background: #2e2f34; border: 1px solid #ffffff20; border-radius: 12px; box-shadow: 0 15px 35px #0005; z-index: 6; opacity: 0; visibility: hidden; transform: translateY(-5px); transform-origin: top right; transition: opacity 130ms ease-out, transform 160ms var(--ease), visibility 160ms; }
+    .menu.open { opacity: 1; visibility: visible; transform: translateY(0); }
+    .menu-title { font-size: 10px; color: #b0b1bb; padding: 4px 8px 9px; text-transform: uppercase; letter-spacing: .1em; }
+    .menu button { display: flex; width: 100%; justify-content: space-between; border: 0; background: transparent; text-align: left; font-size: 12px; }
+    .menu button:hover { background: #ffffff0b; }
+    .menu small { color: #a5a6b0; }
+    .menu hr { border: 0; border-top: 1px solid var(--line); margin: 7px 0; }
+    .menu .site-choice { justify-content: start; gap: 12px; }
+    .site-choice img { width: 17px; height: 17px; }
+    .controls { padding: 24px; border-left: 1px solid var(--line); background: #1d1e22; }
+    .controls h2 { font-size: 15px; font-weight: 500; margin: 5px 0 6px; }
+    .controls p { color: var(--muted); font-size: 12px; margin: 0 0 20px; }
+    .control-label { font-size: 10px; text-transform: uppercase; letter-spacing: .13em; color: #b4b5be; margin: 22px 0 9px; }
+    .segmented { display: flex; gap: 4px; }
+    .segmented button { flex: 1; font-size: 11px; padding: 7px; }
+    button[aria-pressed="true"] { background: #444148; border-color: #ffffff40; }
+    .scenario { width: 100%; margin-bottom: 6px; display: flex; text-align: left; align-items: center; gap: 10px; font-size: 12px; }
+    .scenario span { width: 17px; color: var(--muted); font-size: 11px; }
+    .setting { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin: 15px 0; font-size: 12px; cursor: pointer; }
+    .setting input { accent-color: #c3d4b3; width: 16px; height: 16px; }
+    .controls .replay { width: 100%; background: #e3ddcf; color: #292927; font-size: 12px; margin-top: 16px; }
+    .controls .replay:hover { background: #f2ebdd; }
+    .status { border-top: 1px solid var(--line); padding-top: 14px; font-size: 11px; color: #c4c5ce; min-height: 56px; margin-top: 18px; }
+    .details { margin-top: 52px; }
+    .details h2 { font-size: 25px; font-weight: 500; letter-spacing: -.025em; margin: 7px 0 22px; }
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .card { border: 1px solid var(--line); border-radius: 13px; padding: 24px; background: #1c1d20; }
+    .card .number { color: #cbb99d; font-size: 11px; }
+    .card h3 { font-size: 17px; font-weight: 500; margin: 12px 0 9px; }
+    .card p, .card li { color: #b2b3bc; font-size: 12px; }
+    .card ul { padding-left: 17px; }
+    .card li { margin-bottom: 8px; }
+    .decision { display: inline-block; margin-top: 12px; font-size: 10px; color: #c3d4b3; border: 1px solid #c3d4b333; padding: 3px 8px; border-radius: 5px; }
+    .decision.experiment { color: #dbc09a; border-color: #dbc09a33; }
+    .matrix { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12px; }
+    .matrix th, .matrix td { text-align: left; vertical-align: top; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+    .matrix th { color: #d8c8af; font-weight: 500; }
+    .matrix td { color: #b9bac4; }
+    .matrix td:first-child { color: var(--text); width: 23%; }
+    .source-note { color: var(--muted); font-size: 12px; max-width: 900px; }
+    .footer { margin-top: 35px; border-top: 1px solid var(--line); padding-top: 20px; color: var(--muted); font-size: 11px; }
+    .reduce-motion *, .reduce-motion *::before, .reduce-motion *::after { animation: none !important; transition: none !important; }
+    .reduce-motion .load-line::after { width: 100%; opacity: .55; }
+    @media (max-width: 1100px) { .wrap { padding: 30px 22px; } .lab { grid-template-columns: minmax(0, 1fr) 240px; } .controls { padding: 18px; } .site { padding: 6px; } .site:nth-child(3) { display: none; } }
+    @media (max-width: 820px) {
+      .intro { display: block; } .edition { display: inline-block; margin-top: 18px; }
+      .lab { grid-template-columns: 1fr; } .stage { min-height: 660px; }
+      .controls { border-left: 0; border-top: 1px solid var(--line); }
+      .cards { grid-template-columns: 1fr; } .matrix th, .matrix td { padding: 12px 8px; }
+    }
+    @media (max-width: 480px) { .wrap { padding: 24px 12px; } .panel { left: 7px; right: 7px; } .panel.floating { left: 12px; right: 12px; } .site:nth-child(n+2) { display: none; } .mock-content h2 { font-size: 28px; } .domain { display: none; } .drag-space { min-width: 0; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="intro">
+      <div><div class="eyebrow">Spark / P3 interaction study</div><h1>A little more considered.</h1><p>The same quiet graphite shell. More deliberate movement, a gentler first load, and a small touch of character.</p></div>
+      <span class="edition">Proposal · November 2026</span>
+    </header>
+    <section class="lab" aria-label="Interactive design preview">
+      <div class="stage" id="stage">
+        <button class="pill" id="pill" aria-controls="panel" aria-expanded="true" hidden>Spark</button>
+        <main class="panel" id="panel" aria-label="Spark window preview">
+          <div class="shell-header">
+            <button class="icon-button mascot" id="mascot" aria-label="Spark mascot: blink" title="Just a little hello"><span class="eyes" aria-hidden="true"><i></i><i></i></span></button>
+            <nav class="tabs" aria-label="Demo sites">
+              <button class="site" data-site="claude" aria-pressed="true"><img src="../src/main/resources/icons/claude.svg" alt="">Claude</button>
+              <button class="site" data-site="chatgpt" aria-pressed="false"><img src="../src/main/resources/icons/chatgpt.svg" alt="">ChatGPT</button>
+              <button class="site" data-site="gemini" aria-pressed="false"><img src="../src/main/resources/icons/gemini.svg" alt="">Gemini</button>
+            </nav>
+            <button class="icon-button" id="sitesButton" aria-label="All sites" title="All sites" aria-haspopup="true" aria-expanded="false" aria-controls="sitesMenu"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg></button>
+            <span class="drag-space" aria-hidden="true">―</span>
+            <button class="icon-button" id="sizeButton" aria-label="Window size" title="Window size" aria-haspopup="true" aria-expanded="false" aria-controls="sizeMenu"><svg viewBox="0 0 24 24"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5M4 4l6 6m10-6-6 6M4 20l6-6m10 6-6-6"/></svg></button>
+            <button class="icon-button" id="optionsButton" aria-label="Options" title="Options" aria-haspopup="true" aria-expanded="false" aria-controls="optionsMenu"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+            <button class="icon-button" id="hideButton" aria-label="Hide preview window" title="Hide preview window"><svg viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></svg></button>
+          </div>
+          <div class="load-line" id="loadLine" hidden></div>
+          <section class="menu" id="sizeMenu" aria-label="Window placement" inert>
+            <div class="menu-title">Window placement</div>
+            <button data-placement="docked">Dock at the top <small>Preview</small></button>
+            <button data-placement="floating">Float over the desktop <small>Preview</small></button>
+          </section>
+          <section class="menu" id="optionsMenu" aria-label="Window options" inert>
+            <div class="menu-title">A quieter workspace</div>
+            <button id="copyCleanLink">Copy clean demo link <small>Preview</small></button>
+            <hr><button id="mascotMenuToggle">Show mascot <small id="mascotState">On</small></button>
+            <button id="motionMenuToggle">Reduce motion <small id="motionState">Off</small></button>
+          </section>
+          <section class="menu" id="sitesMenu" aria-label="Your sites" inert>
+            <div class="menu-title">Your sites · demo</div>
+            <button class="site-choice" data-site="claude"><img src="../src/main/resources/icons/claude.svg" alt="">Claude</button>
+            <button class="site-choice" data-site="chatgpt"><img src="../src/main/resources/icons/chatgpt.svg" alt="">ChatGPT</button>
+            <button class="site-choice" data-site="gemini"><img src="../src/main/resources/icons/gemini.svg" alt="">Gemini</button>
+          </section>
+          <div class="viewport" id="viewport">
+            <div class="site-page" id="sitePage">
+              <div class="web-header"><span aria-hidden="true">☰</span><span id="webBrand">Claude</span><span class="domain" id="domain">claude.ai</span></div>
+              <div class="mock-content"><div class="greeting">A little space for a good thought</div><h2>What is on your mind?</h2><p>A familiar page, right where you left it.</p><textarea class="draft" id="draft" aria-label="Local demo draft" placeholder="Leave a thought here. Switch sites. Come back."></textarea><div class="mock-label">Local website mockup · nothing is sent</div></div>
+            </div>
+            <section class="load-cover" id="loadCover" aria-label="Loading state preview" hidden>
+              <div><div class="loading-icon"><img id="loadIcon" src="../src/main/resources/icons/claude.svg" alt=""></div><h2 id="loadTitle">Opening Claude</h2><p id="loadDescription">Connecting to your site.</p><div class="load-actions"><button id="showPage">Show page</button><button class="primary" id="retry" hidden>Retry</button><button id="editAddress" hidden>Review address</button></div></div>
+            </section>
+          </div>
+          <div class="bottom-handle" aria-hidden="true"></div>
+        </main>
+        <div class="desktop-note">Browser study · <kbd>Esc</kbd> closes a menu · click the top pill to reopen</div>
+      </div>
+      <aside class="controls" aria-label="Preview controls">
+        <div class="eyebrow">Try the details</div><h2>Feel the difference.</h2><p>These controls simulate the proposal. They do not change Spark settings.</p>
+        <div class="control-label">Window behavior</div>
+        <div class="segmented"><button data-placement="docked" aria-pressed="true">Docked</button><button data-placement="floating" aria-pressed="false">Floating</button></div>
+        <button class="replay" id="replay">Replay window reveal</button>
+        <div class="control-label">Loading scenarios</div>
+        <button class="scenario" data-scenario="ready"><span>01</span>Return to a live page</button>
+        <button class="scenario" data-scenario="cold"><span>02</span>First visit</button>
+        <button class="scenario" data-scenario="slow"><span>03</span>A slow connection</button>
+        <button class="scenario" data-scenario="error"><span>04</span>Something went wrong</button>
+        <div class="control-label">Personal touches</div>
+        <label class="setting" for="mascotToggle">Show small mascot<input type="checkbox" id="mascotToggle" checked></label>
+        <label class="setting" for="motionToggle">Reduce motion<input type="checkbox" id="motionToggle"></label>
+        <p>Motion starts with your system preference. The eyes react only inside this preview, with no idle animation.</p>
+        <div class="status" id="status" role="status" aria-live="polite">Ready · try a menu or replay the reveal.</div>
+      </aside>
+    </section>
+    <section class="details" aria-labelledby="directionTitle">
+      <div class="eyebrow">Proposed direction</div><h2 id="directionTitle">Three details that earn their place.</h2>
+      <div class="cards">
+        <article class="card"><span class="number">01 / Motion</span><h3>One motion language.</h3><p>Open toward the point of origin. Settle once. Keep every control available as soon as the window appears.</p><ul><li>Docked: a 200 ms reveal from the upper edge; close in about 140 ms.</li><li>Floating: an 8 px lift with a short fade. Preserve the saved position.</li><li>Menus: 5 px travel, 130–160 ms; no bounce or stagger.</li><li>A repeated hotkey reverses the current movement. Dragging or resizing settles it immediately.</li></ul><span class="decision">Propose for P3</span></article>
+        <article class="card"><span class="number">02 / Loading</span><h3>Let the useful page through.</h3><p>Keep live pages intact. For a new visit, show a quiet site identity and offer “Show page” before the long-wait timeout.</p><ul><li>Try exposing the native page at DOMContentLoaded, while navigation continues. Validate usability on real sites.</li><li>A thin indeterminate line means loading; it never invents a percentage.</li><li>Fast returns get no spinner or minimum display time.</li><li>Slow and failed visits have distinct messages. Never reload a draft automatically.</li></ul><span class="decision">Prototype, then validate</span></article>
+        <article class="card"><span class="number">03 / Character</span><h3>A companion in the margin.</h3><p>A small ember with warm eyes in the existing 30 × 30 slot. A soft body, a tiny spark, and a little personality.</p><ul><li>A small local gaze, limited to a few pixels while the window is visible.</li><li>A blink and gentle tilt on hover; a brief hop when greeted. Clicking has no application action.</li><li>No idle loop, page reading, generation detection, or notification badge.</li><li>Optional; the slot stays the same size when disabled. Reduced motion keeps the face static.</li></ul><span class="decision">Selected for P3</span></article>
+      </div>
+    </section>
+    <section class="details" aria-labelledby="networkTitle">
+      <div class="eyebrow">Loading / research shortlist</div><h2 id="networkTitle">Fewer obstacles between you and a page.</h2>
+      <div style="overflow-x:auto">
+        <table class="matrix"><thead><tr><th>Idea</th><th>Expected benefit</th><th>Recommendation</th></tr></thead><tbody>
+          <tr><td>Browser HTTP cache</td><td>Reuse eligible scripts, styles and images across visits.</td><td>Verify persistent profile behavior and response headers first. Leave revalidation to WebView2. No routine cache clearing.</td></tr>
+          <tr><td>Saved page HTML</td><td>Can display an old shell, but cannot restore a running application.</td><td>Defer. For authenticated apps, HTML omits live JS state and still needs APIs; stale markup can conflict with new assets. Keep the actual live page instead.</td></tr>
+          <tr><td>Ads and tracker filtering</td><td>Potentially fewer requests on ad-heavy sites. Benefit on AI sites is unproven.</td><td>Separate experiment. Opt in per site, with a visible “Pause for this site”. Compare loading, login, upload and streaming with filtering off/on.</td></tr>
+          <tr><td>Clean copied links</td><td>Cleaner sharing; possible removal of known tracking parameters.</td><td>Start with an explicit copy action. Preserve the open URL, path, hash, auth tokens and signatures. URL cleanup alone is not a speed improvement.</td></tr>
+          <tr><td>Warm one favorite site</td><td>May shorten the first visit after launch, at the cost of startup work and memory.</td><td>Optional later experiment, never prefetch every site or follow hover automatically. Keep the existing lazy session model as the default.</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+    <section class="details" aria-labelledby="extensionsTitle">
+      <div class="eyebrow">Extensions / separate compatibility experiment</div><h2 id="extensionsTitle">A small shortlist, with a reason for each.</h2>
+      <div class="cards">
+        <article class="card"><span class="number">A / First candidate</span><h3>uBlock Origin Lite</h3><p>A candidate for optional network filtering. Check WebView2 API support, rule application, per-site exceptions, updates and licensing before any integration.</p><span class="decision experiment">Not tested in Spark</span></article>
+        <article class="card"><span class="number">B / Useful on demand</span><h3>Reader view / translation</h3><p>Useful for articles and documentation. Prefer explicit “Read” or “Translate” actions; keep interactive AI pages intact. Validate an extension before choosing a specific package.</p><span class="decision experiment">Explore after core polish</span></article>
+        <article class="card"><span class="number">C / Keep the palette intact</span><h3>Automatic darkening</h3><p>Defer extensions that restyle every page. They can change brand colors, contrast and layout. Spark currently has one graphite shell; a light theme is a separate design scope.</p><span class="decision experiment">Defer for this iteration</span></article>
+      </div>
+      <p class="source-note">WebView2 has a native API for loading unpacked extensions, but no standard browser toolbar to host their buttons and popups. Spark would need native bridge work and its own entry points. This preview does not load extensions, block requests, accelerate a real website, or prove native animation quality.</p>
+      <p class="source-note">Technical references: <a href="https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2profile7">WebView2 extension API and UI limitations</a> · <a href="https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/performance">Performance guidance</a> · <a href="https://learn.microsoft.com/en-us/microsoft-edge/webview2/how-to/webresourcerequested">Request filtering</a> · <a href="https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/user-data-folder">Profile storage</a> · <a href="https://github.com/uBlockOrigin/uBOL-home">uBlock Origin Lite</a>.</p>
+    </section>
+    <footer class="footer">Based on <a href="design_proposal.html">the original design proposal</a> and the current desktop shell. Proposal only · website content is a local mockup · timing is illustrative · P4 review is deferred.</footer>
+  </div>
+  <script>
+    (() => {
+      'use strict';
+      const $ = id => document.getElementById(id);
+      const panel = $('panel');
+      const sites = {
+        claude: { name: 'Claude', domain: 'claude.ai', color: '#d99a7c' },
+        chatgpt: { name: 'ChatGPT', domain: 'chatgpt.com', color: '#d5d5df' },
+        gemini: { name: 'Gemini', domain: 'gemini.google.com', color: '#9bb7ee' }
+      };
+      const sessions = new Map([['claude', { draft: '', visited: true }]]);
+      const triggers = { sizeMenu: $('sizeButton'), optionsMenu: $('optionsButton'), sitesMenu: $('sitesButton') };
+      let active = 'claude';
+      let currentMenu = null;
+      let loadTimer;
+      let revealTimer;
+      let blinkTimer;
+      let motionChanged = false;
+      const systemMotion = matchMedia('(prefers-reduced-motion: reduce)');
+      const announce = text => { $('status').textContent = text; };
+      const currentSession = () => sessions.get(active);
+
+      function closeMenu(restoreFocus = false) {
+        if (!currentMenu) { return; }
+        const id = currentMenu;
+        $(id).classList.remove('open');
+        $(id).inert = true;
+        triggers[id].setAttribute('aria-expanded', 'false');
+        currentMenu = null;
+        if (restoreFocus) { triggers[id].focus(); }
+      }
+
+      function toggleMenu(id) {
+        const wasOpen = currentMenu === id;
+        closeMenu();
+        if (wasOpen) { return; }
+        currentMenu = id;
+        $(id).inert = false;
+        $(id).classList.add('open');
+        triggers[id].setAttribute('aria-expanded', 'true');
+        $(id).querySelector('button').focus({ preventScroll: true });
+      }
+
+      function showWindow(visible) {
+        clearTimeout(revealTimer);
+        closeMenu();
+        panel.classList.toggle('concealed', !visible);
+        panel.inert = !visible;
+        panel.setAttribute('aria-hidden', String(!visible));
+        $('pill').hidden = visible;
+        $('pill').setAttribute('aria-expanded', String(visible));
+        if (!visible && panel.contains(document.activeElement)) { $('pill').focus(); }
+        if (visible) { $('hideButton').focus({ preventScroll: true }); }
+      }
+
+      function placement(value) {
+        const floating = value === 'floating';
+        closeMenu();
+        panel.classList.toggle('floating', floating);
+        document.querySelectorAll('.segmented [data-placement]').forEach(button => {
+          button.setAttribute('aria-pressed', String(button.dataset.placement === value));
+        });
+        announce(floating ? 'Floating · 8 px lift and fade. Saved placement stays intact.' : 'Docked · reveal from the upper edge.');
+      }
+
+      function loadPreview(value) {
+        clearTimeout(loadTimer);
+        const ready = value === 'ready';
+        const error = value === 'error';
+        $('loadCover').hidden = ready;
+        $('sitePage').inert = !ready;
+        $('loadLine').hidden = ready || error;
+        $('retry').hidden = !error;
+        $('editAddress').hidden = !error;
+        $('showPage').hidden = ready || error;
+        $('loadTitle').textContent = error ? 'This site could not be opened' : value === 'slow' ? 'This is taking a little longer' : 'Opening ' + sites[active].name;
+        $('loadDescription').textContent = error ? 'Retry when you are ready, or check the site address.' : value === 'slow' ? 'The site is still loading. You can show the page while it continues.' : 'Connecting to your site. You can show the page at any time.';
+        document.querySelectorAll('[data-scenario]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.scenario === value)));
+        if (ready) {
+          currentSession().visited = true;
+          announce('Live page · no reload, no loading animation. Your local draft stays intact.');
+        } else if (value === 'cold') {
+          announce('First visit simulation · this preview completes after 1.6 s. This is not a measured load time.');
+          loadTimer = setTimeout(() => loadPreview('ready'), 1600);
+        } else {
+          announce(value === 'slow' ? 'Slow visit simulation · try Show page. No automatic reload.' : 'Failure simulation · recovery is an explicit action.');
+        }
+      }
+
+      function selectSite(id) {
+        currentSession().draft = $('draft').value;
+        active = id;
+        if (!sessions.has(id)) { sessions.set(id, { draft: '', visited: false }); }
+        const site = sites[id];
+        $('draft').value = currentSession().draft;
+        $('webBrand').textContent = site.name;
+        $('domain').textContent = site.domain;
+        $('loadIcon').src = '../src/main/resources/icons/' + id + '.svg';
+        document.documentElement.style.setProperty('--accent', site.color);
+        document.querySelectorAll('.site').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.site === id)));
+        closeMenu();
+        loadPreview(currentSession().visited ? 'ready' : 'cold');
+      }
+
+      function syncPreferences() {
+        document.body.classList.toggle('reduce-motion', $('motionToggle').checked);
+        $('mascot').classList.toggle('off', !$('mascotToggle').checked);
+        $('mascot').disabled = !$('mascotToggle').checked;
+        $('mascot').style.removeProperty('--eye-x');
+        $('mascot').style.removeProperty('--eye-y');
+        $('motionState').textContent = $('motionToggle').checked ? 'On' : 'Off';
+        $('mascotState').textContent = $('mascotToggle').checked ? 'On' : 'Off';
+      }
+
+      function blink() {
+        if ($('motionToggle').checked || !$('mascotToggle').checked) { return; }
+        clearTimeout(blinkTimer);
+        $('mascot').classList.remove('blink');
+        void $('mascot').offsetWidth;
+        $('mascot').classList.add('blink');
+        blinkTimer = setTimeout(() => $('mascot').classList.remove('blink'), 280);
+      }
+
+      Object.entries(triggers).forEach(([id, trigger]) => trigger.addEventListener('click', () => toggleMenu(id)));
+      document.querySelectorAll('[data-placement]').forEach(button => button.addEventListener('click', () => {
+        const fromMenu = Boolean(button.closest('.menu'));
+        placement(button.dataset.placement);
+        if (fromMenu) { $('sizeButton').focus(); }
+      }));
+      document.querySelectorAll('[data-site]').forEach(button => button.addEventListener('click', () => {
+        const fromMenu = Boolean(button.closest('.menu'));
+        selectSite(button.dataset.site);
+        if (fromMenu) { $('sitesButton').focus(); }
+      }));
+      document.querySelectorAll('[data-scenario]').forEach(button => button.addEventListener('click', () => loadPreview(button.dataset.scenario)));
+      $('draft').addEventListener('input', () => { currentSession().draft = $('draft').value; });
+      $('hideButton').addEventListener('click', () => showWindow(false));
+      $('pill').addEventListener('click', () => showWindow(panel.classList.contains('concealed')));
+      $('replay').addEventListener('click', () => {
+        showWindow(false);
+        revealTimer = setTimeout(() => showWindow(true), $('motionToggle').checked ? 80 : 320);
+      });
+      $('showPage').addEventListener('click', () => { loadPreview('ready'); $('draft').focus(); });
+      $('retry').addEventListener('click', () => { loadPreview('cold'); $('showPage').focus(); });
+      $('editAddress').addEventListener('click', () => announce('Demo site address: https://' + sites[active].domain + '/. In Spark, this action would open the existing site editor.'));
+      $('mascotToggle').addEventListener('change', syncPreferences);
+      $('motionToggle').addEventListener('change', () => { motionChanged = true; syncPreferences(); });
+      $('mascotMenuToggle').addEventListener('click', () => { $('mascotToggle').checked = !$('mascotToggle').checked; syncPreferences(); });
+      $('motionMenuToggle').addEventListener('click', () => { motionChanged = true; $('motionToggle').checked = !$('motionToggle').checked; syncPreferences(); });
+      $('copyCleanLink').addEventListener('click', async () => {
+        const sample = new URL('https://' + sites[active].domain + '/?utm_source=spark-preview&utm_campaign=p3');
+        sample.searchParams.delete('utm_source');
+        sample.searchParams.delete('utm_campaign');
+        const clean = sample.href;
+        closeMenu(true);
+        try {
+          await navigator.clipboard.writeText(clean);
+          announce('Copied demo link: ' + clean + ' (sample tracking parameters omitted).');
+        } catch {
+          announce('Clipboard unavailable here. Clean demo link: ' + clean);
+        }
+      });
+      $('mascot').addEventListener('click', blink);
+      $('mascot').addEventListener('pointerenter', blink);
+      panel.addEventListener('pointermove', event => {
+        if ($('motionToggle').checked || !$('mascotToggle').checked || panel.inert || document.hidden) { return; }
+        const box = $('mascot').getBoundingClientRect();
+        $('mascot').style.setProperty('--eye-x', Math.max(-2, Math.min(2, (event.clientX - box.left - 15) / 100)) + 'px');
+        $('mascot').style.setProperty('--eye-y', Math.max(-1.5, Math.min(1.5, (event.clientY - box.top - 15) / 120)) + 'px');
+      });
+      panel.addEventListener('pointerleave', () => {
+        $('mascot').style.removeProperty('--eye-x');
+        $('mascot').style.removeProperty('--eye-y');
+      });
+      document.addEventListener('pointerdown', event => {
+        if (currentMenu && !$(currentMenu).contains(event.target) && !triggers[currentMenu].contains(event.target)) { closeMenu(); }
+      });
+      document.addEventListener('focusin', event => {
+        if (currentMenu && !$(currentMenu).contains(event.target) && !triggers[currentMenu].contains(event.target)) { closeMenu(); }
+      });
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && currentMenu) { event.preventDefault(); closeMenu(true); }
+      });
+      document.addEventListener('visibilitychange', () => {
+        $('loadLine').style.display = document.hidden ? 'none' : '';
+        if (document.hidden) { $('mascot').classList.remove('blink'); }
+      });
+      systemMotion.addEventListener('change', event => {
+        if (!motionChanged) { $('motionToggle').checked = event.matches; syncPreferences(); }
+      });
+      $('motionToggle').checked = systemMotion.matches;
+      syncPreferences();
+    })();
+  </script>
+</body>
+</html>

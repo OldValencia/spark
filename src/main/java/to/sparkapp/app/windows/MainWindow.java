@@ -158,10 +158,6 @@ public class MainWindow extends Stage {
             autoHide.cancel();
         }
 
-        if (windowController != null) {
-            windowController.closing();
-        }
-
         if (topBar != null) {
             topBar.closeMenus();
         }
@@ -170,6 +166,18 @@ public class MainWindow extends Stage {
             settingsWindow.close();
         }
 
+        if (windowController != null) {
+            windowController.hide(() -> finishHide(restoreFocus));
+        } else {
+            finishHide(restoreFocus);
+        }
+    }
+
+    public boolean isHiding() {
+        return windowController != null && windowController.getVisibility() == WindowController.Visibility.CLOSING;
+    }
+
+    private void finishHide(boolean restoreFocus) {
         if (fxWebViewPane != null) {
             fxWebViewPane.onWindowHidden();
         }
@@ -337,6 +345,14 @@ public class MainWindow extends Stage {
             settingsPanel.setOnClearCookies(fxWebViewPane::clearCookies);
             settingsPanel.setOnBackgroundMemoryChanged(fxWebViewPane::refreshResourcePolicy);
             settingsPanel.setOnPillSettingsChanged(windowController::refreshPill);
+            settingsPanel.setOnAppearanceChanged(() -> {
+                windowController.refreshMotion();
+                fxWebViewPane.refreshAppearance();
+
+                if (topBar != null) {
+                    topBar.refreshAppearance();
+                }
+            });
             settingsPanel.setOnZoomEnabledChanged(enabled -> fxWebViewPane.resetZoom());
 
             settingsWindow = new SettingsWindow(this, settingsPanel);

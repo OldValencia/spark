@@ -39,6 +39,7 @@ final class SitesPopup extends Popup {
     SitesPopup(Stage owner, AiDock dock, AiConfiguration configuration, AppPreferences preferences, Runnable onChanged) {
         this.owner = owner;
         this.dock = dock;
+        new PopupMotion(this, preferences::isReducedMotion);
         setAutoHide(true);
         setHideOnEscape(true);
         root.getStyleClass().add("shell-popup");

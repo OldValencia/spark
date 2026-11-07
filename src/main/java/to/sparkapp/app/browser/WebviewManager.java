@@ -32,6 +32,10 @@ public class WebviewManager {
     @Getter
     private volatile boolean loading = true;
     @Getter
+    private volatile boolean pagePresentable;
+    @Setter
+    private Runnable onPagePresentable;
+    @Getter
     private volatile String loadError;
     private volatile boolean processFailed;
     private volatile boolean recreateOnRetry;
@@ -44,6 +48,7 @@ public class WebviewManager {
 
     private void loadingChanged(boolean value) {
         loading = value;
+        pagePresentable = !value && loadError == null;
 
         if (onLoadingChanged != null) {
             Platform.runLater(() -> onLoadingChanged.accept(value));
@@ -126,6 +131,28 @@ public class WebviewManager {
                 presentation.isHibernated() && appPreferences.isBackgroundMemoryReductionEnabled());
         browser.observeProcessFailures(this::handleProcessFailure);
         browser.observe(this::navigationStarting, this::navigationCompleted);
+        browser.observeDocument(this::documentReady);
+    }
+
+    private void documentReady(long id) {
+        if (disposed.get() || processFailed || id != navigationId || loadError != null ||
+                "about:blank".equals(webview.windows().source())) {
+            return;
+        }
+
+        allowPagePresentation();
+    }
+
+    public void allowPagePresentation() {
+        if (disposed.get() || processFailed || loadError != null) {
+            return;
+        }
+
+        pagePresentable = true;
+
+        if (onPagePresentable != null) {
+            Platform.runLater(onPagePresentable);
+        }
     }
 
     private void navigationStarting(long id) {
@@ -306,7 +333,7 @@ public class WebviewManager {
     }
 
     public void wakeup(long parentHandle) {
-        presentation.wakeup(parentHandle, !loading && loadError == null);
+        presentation.wakeup(parentHandle, pagePresentable && loadError == null);
 
         if (disposed.get() || !SystemUtils.isWindows()) {
             return;
@@ -421,7 +448,7 @@ public class WebviewManager {
         long generation = presentation.getGeneration();
         dispatch(() -> {
             if (generation == presentation.getGeneration() && !processFailed && !presentation.isHibernated() &&
-                    !loading && loadError == null && SystemUtils.isWindows()) {
+                    pagePresentable && loadError == null && SystemUtils.isWindows()) {
                 boolean accepted = webview.windows().focus();
 
                 if (!accepted) {

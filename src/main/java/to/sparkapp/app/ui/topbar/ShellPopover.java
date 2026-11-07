@@ -1,5 +1,7 @@
 package to.sparkapp.app.ui.topbar;
 
+import java.util.function.BooleanSupplier;
+
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
@@ -24,8 +26,14 @@ class ShellPopover extends Popup {
     private Node anchor;
     private Window owner;
     private long dismissal;
+    private final PopupMotion motion;
 
     ShellPopover(String heading, double width) {
+        this(heading, width, () -> false);
+    }
+
+    ShellPopover(String heading, double width, BooleanSupplier reducedMotion) {
+        motion = new PopupMotion(this, reducedMotion);
         setAutoHide(true);
         setHideOnEscape(true);
         body.getStyleClass().add("shell-popup");
@@ -154,6 +162,7 @@ class ShellPopover extends Popup {
         var bounds = anchor.localToScreen(anchor.getBoundsInLocal());
 
         if (bounds != null) {
+            motion.settle();
             setX(anchorX(bounds));
             setY(bounds.getMaxY() + OWNER_MARGIN);
         }

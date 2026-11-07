@@ -12,7 +12,7 @@ import to.sparkapp.app.ui.webview.FxWebViewPane;
 
 final class WindowOptionsMenu extends ShellPopover {
     WindowOptionsMenu(AppPreferences preferences, FxWebViewPane browser, Runnable onSettings) {
-        super("WINDOW OPTIONS", 258);
+        super("WINDOW OPTIONS", 258, preferences::isReducedMotion);
         action("cog-6-tooth", "Settings", onSettings);
 
         var zoomOut = zoomButton("−", "Zoom out\nOn the page: Ctrl + -", browser::zoomOut);

@@ -66,7 +66,8 @@ public class FxWebViewPane extends StackPane {
         setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
         setStyle("-fx-background-color: " + Theme.toHex(Theme.BG_DEEP) + ";");
 
-        loadingView = new BrowserLoadingView(() -> bridge, this::windowVisible, this::syncBounds, this::editSiteAction);
+        loadingView = new BrowserLoadingView(() -> bridge, this::windowVisible, this::syncBounds,
+                this::editSiteAction, appPreferences::isReducedMotion);
         getChildren().add(loadingView.getOverlay());
         dataClearing = new SiteDataClearing(sessions, appPreferences, () -> getScene().getWindow(), () -> disposed);
 
@@ -84,6 +85,11 @@ public class FxWebViewPane extends StackPane {
     }
 
     private void setupBridgeCallbacks(WebviewManager source) {
+        source.setOnPagePresentable(() -> {
+            if (!disposed && bridge == source) {
+                loadingView.refresh();
+            }
+        });
         source.setOnReadyCallback(() -> Platform.runLater(() -> {
             if (disposed || bridge != source) {
                 return;
@@ -361,6 +367,10 @@ public class FxWebViewPane extends StackPane {
 
     public void refreshResourcePolicy() {
         sessions.forEach(WebviewManager::refreshResourcePolicy);
+    }
+
+    public void refreshAppearance() {
+        loadingView.refresh();
     }
 
     public void resetZoom() {

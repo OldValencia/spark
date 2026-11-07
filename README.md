@@ -40,6 +40,9 @@ _Switch between sites, and hide it when you're done. Visited pages stay alive du
 | **Quick show and hide** | Set a global shortcut, use the tray, or bring Spark back through its top-edge pill. |
 | **A familiar place to return to** | Remember each site's last page and keep your preferred site order. |
 | **Small, useful controls** | Search sites, drag to reorder, adjust page zoom, reduce motion, and configure startup behavior. |
+| **A little character** | An optional small mascot greets you, follows the pointer across the shell and embedded website, and reacts to hover or a click. Reduce motion keeps it still. |
+
+New visits become visible when the document is ready, while remaining resources continue loading. **Show page** is also available during loading. Returning to a live site keeps its page and draft intact. Window and menu transitions respect **Settings → General → Reduce motion**; **Show mascot** is available in the same section.
 
 ## A closer look
 

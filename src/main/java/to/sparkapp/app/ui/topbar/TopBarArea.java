@@ -15,6 +15,7 @@ import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.topbar.components.AiDock;
 import to.sparkapp.app.ui.topbar.components.ShellIcon;
 import to.sparkapp.app.ui.topbar.components.ShellTooltip;
+import to.sparkapp.app.ui.topbar.components.SparkMascot;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
 import to.sparkapp.app.windows.WindowController;
 
@@ -25,6 +26,7 @@ public class TopBarArea extends HBox {
     private final SitesPopup sites;
     private final ShellPopover sizes;
     private final ShellPopover options;
+    private final SparkMascot mascot;
 
     public TopBarArea(AiConfiguration configuration, FxWebViewPane browser, Stage frame, AppPreferences preferences, Runnable onSettings, Runnable onHide, WindowController controller, Runnable onSitesChanged) {
         sizes = new WindowSizeMenu(frame, preferences, controller);
@@ -34,11 +36,7 @@ public class TopBarArea extends HBox {
         setPrefHeight(HEIGHT);
         setMaxHeight(HEIGHT);
 
-        var mascot = new Region();
-        mascot.setMinSize(30, 30);
-        mascot.setPrefSize(30, 30);
-        mascot.setMaxSize(30, 30);
-        mascot.setMouseTransparent(true);
+        mascot = new SparkMascot(frame, preferences);
         dock = new AiDock(configuration.getConfigurations(), browser, preferences, browser.getActiveSiteId());
 
         double dockBudget = dock.desiredWidth();
@@ -101,7 +99,12 @@ public class TopBarArea extends HBox {
 
     public void dispose() {
         closeMenus();
+        mascot.dispose();
         dock.dispose();
+    }
+
+    public void refreshAppearance() {
+        mascot.refresh();
     }
 
     public static Button button(String icon, String title) {
