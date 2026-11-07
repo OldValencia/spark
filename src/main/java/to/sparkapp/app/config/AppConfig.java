@@ -12,6 +12,7 @@ final class AppConfig {
     WindowPlacement windowPlacement;
     Boolean alwaysOnTop;
     Boolean reducedMotion;
+    Boolean mascotEnabled;
     Boolean autoHide;
     Boolean topPill;
     Boolean topEdgeReveal;

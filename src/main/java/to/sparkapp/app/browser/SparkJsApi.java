@@ -17,14 +17,21 @@ class SparkJsApi {
 
     SparkJsApi(Webview webview) {
         webview.bind("sparkCall", (String rawArgs) -> {
+            receive(rawArgs);
+
+            return null;
+        });
+    }
+
+    void receive(String rawArgs) {
             try {
                 if (rawArgs == null || rawArgs.isBlank()) {
-                    return null;
+                    return;
                 }
 
                 var root = MAPPER.readTree(rawArgs);
                 if (!root.isArray() || root.isEmpty()) {
-                    return null;
+                    return;
                 }
 
                 var command = root.get(0).asText();
@@ -43,8 +50,6 @@ class SparkJsApi {
             } catch (Exception e) {
                 log.error("SparkJsApi: Error processing JS call", e);
             }
-            return null;
-        });
     }
 
     void on(String command, Consumer<ArrayNode> action) {

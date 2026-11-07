@@ -41,7 +41,7 @@ public class MainWindow extends Stage {
     private final SparkTray tray = new SparkTray(this::showMainWindow, this::performShutdown);
     private WindowAutoHide autoHide;
 
-    private boolean authMode = false;
+    private boolean externalPage = false;
 
     public static final int HEIGHT = 700;
     private static final int WIDTH = 860;
@@ -61,7 +61,7 @@ public class MainWindow extends Stage {
         Platform.setImplicitExit(false);
 
         this.focusedProperty().addListener((obs, oldVal, newVal) -> {
-            this.setAlwaysOnTop(appPreferences.isAlwaysOnTop() && (newVal || !authMode));
+            this.setAlwaysOnTop(appPreferences.isAlwaysOnTop() && (newVal || !externalPage));
 
             if (!newVal && windowController != null) {
                 windowController.cancelInteraction();
@@ -108,9 +108,9 @@ public class MainWindow extends Stage {
         Platform.runLater(this::initializeOnFX);
     }
 
-    public void setAuthMode(boolean isAuth) {
-        this.authMode = isAuth;
-        this.setAlwaysOnTop(appPreferences.isAlwaysOnTop() && (!isAuth || isFocused()));
+    public void setExternalPage(boolean external) {
+        this.externalPage = external;
+        this.setAlwaysOnTop(appPreferences.isAlwaysOnTop() && (!external || isFocused()));
     }
 
     /**
@@ -158,10 +158,6 @@ public class MainWindow extends Stage {
             autoHide.cancel();
         }
 
-        if (windowController != null) {
-            windowController.closing();
-        }
-
         if (topBar != null) {
             topBar.closeMenus();
         }
@@ -170,6 +166,18 @@ public class MainWindow extends Stage {
             settingsWindow.close();
         }
 
+        if (windowController != null) {
+            windowController.hide(() -> finishHide(restoreFocus));
+        } else {
+            finishHide(restoreFocus);
+        }
+    }
+
+    public boolean isHiding() {
+        return windowController != null && windowController.getVisibility() == WindowController.Visibility.CLOSING;
+    }
+
+    private void finishHide(boolean restoreFocus) {
         if (fxWebViewPane != null) {
             fxWebViewPane.onWindowHidden();
         }
@@ -300,8 +308,13 @@ public class MainWindow extends Stage {
             scene.getStylesheets().add(getClass().getResource("/css/shell.css").toExternalForm());
             windowController = new WindowController(this, appPreferences);
             windowController.setOnReveal(this::showMainWindow);
-            autoHide = new WindowAutoHide(this, appPreferences, windowController, () -> authMode,
-                    () -> hideMainWindow(false));
+            autoHide = new WindowAutoHide(
+                    this,
+                    appPreferences,
+                    windowController,
+                    () -> externalPage,
+                    () -> hideMainWindow(false)
+            );
             windowController.dockedProperty().addListener((o, before, docked) -> updateShellStyle());
 
             var grip = new Region();
@@ -337,6 +350,14 @@ public class MainWindow extends Stage {
             settingsPanel.setOnClearCookies(fxWebViewPane::clearCookies);
             settingsPanel.setOnBackgroundMemoryChanged(fxWebViewPane::refreshResourcePolicy);
             settingsPanel.setOnPillSettingsChanged(windowController::refreshPill);
+            settingsPanel.setOnAppearanceChanged(() -> {
+                windowController.refreshMotion();
+                fxWebViewPane.refreshAppearance();
+
+                if (topBar != null) {
+                    topBar.refreshAppearance();
+                }
+            });
             settingsPanel.setOnZoomEnabledChanged(enabled -> fxWebViewPane.resetZoom());
 
             settingsWindow = new SettingsWindow(this, settingsPanel);
@@ -369,9 +390,7 @@ public class MainWindow extends Stage {
     private void installTopBar() {
         topBar = new TopBarArea(aiConfiguration, fxWebViewPane, this, appPreferences, this::toggleSettings,
                 this::hideMainWindow, windowController, this::handleProvidersChanged);
-        topBar.getDock().setOnAccentChanged(accent -> {
-            updateShellStyle();
-        });
+        topBar.getDock().setOnAccentChanged(accent -> updateShellStyle());
         rootPane.setTop(topBar);
     }
 
@@ -403,7 +422,7 @@ public class MainWindow extends Stage {
         }
 
         var pane = new FxWebViewPane(startUrl, appPreferences);
-        pane.setOnAuthPageDetected(this::setAuthMode);
+        pane.setOnExternalPage(this::setExternalPage);
         var editor = new SitesEditor(this, aiConfiguration, this::handleProvidersChanged);
         pane.setOnEditSite(editor::edit);
 

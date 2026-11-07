@@ -6,6 +6,9 @@
 .shell-button:selected { -fx-background-color: #ffffff15; }
 .shell-size { -fx-border-color: #ffffff20; -fx-border-radius: 7; -fx-font-size: 10px; -fx-padding: 5 7; }
 .shell-drag-mark { -fx-background-color: #77778355; -fx-background-radius: 3; }
+.spark-mascot { -fx-background-color: transparent; -fx-border-width: 0; -fx-padding: 0; -fx-cursor: hand; }
+.spark-mascot:hover { -fx-background-color: #ffffff09; -fx-background-radius: 12; }
+.spark-mascot:focused { -fx-border-width: 0; -fx-border-color: transparent; -fx-background-color: transparent; }
 .shell-dock, .shell-dock > .viewport { -fx-background-color: transparent; -fx-background: transparent; -fx-padding: 0; }
 .shell-popup { -fx-background-color: #2d2e33; -fx-border-color: #53535e; -fx-border-radius: 11; -fx-background-radius: 11; -fx-padding: 10; -fx-spacing: 8; -fx-font-family: 'Segoe UI'; -fx-font-size: 13px; }
 .shell-popup .label { -fx-text-fill: #d0d0da; }

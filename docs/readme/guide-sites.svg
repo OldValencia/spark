@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="160" viewBox="0 0 600 160" role="img" aria-labelledby="title desc">
+  <title id="title">Pick your regulars.</title><desc id="desc">AI, notes, a translator, a wiki. The grid has room for your own links.</desc>
+  <g font-family="Segoe UI, system-ui, sans-serif">
+    <rect width="600" height="160" rx="18" fill="#191a1e"/>
+    <g transform="translate(22 23) scale(2.5)">
+    <path d="M16 12C16 9 18 8 20 5C22 8 24 9 24 12Z" fill="#dfb584"/>
+    <rect x="4" y="11" width="32" height="28" rx="10" fill="#45434a" stroke="#b19470" stroke-opacity=".8"/>
+    <g fill="#f7e7ca" transform="translate(1 0)">
+      <ellipse cx="14" cy="25" rx="2.6" ry="5"/>
+      <ellipse cx="26" cy="25" rx="2.6" ry="5"/></g></g>
+    <text x="146" y="58" font-size="24" fill="#f2eadc" font-weight="600">Pick your regulars.</text>
+    <text x="146" y="91" font-size="16" fill="#b3b1b9" >AI, notes, a translator, a wiki.</text>
+    <text x="146" y="116" font-size="16" fill="#b3b1b9" >The grid has room for your own links.</text>
+  </g>
+</svg>

@@ -77,6 +77,13 @@ class Webview implements Closeable {
      */
     void loadURL(String url) {
         requireOwner();
+
+        if (windows != null && windows.hasExtraPage()) {
+            windows.activeContext().navigate(url != null ? url : "about:blank");
+
+            return;
+        }
+
         check("navigate", api.webview_navigate(nativePointer, url != null ? url : "about:blank"));
     }
 
@@ -103,7 +110,11 @@ class Webview implements Closeable {
         dispatch(() -> {
             String safeScript = String.format(
                     "try { %s } catch (e) { console.error('[Webview] Eval Error:'," + " e); }", script);
-            check("eval", api.webview_eval(nativePointer, safeScript));
+            if (windows != null && windows.hasExtraPage()) {
+                windows.activeContext().evaluate(safeScript);
+            } else {
+                check("eval", api.webview_eval(nativePointer, safeScript));
+            }
         });
     }
 
@@ -161,21 +172,18 @@ class Webview implements Closeable {
 
         var holder = new DispatchCallback[1];
 
-        holder[0] = new DispatchCallback() {
-            @Override
-            public void callback(Pointer pointer, Pointer arg) {
-                try {
-                    if (!destroyed) {
-                        requireOwner();
-                        handler.run();
-                    }
-                } catch (Throwable failure) {
-                    // Java exceptions must not escape through the native callback boundary.
-                    log.error("Dispatched browser task failed", failure);
-                } finally {
-                    // Remove self from GC shield after execution
-                    activeDispatches.remove(holder[0]);
+        holder[0] = (pointer, arg) -> {
+            try {
+                if (!destroyed) {
+                    requireOwner();
+                    handler.run();
                 }
+            } catch (Throwable failure) {
+                // Java exceptions must not escape through the native callback boundary.
+                log.error("Dispatched browser task failed", failure);
+            } finally {
+                // Remove self from GC shield after execution
+                activeDispatches.remove(holder[0]);
             }
         };
 
@@ -253,7 +261,7 @@ class Webview implements Closeable {
         }
 
         if (windows == null) {
-            windows = new WindowsBrowser(api.webview_get_native_handle(nativePointer, 2));
+            windows = new WindowsBrowser(api.webview_get_native_handle(nativePointer, 2), this::dispatch);
         }
 
         return windows;

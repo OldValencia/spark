@@ -12,8 +12,12 @@ import to.sparkapp.app.ui.webview.FxWebViewPane;
 
 final class WindowOptionsMenu extends ShellPopover {
     WindowOptionsMenu(AppPreferences preferences, FxWebViewPane browser, Runnable onSettings) {
-        super("WINDOW OPTIONS", 258);
+        super("WINDOW OPTIONS", 258, preferences::isReducedMotion);
         action("cog-6-tooth", "Settings", onSettings);
+        action("arrow-uturn-left", "Back", browser::goBack);
+        var closePage = action("x-mark", "Close extra page", browser::closeExtraPage);
+        closePage.disableProperty().bind(browser.extraPageOpenProperty().not());
+        action("bookmark", "Return to site", browser::returnToSite);
 
         var zoomOut = zoomButton("−", "Zoom out\nOn the page: Ctrl + -", browser::zoomOut);
         var reset = zoomButton("100%", "Reset zoom\nOn the page: Ctrl + 0", browser::resetZoom);

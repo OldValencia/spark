@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 @Tag("native")
+@Tag("flaky")
 class NativeLibraryLoadingTest {
     @TempDir
     Path directory;

@@ -7,7 +7,6 @@ import com.sun.net.httpserver.HttpServer;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -179,9 +178,7 @@ class WindowsBrowserTest {
         var count = new CompletableFuture<Integer>();
         browser.run(view -> {
             try {
-                var field = WindowsBrowser.class.getDeclaredField("handlers");
-                field.setAccessible(true);
-                count.complete(((List<?>) field.get(view.windows())).size());
+                count.complete(view.windows().activeContext().getEvents().retainedCount());
             } catch (Throwable failure) {
                 count.completeExceptionally(failure);
             }

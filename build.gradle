@@ -81,6 +81,20 @@ application {
     applicationDefaultJvmArgs = javaOpts
 }
 
+distributions {
+    main {
+        contents {
+            // jpackage uses lib as its input, so legal notices belong here too.
+            into('lib/legal') {
+                from('LICENSE', 'THIRD_PARTY_NOTICES.md')
+                into('third-party-licenses') {
+                    from('third-party-licenses')
+                }
+            }
+        }
+    }
+}
+
 dependencies {
     implementation 'net.java.dev.jna:jna:5.14.0'
     implementation 'net.java.dev.jna:jna-platform:5.14.0'
@@ -111,7 +125,12 @@ tasks.register('nativeTest', Test) {
     group = 'verification'
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
-    useJUnitPlatform { includeTags 'native' }
+    useJUnitPlatform {
+        includeTags 'native'
+        if (!project.hasProperty('includeFlaky')) {
+            excludeTags 'flaky'
+        }
+    }
     onlyIf { org.gradle.internal.os.OperatingSystem.current().isWindows() }
     // Never inherit the installed application's profile or user preferences.
     def isolated = layout.buildDirectory.dir("native-tests/${UUID.randomUUID()}").get().asFile

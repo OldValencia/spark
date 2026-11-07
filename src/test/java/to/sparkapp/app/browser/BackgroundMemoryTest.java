@@ -128,19 +128,13 @@ class BackgroundMemoryTest {
     }
 
     private static void assertNativePolicy(Webview view, boolean visible, int memoryTarget) {
-        try {
             var nativeBrowser = view.windows();
-            var controllerField = WindowsBrowser.class.getDeclaredField("controller");
-            controllerField.setAccessible(true);
-
-            var coreField = WindowsBrowser.class.getDeclaredField("core");
-            coreField.setAccessible(true);
 
             var nativeVisible = new IntByReference();
             var target = new IntByReference();
-            read((Pointer) controllerField.get(nativeBrowser), 3, nativeVisible);
+            read(nativeBrowser.activeContext().getController(), 3, nativeVisible);
 
-            var memory = ComCalls.query((Pointer) coreField.get(nativeBrowser), "6921f954-79b0-437f-a997-c85811897c68");
+            var memory = ComCalls.query(nativeBrowser.activeContext().getCore(), "6921f954-79b0-437f-a997-c85811897c68");
 
             try {
                 read(memory, 119, target);
@@ -150,9 +144,6 @@ class BackgroundMemoryTest {
 
             assertEquals(visible, nativeVisible.getValue() != 0);
             assertEquals(memoryTarget, target.getValue());
-        } catch (ReflectiveOperationException failure) {
-            throw new AssertionError(failure);
-        }
     }
 
     private static void read(Pointer object, int slot, IntByReference result) {

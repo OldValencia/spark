@@ -3,6 +3,7 @@ package to.sparkapp.app.config;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.nio.file.Path;
+import java.nio.file.Files;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -89,5 +90,26 @@ class SiteHistoryTest {
         assertNull(preferences.getSiteUrl(first));
         assertNull(preferences.getLastSiteId());
         assertNull(preferences.getLastUrl());
+    }
+
+    @Test
+    void automaticHistoryExcludesAllParametersWithoutGuessingTheirMeaning() throws Exception {
+        var file = directory.resolve("parameter-settings.json");
+        var preferences = new AppPreferences(file.toFile());
+        preferences.setRememberLastAi(true);
+        preferences.rememberSitePage(first, "https://example.com/chat/retained", true);
+
+        for (var url : new String[]{
+                "https://example.com/logowanie?nieznany=private-value",
+                "https://example.com/completely-custom#private-value",
+                "https://external.test/otherwise-normal-page"}) {
+            preferences.rememberSitePage(first, url, true);
+        }
+
+        preferences.flush();
+        var restored = new AppPreferences(file.toFile());
+        assertEquals("https://example.com/chat/retained", restored.getSiteUrl(first));
+        assertEquals("https://example.com/chat/retained", restored.getLastUrl());
+        assertFalse(Files.readString(file).contains("private-value"));
     }
 }

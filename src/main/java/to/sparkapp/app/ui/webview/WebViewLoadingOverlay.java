@@ -114,6 +114,17 @@ class WebViewLoadingOverlay extends StackPane {
         rotation.stop();
     }
 
+    void showLoading(Runnable onShowPage, boolean reducedMotion) {
+        message.setText("Opening your site…");
+        message.setVisible(true);
+        actions.configure(null, null, onShowPage);
+        actions.setVisible(true);
+
+        if (reducedMotion) {
+            pauseAnimation();
+        }
+    }
+
     void deactivate() {
         cancelTimer();
         pauseAnimation();

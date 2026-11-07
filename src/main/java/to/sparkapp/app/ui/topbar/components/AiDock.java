@@ -60,6 +60,8 @@ public class AiDock extends StackPane {
     private DockItemNode selectedNode = null;
     private Consumer<Color> onAccentChanged;
     @Setter
+    private Runnable onSiteSelected;
+    @Setter
     private Runnable onOrderChanged;
 
     public void setOnAccentChanged(Consumer<Color> callback) {
@@ -213,6 +215,10 @@ public class AiDock extends StackPane {
         fxWebViewPane.setCurrentConfig(node.getConfig(), targetUrl);
         updateTopBarColor();
         revealSelection();
+
+        if (onSiteSelected != null) {
+            onSiteSelected.run();
+        }
     }
 
     private void updateTopBarColor() {

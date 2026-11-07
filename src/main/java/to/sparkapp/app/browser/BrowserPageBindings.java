@@ -26,14 +26,8 @@ final class BrowserPageBindings {
         });
 
         api.on("urlChanged", args -> {
-            if (!args.isEmpty()) {
+            if (!SystemUtils.isWindows() && !args.isEmpty()) {
                 navigator.handleUrlChange(args.get(0).asText());
-            }
-        });
-
-        api.on("linkClicked", args -> {
-            if (!args.isEmpty()) {
-                navigator.handleLinkClicked(args.get(0).asText());
             }
         });
 
@@ -42,6 +36,10 @@ final class BrowserPageBindings {
                 UrlUtils.openLink(args.get(0).asText());
             }
         });
+
+        if (SystemUtils.isWindows()) {
+            webview.windows().enablePages(BrowserPageScripts.INIT_SCRIPT, api::receive);
+        }
     }
 
 }

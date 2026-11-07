@@ -3,6 +3,7 @@ package to.sparkapp.app.ui.topbar;
 import java.awt.Robot;
 import java.awt.event.InputEvent;
 import java.util.List;
+import java.util.stream.Stream;
 
 import javafx.geometry.Point2D;
 import javafx.scene.Scene;
@@ -24,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Tag("native")
+@Tag("flaky")
 @Timeout(30)
 class SiteListReorderTest {
     @Test
@@ -91,7 +93,7 @@ class SiteListReorderTest {
 
         private Fixture() {
             preferences.setAiOrder(List.of());
-            var sites = List.of("one", "two", "three", "four").stream()
+            var sites = Stream.of("one", "two", "three", "four")
                     .map(id -> new AiConfig(id, id, "https://example.com/" + id, "#123456", null)).toList();
             dock = new AiDock(sites, browser, preferences);
             var anchor = new Button("All sites");

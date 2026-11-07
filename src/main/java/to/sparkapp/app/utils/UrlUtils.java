@@ -87,6 +87,20 @@ public class UrlUtils {
     }
 
     /**
+     * Automatic restore keeps same-site addresses without query strings or fragments.
+     * Their meaning is site-specific, so none are inspected for authentication keywords.
+     */
+    public static boolean isRestorablePage(String url, String baseUrl) {
+        if (!isSameHost(url, baseUrl)) {
+            return false;
+        }
+
+        var uri = URI.create(url);
+
+        return uri.getRawQuery() == null && uri.getRawFragment() == null;
+    }
+
+    /**
      * The first URL of {@code baseUrls} that {@code url} belongs to, or {@code null}.
      */
     public static String matchingBaseUrl(String url, Collection<String> baseUrls) {

@@ -126,7 +126,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
     }
 
     private void toggleWindow(long requestedAt) {
-        if (mainWindow.isShowing()) {
+        if (mainWindow.isShowing() && !mainWindow.isHiding()) {
             mainWindow.hideMainWindow();
         } else {
             mainWindow.showMainWindow(requestedAt);

@@ -1,17 +1,11 @@
 package to.sparkapp.app.windows;
 
-import javafx.animation.Interpolator;
-import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
-import javafx.animation.Timeline;
 import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.util.Duration;
 import lombok.Getter;
 import lombok.Setter;
 import to.sparkapp.app.config.AppPreferences;
@@ -25,14 +19,11 @@ public final class WindowController {
     }
 
     private final Stage stage;
-    private final AppPreferences preferences;
     private final WindowGeometry geometry;
     private final WindowPointerInteraction pointer;
     private final QuickAccessPill pill;
-    private final Timeline reveal = new Timeline();
-    private final SimpleDoubleProperty revealY = new SimpleDoubleProperty();
+    private final WindowMotion motion;
     private final ListChangeListener<Screen> screensChanged = change -> updateScreens();
-    private double settledY;
     @Getter
     private Visibility visibility = Visibility.HIDDEN;
     @Setter
@@ -40,11 +31,11 @@ public final class WindowController {
 
     public WindowController(Stage stage, AppPreferences preferences) {
         this.stage = stage;
-        this.preferences = preferences;
         geometry = new WindowGeometry(stage, preferences);
+        motion = new WindowMotion(stage, preferences, this::isDocked, () -> geometry.monitor.getMinY(),
+                state -> visibility = state);
         pointer = new WindowPointerInteraction(stage, geometry, this::settleReveal);
         pill = new QuickAccessPill(stage, preferences, () -> geometry.monitor, this::revealWindow);
-        revealY.addListener((observable, previous, y) -> stage.setY(y.doubleValue()));
         Screen.getScreens().addListener(screensChanged);
         stage.showingProperty().addListener((observable, previous, shown) -> updateVisibility(shown));
     }
@@ -65,6 +56,7 @@ public final class WindowController {
         visibility = shown ? Visibility.VISIBLE : Visibility.HIDDEN;
 
         if (!shown) {
+            settleReveal();
             cancelInteraction();
             refreshPill();
 
@@ -73,22 +65,11 @@ public final class WindowController {
 
         pill.windowShown();
 
-        if (!preferences.isReducedMotion() && isDocked()) {
-            settledY = stage.getY();
-            revealY.set(settledY - 12);
-            reveal.getKeyFrames().setAll(
-                    new KeyFrame(Duration.millis(120), new KeyValue(revealY, settledY, Interpolator.EASE_OUT)));
-            visibility = Visibility.OPENING;
-            reveal.setOnFinished(event -> visibility = Visibility.VISIBLE);
-            reveal.playFromStart();
-        }
+        motion.open();
     }
 
     private void settleReveal() {
-        if (reveal.getStatus() == Timeline.Status.RUNNING) {
-            reveal.stop();
-            stage.setY(settledY);
-        }
+        motion.settle();
     }
 
     public ReadOnlyBooleanProperty dockedProperty() {
@@ -100,15 +81,24 @@ public final class WindowController {
     }
 
     public void opening() {
-        ensureVisible();
-        visibility = stage.isShowing() ? Visibility.VISIBLE : Visibility.OPENING;
+        if (stage.isShowing()) {
+            if (visibility == Visibility.CLOSING) {
+                motion.open();
+            }
+        } else {
+            ensureVisible();
+            visibility = Visibility.OPENING;
+        }
     }
 
-    public void closing() {
-        visibility = Visibility.CLOSING;
-        settleReveal();
+    public void hide(Runnable completed) {
         cancelInteraction();
         persist();
+        motion.hide(completed);
+    }
+
+    public void refreshMotion() {
+        motion.refresh();
     }
 
     void handleHiddenPointer(double x, double y, PointerApproach approach) {
@@ -162,7 +152,7 @@ public final class WindowController {
     }
 
     public void persist() {
-        geometry.persist();
+        geometry.persist(motion.restingY());
     }
 
     public void dispose() {
