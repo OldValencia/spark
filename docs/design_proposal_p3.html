@@ -41,11 +41,12 @@
     .shell-header { height: 52px; display: flex; align-items: center; gap: 6px; padding: 0 10px; }
     .icon-button { border: 1px solid transparent; background: transparent; padding: 0; height: 30px; width: 30px; flex: none; display: grid; place-items: center; }
     .icon-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-    .mascot { position: relative; border: 0; border-radius: 10px; background: transparent; }
-    .mascot::before { content: ""; position: absolute; width: 24px; height: 22px; top: 5px; left: 3px; background: #414046; border: 1px solid #8a7762a6; border-radius: 9px; }
-    .mascot::after { content: ""; position: absolute; width: 5px; height: 7px; top: 1px; left: 16px; background: #d3ae81; border-radius: 80% 30% 70% 50%; transform: rotate(28deg); }
-    .eyes { position: relative; z-index: 1; display: flex; gap: 5px; transform: translate(var(--eye-x, 0px), var(--eye-y, 0px)); transition: transform 90ms ease-out; }
-    .eyes i { display: block; width: 4px; height: 8px; border-radius: 5px; background: #e5d5bd; }
+    .mascot { position: relative; width: 40px; height: 44px; border: 0; border-radius: 12px; background: transparent; }
+    .mascot:focus-visible { outline: none; }
+    .mascot::before { content: ""; position: absolute; width: 32px; height: 28px; top: 11px; left: 4px; background: #45434a; border: 1px solid #b19470cc; border-radius: 10px; }
+    .mascot::after { content: ""; position: absolute; width: 8px; height: 7px; top: 5px; left: 16px; background: #dfb584; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+    .eyes { position: relative; top: 3px; z-index: 1; display: flex; gap: 7px; transform: translate(var(--eye-x, 0px), var(--eye-y, 0px)); transition: transform 90ms ease-out; }
+    .eyes i { display: block; width: 5px; height: 9px; border-radius: 5px; background: #f7e7ca; }
     .mascot.blink .eyes { animation: blink 260ms ease-in-out; }
     .mascot.blink { animation: greet 360ms var(--ease); }
     @keyframes blink { 45%, 65% { transform: scaleY(.15); } }
@@ -207,7 +208,7 @@
       <div class="cards">
         <article class="card"><span class="number">01 / Motion</span><h3>One motion language.</h3><p>Open toward the point of origin. Settle once. Keep every control available as soon as the window appears.</p><ul><li>Docked: a 200 ms reveal from the upper edge; close in about 140 ms.</li><li>Floating: an 8 px lift with a short fade. Preserve the saved position.</li><li>Menus: 5 px travel, 130–160 ms; no bounce or stagger.</li><li>A repeated hotkey reverses the current movement. Dragging or resizing settles it immediately.</li></ul><span class="decision">Propose for P3</span></article>
         <article class="card"><span class="number">02 / Loading</span><h3>Let the useful page through.</h3><p>Keep live pages intact. For a new visit, show a quiet site identity and offer “Show page” before the long-wait timeout.</p><ul><li>Try exposing the native page at DOMContentLoaded, while navigation continues. Validate usability on real sites.</li><li>A thin indeterminate line means loading; it never invents a percentage.</li><li>Fast returns get no spinner or minimum display time.</li><li>Slow and failed visits have distinct messages. Never reload a draft automatically.</li></ul><span class="decision">Prototype, then validate</span></article>
-        <article class="card"><span class="number">03 / Character</span><h3>A companion in the margin.</h3><p>A small ember with warm eyes in the existing 30 × 30 slot. A soft body, a tiny spark, and a little personality.</p><ul><li>A small local gaze, limited to a few pixels while the window is visible.</li><li>A blink and gentle tilt on hover; a brief hop when greeted. Clicking has no application action.</li><li>No idle loop, page reading, generation detection, or notification badge.</li><li>Optional; the slot stays the same size when disabled. Reduced motion keeps the face static.</li></ul><span class="decision">Selected for P3</span></article>
+        <article class="card"><span class="number">03 / Character</span><h3>A companion in the margin.</h3><p>A 36 px ember with warm eyes in a 40 × 44 slot. A clearer silhouette, larger eyes, and one distinct spark.</p><ul><li>A small local gaze, limited to a few pixels while the window is visible.</li><li>A blink and gentle tilt on hover; a brief hop when greeted. Clicking has no application action.</li><li>No idle loop, page reading, generation detection, or notification badge.</li><li>Optional; the slot stays the same size when disabled. Reduced motion keeps the face static.</li></ul><span class="decision">Readability iteration</span></article>
       </div>
     </section>
     <section class="details" aria-labelledby="networkTitle">
@@ -401,8 +402,8 @@
       panel.addEventListener('pointermove', event => {
         if ($('motionToggle').checked || !$('mascotToggle').checked || panel.inert || document.hidden) { return; }
         const box = $('mascot').getBoundingClientRect();
-        $('mascot').style.setProperty('--eye-x', Math.max(-2, Math.min(2, (event.clientX - box.left - 15) / 100)) + 'px');
-        $('mascot').style.setProperty('--eye-y', Math.max(-1.5, Math.min(1.5, (event.clientY - box.top - 15) / 120)) + 'px');
+        $('mascot').style.setProperty('--eye-x', Math.max(-2.3, Math.min(2.3, (event.clientX - box.left - box.width / 2) / 100)) + 'px');
+        $('mascot').style.setProperty('--eye-y', Math.max(-1.7, Math.min(1.7, (event.clientY - box.top - box.height / 2) / 120)) + 'px');
       });
       panel.addEventListener('pointerleave', () => {
         $('mascot').style.removeProperty('--eye-x');

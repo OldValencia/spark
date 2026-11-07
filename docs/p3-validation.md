@@ -13,7 +13,10 @@ has finished. Extensions and the P4 audit remain deferred.
   settle the transition. Saved placement uses the resting coordinates.
 - Size, options and site popups reveal with a 5 px movement and opacity transition
   over 150 ms. Dismissal remains immediate so actions are not delayed.
-- The mascot uses local JavaFX shapes in the existing 30 × 30 slot. It blinks,
+- The mascot uses local JavaFX shapes in a 40 × 44 slot inside the 52 px header.
+  The readability iteration enlarges its silhouette, eyes and outline and removes
+  cheek details. The shorter, symmetric spark centers the final 34 px silhouette
+  vertically and horizontally inside that slot. It blinks,
   tilts and briefly hops in response to showing the window, hovering or clicking.
   Pointer reactions cover both the shell and the native website area. A temporary
   mouse-motion listener reuses the application's existing native hook while the
@@ -24,6 +27,15 @@ has finished. Extensions and the P4 audit remain deferred.
   unavailable. There is no idle polling or page-content observation. Hiding,
   minimizing, disabling, reduced motion and disposal remove the native listener
   and stop pending samples. Disabling preserves the header layout.
+- The mascot has no focus border or focus background; clicking and keyboard
+  activation remain available. Opening All sites produces a curious tilt, opening
+  Settings two counter-rotating gear eyes, switching sites a blink with a straight vertical nod,
+  and resizing a gentle
+  stretch/squash. Body expressions settle within 360 ms; Settings crossfades to two
+  six-tooth gear eyes, turns them in opposite directions and restores normal eyes
+  within 460 ms, keeping the body still. Expressions replace one
+  another; continuous resizing is limited to one reaction per 450 ms. Reactions
+  are tied to shell actions, never to inferred website activity.
 - Reduce motion skips window/menu movement, stops the loading ring and keeps the
   mascot still. Changes from Settings apply to the current interface immediately.
 - On Windows, native DOMContentLoaded identifies the current navigation by ID.
@@ -74,6 +86,21 @@ installDist. MascotNativePointerTest moves the actual pointer over a real local
 WebView2 page and verifies opposite gaze directions without JavaFX mouse movement
 events. It also checks listener removal on reduced motion, disabling and hiding.
 The pointer is restored and the disposable browser is closed after the test.
+The subsequent readability iteration passed the ordinary suite and four native
+tests covering pointer delivery over WebView2 and site-list reordering/scrolling.
+installDist was rebuilt. The 860 px and 700 px header snapshots in docs/previews
+show the actual JavaFX controls at 1× scale, using separate settings and no browser.
+The subsequent action-reaction update passed the ordinary suite and the relevant
+native shell/pointer/reordering tests. MascotShellActionsTest exercises actual
+shell buttons, popup Settings, site selection and window resize; verifies that
+reduced motion clears all transforms and focus has no border; and writes focused
+header snapshots under build/mascot-review. installDist was rebuilt. The updated
+1× snapshots in docs/previews show the centered spark with the mascot focused.
+The gear-eye follow-up passed the ordinary suite, MascotShellActionsTest and
+MascotNativePointerTest and rebuilt installDist. The shell test checks opposite
+gear rotation, restoration of normal eyes, and cancellation by reduced motion.
+The Settings expression was visually reviewed in a 1× snapshot at
+[docs/previews/0.3.1-mascot-settings.png](previews/0.3.1-mascot-settings.png).
 The header and mascot were also reviewed in a 2× offscreen JavaFX snapshot at
 [docs/previews/0.3.0-p3-topbar.png](previews/0.3.0-p3-topbar.png). This captures the
 actual header controls, not a native browser page or animation frames.

@@ -16,6 +16,7 @@ import to.sparkapp.app.ui.topbar.components.AiDock;
 import to.sparkapp.app.ui.topbar.components.ShellIcon;
 import to.sparkapp.app.ui.topbar.components.ShellTooltip;
 import to.sparkapp.app.ui.topbar.components.SparkMascot;
+import to.sparkapp.app.ui.topbar.components.MascotReaction;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
 import to.sparkapp.app.windows.WindowController;
 
@@ -29,23 +30,32 @@ public class TopBarArea extends HBox {
     private final SparkMascot mascot;
 
     public TopBarArea(AiConfiguration configuration, FxWebViewPane browser, Stage frame, AppPreferences preferences, Runnable onSettings, Runnable onHide, WindowController controller, Runnable onSitesChanged) {
+        mascot = new SparkMascot(frame, preferences);
         sizes = new WindowSizeMenu(frame, preferences, controller);
-        options = new WindowOptionsMenu(preferences, browser, onSettings);
+        options = new WindowOptionsMenu(preferences, browser, () -> {
+            mascot.react(MascotReaction.SETTINGS);
+            onSettings.run();
+        });
         getStyleClass().add("shell-bar");
         setMinHeight(HEIGHT);
         setPrefHeight(HEIGHT);
         setMaxHeight(HEIGHT);
 
-        mascot = new SparkMascot(frame, preferences);
         dock = new AiDock(configuration.getConfigurations(), browser, preferences, browser.getActiveSiteId());
+        dock.setOnSiteSelected(() -> mascot.react(MascotReaction.SITE_SWITCH));
 
         double dockBudget = dock.desiredWidth();
         dock.prefWidthProperty().bind(
-                Bindings.createDoubleBinding(() -> Math.max(36, Math.min(dockBudget, frame.getWidth() - 240)),
+                Bindings.createDoubleBinding(() -> Math.max(36, Math.min(dockBudget, frame.getWidth() - 250)),
                         frame.widthProperty()));
         dock.maxWidthProperty().bind(dock.prefWidthProperty());
         dock.minWidthProperty().bind(dock.prefWidthProperty());
         sites = new SitesPopup(frame, dock, configuration, preferences, onSitesChanged);
+        sites.showingProperty().addListener((observable, before, shown) -> {
+            if (shown) {
+                mascot.react(MascotReaction.SITES);
+            }
+        });
 
         var allSites = button("squares-2x2", "All sites");
         allSites.setOnAction(e -> {

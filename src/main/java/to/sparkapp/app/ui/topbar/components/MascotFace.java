@@ -2,42 +2,51 @@ package to.sparkapp.app.ui.topbar.components;
 
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.SVGPath;
 
 /** A small ember-shaped face, drawn locally without image assets. */
 final class MascotFace extends Group {
     private final Group eyes;
+    private final MascotGears gears = new MascotGears();
 
     MascotFace() {
-        var body = new Rectangle(3, 5, 24, 22);
-        body.setArcWidth(15);
-        body.setArcHeight(15);
-        body.setFill(Color.web("#414046"));
-        body.setStroke(Color.web("#8a7762", 0.65));
+        var bounds = new Rectangle(40, 44, Color.TRANSPARENT);
+        var body = new Rectangle(4, 11, 32, 28);
+        body.setArcWidth(20);
+        body.setArcHeight(20);
+        body.setFill(Color.web("#45434a"));
+        body.setStroke(Color.web("#b19470", 0.8));
 
-        var spark = new Ellipse(17, 5, 3, 4);
-        spark.setRotate(28);
-        spark.setFill(Color.web("#d3ae81"));
+        var spark = new SVGPath();
+        spark.setContent("M 16 12 C 16 9 18 8 20 5 C 22 8 24 9 24 12 Z");
+        spark.setFill(Color.web("#dfb584"));
 
-        var left = new Ellipse(11, 15, 1.8, 3.1);
-        var right = new Ellipse(19, 15, 1.8, 3.1);
-        left.setFill(Color.web("#f0ddbd"));
+        var left = new Ellipse(14, 25, 2.6, 4.5);
+        var right = new Ellipse(26, 25, 2.6, 4.5);
+        left.setFill(Color.web("#f7e7ca"));
         right.setFill(left.getFill());
         eyes = new Group(left, right);
 
-        var leftCheek = new Circle(8, 20, 1.4, Color.web("#d49b80", 0.45));
-        var rightCheek = new Circle(22, 20, 1.4, leftCheek.getFill());
-        getChildren().addAll(spark, body, leftCheek, rightCheek, eyes);
+        getChildren().addAll(bounds, spark, body, gears, eyes);
     }
 
     void look(double x, double y) {
-        eyes.setTranslateX(Math.clamp(x, -1.8, 1.8));
-        eyes.setTranslateY(Math.clamp(y, -1.2, 1.2));
+        eyes.setTranslateX(Math.clamp(x, -2.3, 2.3));
+        eyes.setTranslateY(Math.clamp(y, -1.7, 1.7));
     }
 
     void blink(double openness) {
         eyes.setScaleY(openness);
+    }
+
+    void blendGears(double amount) {
+        eyes.setOpacity(1 - amount);
+        gears.setOpacity(amount);
+    }
+
+    void turnGears(double degrees) {
+        gears.turn(degrees);
     }
 }
