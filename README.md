@@ -12,15 +12,15 @@
 
 Spark started with a shortcut on a spare mouse button: ask something, hide the window, come back to the same page. That's still the idea.
 
-Keep **ChatGPT, Claude, Gemini, Mistral, Perplexity, Copilot**, or your own regular sites in a small desktop window. A question comes up, you open Spark, use the website, and put it away again. Your draft and scroll position stay with the page while Spark is running.
+Keep **ChatGPT, Claude, Gemini, Mistral, Perplexity, Copilot**, or your own regular sites in a small desktop window. A question comes up, you open Spark, use the website, and put it away again. Your draft and scroll position stay with the page while Spark is running. On Windows you can bring a few Chrome extensions along, too.
 
 ## Watch Spark
 
-Thirty seconds: open it, switch sites, find a link, try a smaller window, and have a look at the settings. No sound.
+About forty-five seconds: open it, switch sites, find a site, try a smaller window, open an extension, and have a look at the settings. No sound.
 
 <p align="center">
-  <a href="docs/media/spark-tour.mp4"><img src="docs/media/spark-tour.gif" alt="A silent tour of Spark 0.3.1: opening the window, switching between ChatGPT and Wikipedia, searching sites, filling the add-site form, resizing, settings, zoom, floating and hiding" width="960"></a>
-  <br><sub>Recorded in Spark 0.3.1 with a separate, signed-out profile. <a href="docs/media/spark-tour.mp4">MP4</a> · <a href="docs/media/spark-tour-poster.png">Still image</a></sub>
+  <a href="docs/media/spark-tour.mp4"><img src="docs/media/spark-tour.gif" alt="A silent tour of Spark 0.3.3: opening the window, switching between ChatGPT and Wikipedia, searching sites, resizing, opening Dark Reader's popover for the open Wikipedia page, settings, and hiding" width="960"></a>
+  <br><sub>Recorded in Spark 0.3.3 with a separate, signed-out profile. <a href="docs/media/spark-tour.mp4">MP4</a> · <a href="docs/media/spark-tour-poster.png">Still image</a></sub>
 </p>
 
 ## A quick tour
@@ -54,11 +54,24 @@ The little spark in the corner has volunteered to show you around.
 
 **Three dots → Settings** is where the shortcut, startup behavior and top-edge pill live. Page zoom is right in the three-dot menu.
 
+<p align="center">
+  <img src="docs/readme/guide-extensions.svg" alt="The mascot introduces Chrome extensions installed from a store link" width="600">
+</p>
+
+**Three dots → Extensions** brings Chrome extensions into Spark on Windows. Paste a Chrome Web Store link or extension ID and press **Install**, or import a ZIP/CRX package. Click an extension's icon to open its popover; click it again to close it. Extensions see the site you have open, so Dark Reader or uBlock Origin act on that page. **Check for updates** updates store extensions in place; importing a newer package updates the others. Their settings and data are kept.
+
+<table>
+  <tr>
+    <td width="50%" valign="top"><a href="docs/screenshots/extensions.png"><img src="docs/screenshots/extensions.png" alt="The Extensions window with a store link field and four installed extensions" width="600"></a></td>
+    <td width="50%" valign="top"><a href="docs/screenshots/extension-popup.png"><img src="docs/screenshots/extension-popup.png" alt="Dark Reader's popover in Spark showing en.wikipedia.org, the page open in Spark" width="600"></a></td>
+  </tr>
+</table>
+
 Links and sign-in windows follow the website's normal browser behavior. Use **Three dots → Back** to go back, **Close page** to close an extra page, or **Open start page** to close extra pages and open the site's configured start address. **Close page** appears only while an extra page is open. Middle-click a link to send it to your default browser. Login windows share Spark's browser profile. Passkeys use the browser and Windows dialogs, with compatibility depending on the website and installed WebView2 runtime.
 
 The mascot follows your pointer, peeks at the site list, and briefly gets gear eyes when you open settings. Click it for a hello. **General → Reduce motion** keeps it still; **Show mascot** lets it sit this one out.
 
-<sub>The tour and mascot cards are illustrations. The screenshots show the Windows app in 0.3.0; click one for a closer look. <a href="docs/previews/0.3.1-mascot-topbar-860.png">Current header</a> · <a href="docs/previews/0.3.1-mascot-settings.png">Gear eyes</a></sub>
+<sub>The tour and mascot cards are illustrations. The screenshots show the Windows app in 0.3.3; click one for a closer look. <a href="docs/previews/0.3.1-mascot-topbar-860.png">Current header</a> · <a href="docs/previews/0.3.1-mascot-settings.png">Gear eyes</a></sub>
 
 ## Start here
 
@@ -98,6 +111,8 @@ After a restart, **Remember last site** restores saved page addresses from the c
 
 Each loaded website uses memory. **Settings → Browser → Reduce background memory** lets Windows reclaim memory from hidden pages while keeping them alive. The total depends on the sites you've opened.
 
+**Extensions are experimental in 0.3.3 and need Windows x64.** Extensions are installed unpacked into your Spark folder and run in Spark's browser profile; each enabled extension uses some memory of its own. Popovers tell an extension which site is open, but the full Chrome toolbar is not there: toolbar button events, automatic `activeTab` access and side panels are not implemented, and password-manager autofill is not guaranteed. See [extension usage and validation](docs/extensions.md).
+
 <details>
 <summary><strong>Where Spark keeps things, and what “Clear site data” does</strong></summary>
 
@@ -109,6 +124,7 @@ Settings on Windows live here:
 ├── providers.json      Your site collection
 ├── *.json.bak          Previous readable configuration files
 ├── icons\              Site icons
+├── extensions\         Imported extensions (one folder each)
 └── logs\               Application logs
 ```
 
@@ -129,9 +145,10 @@ cd spark
 .\gradlew.bat installDist       # Build an application distribution
 .\gradlew.bat nativeTest        # Windows UI and real WebView2 tests
 .\gradlew.bat createInstaller   # Windows installer; requires WiX on PATH
+.\gradlew.bat readmeCapture     # README video and screenshots; moves the real mouse
 ```
 
-Distributions go to `build/install/Spark/`, installers to `build/installer/`. Native tests use disposable profiles under `build/native-tests/` and leave installed sessions alone. More detail: [browser validation](docs/p1-validation.md), [P3 interactions](docs/p3-validation.md), [memory and background work](docs/p4-validation.md), [native libraries](docs/native/README.md).
+Distributions go to `build/install/Spark/`, installers to `build/installer/`. Native tests use disposable profiles under `build/native-tests/` and leave installed sessions alone. More detail: [browser validation](docs/p1-validation.md), [P3 interactions](docs/p3-validation.md), [memory and background work](docs/p4-validation.md), [native libraries](docs/native/README.md), [extensions](docs/extensions.md), [README media](docs/media/README.md).
 
 macOS packaging and libraries for other targets are in the repository, but remain experimental. On macOS/Linux, use `./gradlew`.
 

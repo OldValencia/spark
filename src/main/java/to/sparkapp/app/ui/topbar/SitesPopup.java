@@ -16,6 +16,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Popup;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import to.sparkapp.app.utils.NativeWindowUtils;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
 import to.sparkapp.app.config.AppPreferences;
@@ -85,7 +86,11 @@ final class SitesPopup extends Popup {
             search.clear();
             refresh();
         });
-        setOnShown(e -> search.requestFocus());
+        setOnShown(e -> {
+            // The site browser may hold Windows keyboard focus after switching tabs.
+            NativeWindowUtils.focusWindow(getOwnerWindow());
+            search.requestFocus();
+        });
         setOnHidden(e -> {
             drag.cancel();
         });

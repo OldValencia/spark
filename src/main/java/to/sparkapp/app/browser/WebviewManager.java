@@ -1,9 +1,17 @@
 package to.sparkapp.app.browser;
 
+import java.nio.file.Path;
 import java.util.ArrayDeque;
+import java.util.List;
+import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Function;
+
+import com.sun.jna.Pointer;
 
 import javafx.application.Platform;
 import lombok.Getter;
@@ -11,10 +19,13 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
 import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.extensions.ExtensionManager;
 import to.sparkapp.app.utils.SystemUtils;
 
 @Slf4j
 public class WebviewManager {
+    private static final int EXTENSION_TIMEOUT_SECONDS = 30;
+    private static final int CONTEXT_WINDOW_TIMEOUT_SECONDS = 5;
 
     private final AppPreferences appPreferences;
     private final BrowserPresentation presentation;
@@ -216,6 +227,10 @@ public class WebviewManager {
             ready.set(true);
         }
 
+        if (SystemUtils.isWindows() && !Boolean.getBoolean("spark.nativeTests")) {
+            ExtensionManager.instance().start(this);
+        }
+
         Runnable task;
         while ((task = pollPending()) != null) {
             task.run();
@@ -349,6 +364,75 @@ public class WebviewManager {
                 webview.eval("history.back()");
             }
         });
+    }
+
+    public CompletableFuture<List<BrowserExtension>> listExtensions() {
+        return extensionOperation(core -> new BrowserExtensions(core).list(), EXTENSION_TIMEOUT_SECONDS);
+    }
+
+    public CompletableFuture<Integer> extensionContextWindow() {
+        return extensionOperation(this::activeWindowId, CONTEXT_WINDOW_TIMEOUT_SECONDS);
+    }
+
+    /** The browser engine version, such as 157.0.4341.42, sent to extension update services. */
+    public CompletableFuture<String> browserVersion() {
+        return extensionOperation(core -> new BrowserDevTools(core).send("Browser.getVersion", Map.of())
+                .thenApply(value -> {
+                    var product = value.path("product").asText("");
+                    var version = product.substring(product.indexOf('/') + 1);
+                    if (!version.matches("[0-9.]+")) {
+                        throw new IllegalStateException("The browser version is unavailable");
+                    }
+                    return version;
+                }), CONTEXT_WINDOW_TIMEOUT_SECONDS);
+    }
+
+    public CompletableFuture<BrowserExtension> installExtension(Path directory) {
+        return extensionOperation(core -> new BrowserExtensions(core).install(directory), EXTENSION_TIMEOUT_SECONDS);
+    }
+
+    public CompletableFuture<Void> setExtensionEnabled(String id, boolean enabled) {
+        return extensionOperation(core -> new BrowserExtensions(core).setEnabled(id, enabled), EXTENSION_TIMEOUT_SECONDS);
+    }
+
+    public CompletableFuture<Void> removeExtension(String id) {
+        return extensionOperation(core -> new BrowserExtensions(core).remove(id), EXTENSION_TIMEOUT_SECONDS);
+    }
+
+    private CompletableFuture<Integer> activeWindowId(Pointer core) {
+        return new BrowserDevTools(core).send("Browser.getWindowForTarget", Map.of()).thenApply(value -> {
+            var windowId = value.path("windowId");
+            if (!windowId.canConvertToInt()) {
+                throw new IllegalStateException("The active browser window is unavailable");
+            }
+
+            return windowId.asInt();
+        });
+    }
+
+    /** Runs a COM operation on the browser thread against the visible page's core object. */
+    private <T> CompletableFuture<T> extensionOperation(Function<Pointer, CompletableFuture<T>> operation, int timeoutSeconds) {
+        if (!SystemUtils.isWindows() || disposed.get()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Extensions require an active Windows browser"));
+        }
+
+        var result = new CompletableFuture<T>();
+        dispatch(() -> {
+            try {
+                var core = webview.windows().activeContext().getCore();
+                operation.apply(core).whenComplete((value, error) -> {
+                    if (error == null) {
+                        result.complete(value);
+                    } else {
+                        result.completeExceptionally(error);
+                    }
+                });
+            } catch (Exception error) {
+                result.completeExceptionally(error);
+            }
+        });
+
+        return result.orTimeout(timeoutSeconds, TimeUnit.SECONDS);
     }
 
     public void closeExtraPage() {

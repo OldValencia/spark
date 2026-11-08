@@ -1,6 +1,5 @@
 package to.sparkapp.app.ui.webview;
 
-import java.util.UUID;
 
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
@@ -81,18 +80,6 @@ final class BrowserBounds {
     }
 
     static long resolveParentHandle(Window window) {
-        if (!SystemUtils.isWindows() || !(window instanceof Stage stage)) {
-            return 0L;
-        }
-
-        var originalTitle = stage.getTitle();
-        var uniqueTitle = "SparkWindow-" + UUID.randomUUID();
-        stage.setTitle(uniqueTitle);
-
-        long handle = NativeWindowUtils.getJavaFXWindowHandle(uniqueTitle);
-
-        stage.setTitle(originalTitle != null ? originalTitle : "");
-
-        return handle;
+        return window instanceof Stage stage ? NativeWindowUtils.windowHandle(stage) : 0L;
     }
 }

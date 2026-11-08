@@ -1,21 +1,29 @@
 # Bundled native WebView libraries
 
-The current libraries were built by the webview fork's **Build native libraries** GitHub Actions workflow from commit `a706ea8219c712653fd3f794259cb32a423a5243`. Native binaries are built in GitHub Actions; this application repository consumes the resulting archive.
+## Current CI bundle
 
-The archive was copied to `src/main/resources/webview/` with its original structure:
+All libraries were built by the webview fork's **Build native libraries** GitHub Actions workflow from commit `bc1a6ed23b61b9233251c6e84bdf8c001e7359f0`. The archive was copied to `src/main/resources/webview/` with its original structure:
 
 - `natives/`: Windows x86/x64/ARM64, universal macOS x64/ARM64 resources, and GNU/Linux x64/ARM64 resources.
-- `metadata/`: six target manifests identifying the source commit, resource paths and SHA-256 hashes.
+- `metadata/`: six target manifests identifying the source commit, resource paths, and SHA-256 hashes. The metadata is the source of truth for the hashes.
 - `SHA256SUMS`: checksums for the seven libraries produced by that workflow.
 
-All seven files match their manifests, architecture headers and SHA256SUMS. Windows ARM64 uses the `aarch64/windows_nt` directory. The existing eight legacy resources outside the manifest (including musl and older 32-bit Linux resources) were not rebuilt by this workflow; the manifest does not claim otherwise. Both macOS resources contain the same universal binary.
+All seven files match `SHA256SUMS` and their architecture headers. Windows ARM64 uses the `aarch64/windows_nt` directory. The legacy resources outside the manifest (including `natives/arm/windows_nt`, musl, and older 32-bit Linux resources) are not rebuilt by this workflow; the manifest does not claim otherwise. Both macOS resources contain the same universal binary. The C API remains webview 0.12.0.
 
-The C API remains webview 0.12.0. The Windows x64 DLL SHA-256 is `65f872a2c566f5d2be7e8642a93e85ca7e99593d46542c7387b4bc2aaca6aed1`. The metadata is the source of truth for the remaining hashes. The source changes include dispatch-submission cleanup, immediate HRESULT propagation, GetMessageW error handling and termination of the correct browser thread.
+The source history is kept as fork commits, so no patch snapshots are stored here:
 
-The former local source-patch snapshot is no longer needed: the native fork commit and the shipped manifests identify the actual CI artifacts. Native build configuration and platform requirements are documented in the fork's `docs/native-libraries.md`; consult its workflow run for build logs and platform test results.
+- `a706ea8`: dispatch-submission cleanup, immediate HRESULT propagation, `GetMessageW` error handling, and termination of the correct browser thread.
+- `981b2e9`: browser extensions are enabled when Windows WebView2 environments are created.
+- `bc1a6ed`: lifecycle fixes in `win32_edge.hh`:
+  - `ICoreWebView2` is no longer AddRef'd twice, so destroyed browsers (including every closed extension popup) no longer leak their core object and handlers.
+  - WebMessageReceived and PermissionRequested keep separate registration tokens and are removed on destruction; the controller is closed before release.
+  - Initialization fails fast on `ERROR_INVALID_STATE` and `E_ABORT` instead of pumping messages indefinitely; creation retries are limited to five (about 1 s instead of up to 12 s on the UI thread).
+  - `ICoreWebView2Settings` is released; COM `Release` decrements once before testing the count.
+  - Nested message loops re-post a consumed `WM_QUIT`; initialization callbacks are detached when `embed()` returns, so they cannot touch its stack after an early exit; a constructor failure releases created windows.
+  - Navigation, script, and HTML calls report `WEBVIEW_ERROR_INVALID_STATE` after teardown instead of dereferencing a released browser.
+
+The Windows builds use WebView2 SDK `1.0.3595.46` and the static MSVC runtime. Native build configuration and platform requirements are documented in the fork's `docs/native-libraries.md`; consult its workflow run for build logs and platform test results.
 
 ## Application integration validation
 
-On Windows/JDK 21, 27 unit tests and 7 native integration tests pass with the bundled Windows x64 DLL. Coverage includes repeated session clearing without completion-handler accumulation, navigation failure after controller Close, preserved background streaming/drafts, renderer/browser crash recovery, two independent JVMs sharing the DLL cache, and natural application exit. All browser tests use disposable profiles and local fixtures, not user sessions.
-
-The other new binaries were checked against their architecture headers and SHA-256 manifests in this workspace; macOS/Linux and Windows ARM64 were not executed here. The known Gradle-worker Chrome_WidgetWin_0 / 1411 diagnostic can still appear at worker shutdown and is not suppressed. No new RAM-saving claim is made for the native library update itself.
+The Windows x64 library is exercised by the application's `nativeTest` task with disposable profiles and local fixtures, not user sessions. macOS, Linux, and Windows x86/ARM64 libraries were checked against their hashes and architecture headers but not executed here. The known Gradle-worker Chrome_WidgetWin_0 / 1411 diagnostic can still appear at worker shutdown and is not suppressed.
