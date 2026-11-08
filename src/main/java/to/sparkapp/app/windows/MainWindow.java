@@ -4,6 +4,7 @@ import java.awt.*;
 
 import javafx.application.Platform;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
@@ -21,6 +22,7 @@ import to.sparkapp.app.ui.settings.SettingsPanel;
 import to.sparkapp.app.ui.topbar.TopBarArea;
 import to.sparkapp.app.ui.topbar.SitesEditor;
 import to.sparkapp.app.ui.topbar.components.AiDock;
+import to.sparkapp.app.ui.topbar.components.PageLoadingBar;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
 import to.sparkapp.app.utils.GlobalHotkeyManager;
 import to.sparkapp.app.utils.NativeWindowUtils;
@@ -40,6 +42,8 @@ public class MainWindow extends Stage {
     private GlobalHotkeyManager globalHotkeyManager;
     private WindowController windowController;
     private TopBarArea topBar;
+    private final StackPane topArea = new StackPane();
+    private PageLoadingBar loadingBar;
     private WindowFrame frame;
     private long previousForeground;
 
@@ -355,6 +359,8 @@ public class MainWindow extends Stage {
 
             fxWebViewPane = getFxWebViewPane();
             rootPane.setCenter(fxWebViewPane);
+            loadingBar = new PageLoadingBar(appPreferences::isReducedMotion);
+            fxWebViewPane.pageLoadingProperty().addListener((o, wasLoading, loading) -> loadingBar.setLoading(loading));
 
             if (appPreferences.isStartApplicationHiddenEnabled()) {
                 fxWebViewPane.onWindowHidden();
@@ -426,9 +432,16 @@ public class MainWindow extends Stage {
     private void installTopBar() {
         topBar = new TopBarArea(aiConfiguration, fxWebViewPane, this, appPreferences, this::toggleSettings,
                 this::hideMainWindow, windowController, this::handleProvidersChanged, this::toggleExtensions);
-        topBar.getDock().setOnAccentChanged(frame::showAccent);
+        topBar.getDock().setOnAccentChanged(this::showSiteAccent);
         fxWebViewPane.setOnSiteShortcut(topBar.getDock()::select);
-        rootPane.setTop(topBar);
+        topArea.getChildren().setAll(topBar, loadingBar);
+        StackPane.setAlignment(loadingBar, Pos.BOTTOM_LEFT);
+        rootPane.setTop(topArea);
+    }
+
+    private void showSiteAccent(Color accent) {
+        frame.showAccent(accent);
+        loadingBar.setAccent(accent);
     }
 
     private void initializeExtensionsWindow() {

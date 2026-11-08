@@ -411,6 +411,11 @@ public class FxWebViewPane extends StackPane {
         return bridge;
     }
 
+    /** Whether the site on screen is loading a page. */
+    public ReadOnlyBooleanProperty pageLoadingProperty() {
+        return loadingView.pageLoadingProperty();
+    }
+
     public ReadOnlyBooleanProperty extraPageOpenProperty() {
         return extraPageOpen.getReadOnlyProperty();
     }

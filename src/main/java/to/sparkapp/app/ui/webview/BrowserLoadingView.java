@@ -4,6 +4,8 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 import javafx.animation.PauseTransition;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.util.Duration;
 import lombok.Getter;
 import to.sparkapp.app.browser.WebviewManager;
@@ -18,6 +20,7 @@ final class BrowserLoadingView {
     private final PauseTransition loadTimeout = new PauseTransition(Duration.seconds(20));
     @Getter
     private final WebViewLoadingOverlay overlay = new WebViewLoadingOverlay();
+    private final ReadOnlyBooleanWrapper pageLoading = new ReadOnlyBooleanWrapper();
 
     BrowserLoadingView(Supplier<WebviewManager> browser, BooleanSupplier visible, Runnable syncBounds,
                        Supplier<Runnable> editSite, BooleanSupplier reducedMotion) {
@@ -28,14 +31,22 @@ final class BrowserLoadingView {
         this.reducedMotion = reducedMotion;
     }
 
+    /** Whether the site on screen is loading a page; failed loads and hidden windows do not count. */
+    ReadOnlyBooleanProperty pageLoadingProperty() {
+        return pageLoading.getReadOnlyProperty();
+    }
+
     void refresh() {
         loadTimeout.stop();
 
         if (!visible.getAsBoolean()) {
+            pageLoading.set(false);
+
             return;
         }
 
         var active = browser.get();
+        pageLoading.set(active.isLoading() && active.getLoadError() == null);
 
         if (active.getLoadError() != null) {
             presented = null;
@@ -81,12 +92,14 @@ final class BrowserLoadingView {
     }
 
     void pause() {
+        pageLoading.set(false);
         presented = null;
         overlay.pauseAnimation();
         loadTimeout.stop();
     }
 
     void stop() {
+        pageLoading.set(false);
         overlay.deactivate();
         loadTimeout.stop();
     }

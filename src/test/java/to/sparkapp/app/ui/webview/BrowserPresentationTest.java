@@ -25,7 +25,7 @@ import to.sparkapp.app.support.JavaFxTestRuntime;
 
 @Tag("native")
 @Timeout(60)
-class BrowserFocusTest {
+class BrowserPresentationTest {
     @Test
     void focusRequestSurvivesShowingThePageAgainButNotHidingIt() throws Exception {
         JavaFxTestRuntime.start();
@@ -111,5 +111,73 @@ class BrowserFocusTest {
         }
 
         assertTrue(condition.call(), "Timed out waiting for the page");
+    }
+
+    @Test
+    void slowPageReportsLoadingUntilItFinishes() throws Exception {
+        JavaFxTestRuntime.start();
+
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            if (exchange.getRequestURI().getPath().equals("/slow.png")) {
+                sleep(1500);
+            }
+
+            var body = "<!doctype html><title>Slow</title><img src='/slow.png'>";
+            var bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+
+        var site = new AiConfig("loading-site", "Loading", "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                null, null);
+        var stage = fx(Stage::new);
+        var pane = fx(() -> new FxWebViewPane(site.url(), new AppPreferences()));
+        var sawLoading = new java.util.concurrent.atomic.AtomicBoolean();
+
+        try {
+            fx(() -> {
+                pane.pageLoadingProperty().addListener((o, was, loading) -> sawLoading.compareAndSet(false, loading));
+                stage.setScene(new Scene(pane, 500, 400));
+                stage.setX(-20000);
+                stage.setY(-20000);
+                pane.setCurrentConfig(site, null);
+                stage.show();
+
+                return null;
+            });
+            var browser = active(pane);
+            await(() -> !browser.isLoading() && browser.isPagePresentable());
+            await(() -> !fx(() -> pane.pageLoadingProperty().get()));
+
+            assertTrue(sawLoading.get(), "The page must report loading while its image is still arriving");
+
+            fx(() -> {
+                pane.onWindowHidden();
+
+                return null;
+            });
+            assertFalse(fx(() -> pane.pageLoadingProperty().get()));
+        } finally {
+            var closed = new CompletableFuture<Void>();
+            fx(() -> {
+                stage.hide();
+                pane.shutdown(() -> closed.complete(null));
+
+                return null;
+            });
+            closed.get(15, TimeUnit.SECONDS);
+            server.stop(0);
+        }
+    }
+
+    private static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
     }
 }
