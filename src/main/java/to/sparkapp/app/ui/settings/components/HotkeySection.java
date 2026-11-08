@@ -92,7 +92,7 @@ public class HotkeySection extends VBox {
 
         var warningLabel = new Label(
                 "Grant Accessibility permissions in System Settings and restart the" + " application");
-        warningLabel.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), FontPosture.ITALIC, 11));
+        warningLabel.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), FontPosture.ITALIC, 12.5));
         warningLabel.setTextFill(Color.rgb(255, 180, 0));
 
         warningPanel.getChildren().add(warningLabel);

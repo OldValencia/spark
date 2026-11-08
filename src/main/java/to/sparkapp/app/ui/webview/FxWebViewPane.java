@@ -393,6 +393,10 @@ public class FxWebViewPane extends StackPane {
         bridge.goBack();
     }
 
+    public WebviewManager extensionBrowser() {
+        return bridge;
+    }
+
     public ReadOnlyBooleanProperty extraPageOpenProperty() {
         return extraPageOpen.getReadOnlyProperty();
     }

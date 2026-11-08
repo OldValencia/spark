@@ -30,12 +30,16 @@ public class TopBarArea extends HBox {
     private final SparkMascot mascot;
 
     public TopBarArea(AiConfiguration configuration, FxWebViewPane browser, Stage frame, AppPreferences preferences, Runnable onSettings, Runnable onHide, WindowController controller, Runnable onSitesChanged) {
+        this(configuration, browser, frame, preferences, onSettings, onHide, controller, onSitesChanged, () -> {});
+    }
+
+    public TopBarArea(AiConfiguration configuration, FxWebViewPane browser, Stage frame, AppPreferences preferences, Runnable onSettings, Runnable onHide, WindowController controller, Runnable onSitesChanged, Runnable onExtensions) {
         mascot = new SparkMascot(frame, preferences);
         sizes = new WindowSizeMenu(frame, preferences, controller);
         options = new WindowOptionsMenu(preferences, browser, () -> {
             mascot.react(MascotReaction.SETTINGS);
             onSettings.run();
-        });
+        }, onExtensions);
         getStyleClass().add("shell-bar");
         setMinHeight(HEIGHT);
         setPrefHeight(HEIGHT);

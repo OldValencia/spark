@@ -9,11 +9,21 @@ import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.topbar.components.ShellIcon;
 import to.sparkapp.app.ui.topbar.components.ShellTooltip;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
+import to.sparkapp.app.utils.SystemUtils;
 
 final class WindowOptionsMenu extends ShellPopover {
     WindowOptionsMenu(AppPreferences preferences, FxWebViewPane browser, Runnable onSettings) {
+        this(preferences, browser, onSettings, () -> {});
+    }
+
+    WindowOptionsMenu(AppPreferences preferences, FxWebViewPane browser, Runnable onSettings, Runnable onExtensions) {
         super("WINDOW OPTIONS", 258, preferences::isReducedMotion);
         action("cog-6-tooth", "Settings", onSettings);
+        var extensions = action("squares-2x2", "Extensions", onExtensions);
+        extensions.setDisable(!SystemUtils.isWindows());
+        if (extensions.isDisabled()) {
+            extensions.setTooltip(ShellTooltip.create("Extensions are available on Windows only."));
+        }
         action("arrow-uturn-left", "Back", browser::goBack);
         var closePage = action("x-mark", "Close page", browser::closeExtraPage);
         closePage.visibleProperty().bind(browser.extraPageOpenProperty());

@@ -50,8 +50,8 @@ public class Theme {
     public static final Font FONT_SELECTOR = Font.font(FONT_NAME, 14);
     public static final Font FONT_SETTINGS = Font.font(FONT_NAME, 13);
     public static final Font FONT_SETTINGS_SECTION = Font.font(FONT_NAME, FontWeight.BOLD, 12);
-    public static final Font FONT_SETTINGS_TITLE = Font.font(FONT_NAME, FontWeight.MEDIUM, 13);
-    public static final Font FONT_SETTINGS_HINT = Font.font(FONT_NAME, 11.5);
+    public static final Font FONT_SETTINGS_TITLE = Font.font(FONT_NAME, FontWeight.MEDIUM, 14.5);
+    public static final Font FONT_SETTINGS_HINT = Font.font(FONT_NAME, 12.5);
 
     public static String toHex(Color color) {
         return String.format("#%02X%02X%02X", (int) (color.getRed() * 255), (int) (color.getGreen() * 255),

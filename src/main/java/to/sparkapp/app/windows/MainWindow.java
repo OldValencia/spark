@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.Theme;
+import to.sparkapp.app.ui.extensions.ExtensionsPanel;
 import to.sparkapp.app.ui.settings.SettingsPanel;
 import to.sparkapp.app.ui.topbar.TopBarArea;
 import to.sparkapp.app.ui.topbar.SitesEditor;
@@ -22,6 +23,7 @@ import to.sparkapp.app.ui.topbar.components.AiDock;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
 import to.sparkapp.app.utils.GlobalHotkeyManager;
 import to.sparkapp.app.utils.NativeWindowUtils;
+import to.sparkapp.app.utils.SystemUtils;
 
 @Slf4j
 public class MainWindow extends Stage {
@@ -31,6 +33,8 @@ public class MainWindow extends Stage {
 
     private FxWebViewPane fxWebViewPane;
     private SettingsWindow settingsWindow;
+    private SettingsWindow extensionsWindow;
+    private ExtensionsPanel extensionsPanel;
     private BorderPane rootPane;
     private GlobalHotkeyManager globalHotkeyManager;
     private WindowController windowController;
@@ -224,6 +228,9 @@ public class MainWindow extends Stage {
     }
 
     private void toggleSettings() {
+        if (extensionsWindow != null) {
+            extensionsWindow.close();
+        }
         if (settingsWindow.isOpen() && !settingsWindow.isShowing()) {
             settingsWindow.open();
 
@@ -234,6 +241,19 @@ public class MainWindow extends Stage {
             settingsWindow.close();
         } else {
             settingsWindow.open();
+        }
+    }
+
+    private void toggleExtensions() {
+        if (!SystemUtils.isWindows() || extensionsWindow == null) {
+            return;
+        }
+        settingsWindow.close();
+        if (extensionsWindow.isShowing()) {
+            extensionsWindow.close();
+        } else {
+            extensionsWindow.open();
+            extensionsPanel.refresh();
         }
     }
 
@@ -361,6 +381,7 @@ public class MainWindow extends Stage {
             settingsPanel.setOnZoomEnabledChanged(enabled -> fxWebViewPane.resetZoom());
 
             settingsWindow = new SettingsWindow(this, settingsPanel);
+            initializeExtensionsWindow();
 
             installTopBar();
 
@@ -389,9 +410,29 @@ public class MainWindow extends Stage {
 
     private void installTopBar() {
         topBar = new TopBarArea(aiConfiguration, fxWebViewPane, this, appPreferences, this::toggleSettings,
-                this::hideMainWindow, windowController, this::handleProvidersChanged);
+                this::hideMainWindow, windowController, this::handleProvidersChanged, this::toggleExtensions);
         topBar.getDock().setOnAccentChanged(accent -> updateShellStyle());
         rootPane.setTop(topBar);
+    }
+
+    private void initializeExtensionsWindow() {
+        if (!SystemUtils.isWindows()) {
+            return;
+        }
+        extensionsPanel = new ExtensionsPanel(fxWebViewPane::extensionBrowser);
+        extensionsWindow = new SettingsWindow(this, extensionsPanel, "Extensions");
+        xProperty().addListener(observable -> extensionsWindow.close());
+        yProperty().addListener(observable -> extensionsWindow.close());
+        iconifiedProperty().addListener((observable, previous, iconified) -> {
+            if (iconified) {
+                extensionsWindow.close();
+            }
+        });
+        showingProperty().addListener((observable, previous, showing) -> {
+            if (!showing) {
+                extensionsWindow.close();
+            }
+        });
     }
 
     private void updateShellStyle() {

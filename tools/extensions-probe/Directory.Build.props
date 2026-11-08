@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <BaseOutputPath>$(MSBuildThisFileDirectory)../../build/extensions-probe-bin/</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)../../build/extensions-probe-obj/</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>

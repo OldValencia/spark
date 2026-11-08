@@ -16,49 +16,51 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 
 @EnabledOnOs(OS.WINDOWS)
-class ClearBrowsingDataCallbackTest {
+class BrowserStatusCallbackTest {
+    private static final String IID = BrowserProfileData.CLEAR_BROWSING_DATA_COMPLETED;
+
     @Test
     void nativeReferenceSurvivesSubmissionAndCompletionUntilNativeRelease() {
-        int baseline = ClearBrowsingDataCallback.retainedCount();
+        int baseline = BrowserStatusCallback.retainedCount();
         var result = new AtomicReference<Boolean>();
 
-        try (var callback = new ClearBrowsingDataCallback(result::set)) {
+        try (var callback = new BrowserStatusCallback(IID, result::set)) {
             var pointer = callback.pointer();
             assertEquals(2, call(pointer, 1));
 
             try {
                 callback.close();
-                assertEquals(baseline + 1, ClearBrowsingDataCallback.retainedCount());
+                assertEquals(baseline + 1, BrowserStatusCallback.retainedCount());
                 assertEquals(0, call(pointer, 3, 0));
                 assertEquals(Boolean.TRUE, result.get());
-                assertEquals(baseline + 1, ClearBrowsingDataCallback.retainedCount());
+                assertEquals(baseline + 1, BrowserStatusCallback.retainedCount());
             } finally {
                 assertEquals(0, call(pointer, 2));
             }
         }
 
-        assertEquals(baseline, ClearBrowsingDataCallback.retainedCount());
+        assertEquals(baseline, BrowserStatusCallback.retainedCount());
     }
 
     @Test
     void failedSubmissionWithoutNativeReferenceDoesNotRetainCallback() {
-        int baseline = ClearBrowsingDataCallback.retainedCount();
+        int baseline = BrowserStatusCallback.retainedCount();
 
-        try (var callback = new ClearBrowsingDataCallback(ok -> fail("No callback expected"))) {
-            assertEquals(baseline + 1, ClearBrowsingDataCallback.retainedCount());
+        try (var callback = new BrowserStatusCallback(IID, ok -> fail("No callback expected"))) {
+            assertEquals(baseline + 1, BrowserStatusCallback.retainedCount());
         }
 
-        assertEquals(baseline, ClearBrowsingDataCallback.retainedCount());
+        assertEquals(baseline, BrowserStatusCallback.retainedCount());
     }
 
     @Test
     void queryInterfaceAddsAReferenceAndClearsUnsupportedOutput() {
-        int baseline = ClearBrowsingDataCallback.retainedCount();
+        int baseline = BrowserStatusCallback.retainedCount();
 
-        try (var callback = new ClearBrowsingDataCallback(ok -> {
+        try (var callback = new BrowserStatusCallback(IID, ok -> {
         })) {
             var out = new PointerByReference();
-            var iid = new GUID("e9710a06-1d1d-49b2-8234-226f35846ae5");
+            var iid = new GUID(IID);
             assertEquals(0, call(callback.pointer(), 0, iid, out));
 
             try {
@@ -76,7 +78,7 @@ class ClearBrowsingDataCallbackTest {
             assertNull(out.getValue());
         }
 
-        assertEquals(baseline, ClearBrowsingDataCallback.retainedCount());
+        assertEquals(baseline, BrowserStatusCallback.retainedCount());
     }
 
     @Test
@@ -84,7 +86,7 @@ class ClearBrowsingDataCallbackTest {
         var calls = new AtomicInteger();
         var result = new AtomicReference<Boolean>();
 
-        try (var callback = new ClearBrowsingDataCallback(ok -> {
+        try (var callback = new BrowserStatusCallback(IID, ok -> {
             calls.incrementAndGet();
             result.set(ok);
             throw new IllegalStateException("Test callback failure");
@@ -98,16 +100,16 @@ class ClearBrowsingDataCallbackTest {
 
     @Test
     void reentrantReleaseKeepsTheObjectPinnedThroughInvoke() {
-        int baseline = ClearBrowsingDataCallback.retainedCount();
-        var owner = new AtomicReference<ClearBrowsingDataCallback>();
+        int baseline = BrowserStatusCallback.retainedCount();
+        var owner = new AtomicReference<BrowserStatusCallback>();
 
-        try (var callback = new ClearBrowsingDataCallback(ok -> {
+        try (var callback = new BrowserStatusCallback(IID, ok -> {
             owner.get().close();
-            assertEquals(baseline + 1, ClearBrowsingDataCallback.retainedCount());
+            assertEquals(baseline + 1, BrowserStatusCallback.retainedCount());
         })) {
             owner.set(callback);
             assertEquals(0, call(callback.pointer(), 3, 0));
-            assertEquals(baseline, ClearBrowsingDataCallback.retainedCount());
+            assertEquals(baseline, BrowserStatusCallback.retainedCount());
         }
     }
 

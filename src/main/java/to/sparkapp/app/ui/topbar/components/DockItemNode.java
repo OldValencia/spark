@@ -25,6 +25,8 @@ import to.sparkapp.app.ui.Theme;
  * A stable tab: hovering and selecting never change its width.
  */
 public class DockItemNode extends HBox {
+    /** Must match `.site-tab .label` in shell.css, because the tab width is measured with it. */
+    private static final double TAB_FONT_SIZE = 13;
     @Getter
     private final AiConfig config;
     @Getter
@@ -67,7 +69,7 @@ public class DockItemNode extends HBox {
         }
 
         var name = new Label(config.name());
-        name.setFont(Font.font(Theme.FONT_NAME, 12));
+        name.setFont(Font.font(Theme.FONT_NAME, TAB_FONT_SIZE));
         name.setTextFill(Color.web("#b9b9c3"));
         name.setMinWidth(0);
         getChildren().add(name);
