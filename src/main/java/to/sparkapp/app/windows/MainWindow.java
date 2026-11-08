@@ -23,6 +23,7 @@ import to.sparkapp.app.ui.topbar.TopBarArea;
 import to.sparkapp.app.ui.topbar.SitesEditor;
 import to.sparkapp.app.ui.topbar.components.AiDock;
 import to.sparkapp.app.ui.topbar.components.PageLoadingBar;
+import to.sparkapp.app.ui.topbar.utils.AiDockOrderUtils;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
 import to.sparkapp.app.utils.GlobalHotkeyManager;
 import to.sparkapp.app.utils.NativeWindowUtils;
@@ -48,7 +49,7 @@ public class MainWindow extends Stage {
     private long previousForeground;
 
     // Сохраняем иконку трея, чтобы можно было удалить её при выходе
-    private final SparkTray tray = new SparkTray(this::showMainWindow, this::performShutdown);
+    private final SparkTray tray = new SparkTray(this::showMainWindow, this::openSite, this::performShutdown);
     private WindowAutoHide autoHide;
 
     private boolean externalPage = false;
@@ -433,11 +434,26 @@ public class MainWindow extends Stage {
         topBar = new TopBarArea(aiConfiguration, fxWebViewPane, this, appPreferences, this::toggleSettings,
                 this::hideMainWindow, windowController, this::handleProvidersChanged, this::toggleExtensions);
         topBar.getDock().setOnAccentChanged(this::showSiteAccent);
+        topBar.getDock().addOrderListener(this::refreshTraySites);
+        refreshTraySites();
         fxWebViewPane.setOnSiteShortcut(topBar.getDock()::select);
         fxWebViewPane.setOnSiteUpdated(topBar.getDock()::markUpdated);
         topArea.getChildren().setAll(topBar, loadingBar);
         StackPane.setAlignment(loadingBar, Pos.BOTTOM_LEFT);
         rootPane.setTop(topArea);
+    }
+
+    private void refreshTraySites() {
+        tray.showSites(AiDockOrderUtils.applyCustomOrder(aiConfiguration.getConfigurations(), appPreferences));
+    }
+
+    /** Opens a site from the tray: switch first, so the previous site never flashes. */
+    private void openSite(String siteId) {
+        if (topBar != null) {
+            topBar.getDock().selectSite(siteId);
+        }
+
+        showMainWindow();
     }
 
     private void showSiteAccent(Color accent) {

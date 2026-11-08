@@ -95,7 +95,7 @@ final class SitesPopup extends Popup {
             drag.cancel();
         });
         drag.install();
-        dock.setOnOrderChanged(this::refresh);
+        dock.addOrderListener(this::refresh);
     }
 
     void open(Node anchor) {

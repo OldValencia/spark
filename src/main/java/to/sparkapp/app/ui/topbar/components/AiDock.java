@@ -61,20 +61,21 @@ public class AiDock extends StackPane {
     private Consumer<Color> onAccentChanged;
     @Setter
     private Runnable onSiteSelected;
-    @Setter
-    private Runnable onOrderChanged;
+    private final List<Runnable> orderListeners = new ArrayList<>();
 
     public void setOnAccentChanged(Consumer<Color> callback) {
         onAccentChanged = callback;
         updateTopBarColor();
     }
 
+    /** Runs after the user reorders the sites. */
+    public void addOrderListener(Runnable listener) {
+        orderListeners.add(listener);
+    }
+
     public void orderChanged() {
         SiteOrderDiagnostics.record(this);
-
-        if (onOrderChanged != null) {
-            onOrderChanged.run();
-        }
+        orderListeners.forEach(Runnable::run);
     }
 
     public boolean isReducedMotion() {
