@@ -98,6 +98,8 @@ After a restart, **Remember last site** restores saved page addresses from the c
 
 Each loaded website uses memory. **Settings → Browser → Reduce background memory** lets Windows reclaim memory from hidden pages while keeping them alive. The total depends on the sites you've opened.
 
+**Experimental in 0.3.3 on Windows x64:** **Three dots → Extensions** manages locally imported ZIP/CRX extensions. Import packages, open the extensions folder, refresh, enable/disable, remove, or open an extension's own interface and settings. Popup windows may identify their own page instead of the active site, so full browser-extension compatibility and password autofill are not guaranteed. See [extension usage and validation](docs/extensions.md).
+
 <details>
 <summary><strong>Where Spark keeps things, and what “Clear site data” does</strong></summary>
 

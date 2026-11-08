@@ -3,6 +3,7 @@
 /next_steps.md
 /docs/next_steps.md
 build/
+/local/extensions-samples/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
