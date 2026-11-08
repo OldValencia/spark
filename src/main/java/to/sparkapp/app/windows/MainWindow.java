@@ -14,7 +14,6 @@ import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
-import to.sparkapp.app.ui.Theme;
 import to.sparkapp.app.ui.extensions.ExtensionsPanel;
 import to.sparkapp.app.ui.settings.SettingsPanel;
 import to.sparkapp.app.ui.topbar.TopBarArea;
@@ -39,6 +38,7 @@ public class MainWindow extends Stage {
     private GlobalHotkeyManager globalHotkeyManager;
     private WindowController windowController;
     private TopBarArea topBar;
+    private WindowFrame frame;
     private long previousForeground;
 
     // Сохраняем иконку трея, чтобы можно было удалить её при выходе
@@ -49,7 +49,6 @@ public class MainWindow extends Stage {
 
     public static final int HEIGHT = 700;
     private static final int WIDTH = 860;
-    private static final int RADIUS = 14;
 
     public MainWindow(AiConfiguration aiConfiguration, AppPreferences appPreferences) {
         this.aiConfiguration = aiConfiguration;
@@ -322,6 +321,7 @@ public class MainWindow extends Stage {
     private void initializeOnFX() {
         try {
             rootPane = createRootPane();
+            frame = new WindowFrame(rootPane, appPreferences::isReducedMotion);
 
             Scene scene = new Scene(rootPane, WIDTH, HEIGHT, Color.TRANSPARENT);
             this.setScene(scene);
@@ -335,7 +335,7 @@ public class MainWindow extends Stage {
                     () -> externalPage,
                     () -> hideMainWindow(false)
             );
-            windowController.dockedProperty().addListener((o, before, docked) -> updateShellStyle());
+            windowController.dockedProperty().addListener((o, before, docked) -> frame.setDocked(docked));
 
             var grip = new Region();
             grip.setPrefSize(36, 3);
@@ -348,7 +348,7 @@ public class MainWindow extends Stage {
             foot.setMaxHeight(12);
             rootPane.setBottom(foot);
             windowController.installResize(scene, foot);
-            updateShellStyle();
+            frame.setDocked(windowController.isDocked());
 
             fxWebViewPane = getFxWebViewPane();
             rootPane.setCenter(fxWebViewPane);
@@ -402,8 +402,6 @@ public class MainWindow extends Stage {
     private BorderPane createRootPane() {
         var pane = new BorderPane();
         pane.setPadding(new Insets(0, 5, 0, 5));
-        pane.setStyle("-fx-background-color: " + Theme.toHex(Theme.BG_DEEP) + ";" + "-fx-background-radius: " + RADIUS +
-                "px;" + "-fx-border-radius: " + RADIUS + "px;");
 
         return pane;
     }
@@ -411,7 +409,7 @@ public class MainWindow extends Stage {
     private void installTopBar() {
         topBar = new TopBarArea(aiConfiguration, fxWebViewPane, this, appPreferences, this::toggleSettings,
                 this::hideMainWindow, windowController, this::handleProvidersChanged, this::toggleExtensions);
-        topBar.getDock().setOnAccentChanged(accent -> updateShellStyle());
+        topBar.getDock().setOnAccentChanged(frame::showAccent);
         rootPane.setTop(topBar);
     }
 
@@ -433,18 +431,6 @@ public class MainWindow extends Stage {
                 extensionsWindow.close();
             }
         });
-    }
-
-    private void updateShellStyle() {
-        if (rootPane == null) {
-            return;
-        }
-
-        var radius = windowController != null && windowController.isDocked() ? "0 0 16 16" : "16";
-        var outline = "#414247";
-        rootPane.setStyle(
-                "-fx-background-color:#25262a;-fx-background-radius:" + radius + ";-fx-border-radius:" + radius +
-                        ";-fx-border-color:" + outline + ";-fx-border-width:1;");
     }
 
     private FxWebViewPane getFxWebViewPane() {

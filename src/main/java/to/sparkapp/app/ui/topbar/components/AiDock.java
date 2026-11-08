@@ -21,7 +21,6 @@ import to.sparkapp.app.config.AiConfiguration.AiConfig;
 import to.sparkapp.app.config.AppPaths;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.SiteAccent;
-import to.sparkapp.app.ui.Theme;
 import to.sparkapp.app.ui.topbar.utils.AiDockDragManager;
 import to.sparkapp.app.ui.topbar.utils.AiDockIconUtils;
 import to.sparkapp.app.ui.topbar.utils.AiDockOrderUtils;
@@ -229,27 +228,6 @@ public class AiDock extends StackPane {
 
             if (onAccentChanged != null) {
                 onAccentChanged.accept(SiteAccent.resolve(selectedNode.getConfig().color()));
-
-                return;
-            }
-
-            var parent = this.getParent();
-            while (parent != null && !(parent instanceof GradientPanel)) {
-                parent = parent.getParent();
-            }
-
-            if (parent instanceof GradientPanel gradientPanel) {
-                var accent = Theme.ACCENT;
-
-                try {
-                    if (selectedNode.getConfig().color() != null) {
-                        accent = Color.web(selectedNode.getConfig().color());
-                    }
-                } catch (Exception e) {
-                    log.warn("Warning while trying to update topBarColor", e);
-                }
-
-                gradientPanel.updateAccentColor(accent);
             }
         });
     }
