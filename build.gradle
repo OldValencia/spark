@@ -167,6 +167,21 @@ tasks.register('nativeTest', Test) {
     finalizedBy 'cleanupNativeTestWebviews'
 }
 
+def readmeCaptureDirectory = layout.buildDirectory.dir('readme-capture')
+
+tasks.register('readmeCapture', JavaExec) {
+    description = 'Records README media from a real Spark instance with a disposable profile. Moves the real mouse.'
+    group = 'documentation'
+    onlyIf { org.gradle.internal.os.OperatingSystem.current().isWindows() }
+    dependsOn 'testClasses'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'to.sparkapp.app.readme.ReadmeCapture'
+    def root = readmeCaptureDirectory.get().asFile
+    environment 'WEBVIEW2_USER_DATA_FOLDER', new File(root, 'browser').absolutePath
+    systemProperty 'spark.dataDir', new File(root, 'settings').absolutePath
+    args new File(root, 'output').absolutePath, project.findProperty('readmeMode') ?: 'tour'
+}
+
 if (project.hasProperty('generateCds')) {
     tasks.named('run') {
         dependsOn jar, installDist
