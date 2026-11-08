@@ -13,7 +13,7 @@ class ProvidersListTextButton extends Label {
 
     ProvidersListTextButton(String text, Color defaultColor, Color hoverColor, Runnable action) {
         super(text);
-        this.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), 12));
+        this.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), 13));
         this.setTextFill(defaultColor);
         this.setCursor(Cursor.HAND);
 

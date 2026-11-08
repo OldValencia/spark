@@ -55,7 +55,7 @@ const grid = `<g fill="none" stroke="#c3c3cc" stroke-width="1.7">
   <rect x="537" y="256" width="7" height="7" rx="1.5"/><rect x="550" y="256" width="7" height="7" rx="1.5"/></g>`;
 const arrow = path => `<path d="${path}" fill="none" stroke="#b19470" stroke-width="1.5" stroke-linecap="round" marker-end="url(#arrow)"/>`;
 svg('tour.svg', 1200, 440, 'A guide to the Spark header',
-  'The mascot points out site tabs, the All sites grid, the drag handle, window size, settings and hide controls. This is an illustration of the shell.', `
+  'The mascot points out site tabs, the All sites grid, the drag handle, window size, options with settings and extensions, and hide controls. This is an illustration of the shell.', `
   <defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0 0L6 3.5L0 7" fill="none" stroke="#b19470" stroke-width="1.2"/></marker></defs>
   <rect width="1200" height="440" rx="24" fill="${colors.background}"/>
   ${mascot(56, 20, 2.2, 'curious')}
@@ -95,13 +95,14 @@ svg('tour.svg', 1200, 440, 'A guide to the Spark header',
   ${text(902, 387, 'Size, pin, dock.', 14, colors.muted)}
   ${arrow('M1080 332L1060 294')}
   ${text(1052, 363, 'Options', 18)}
-  ${text(1052, 387, 'Settings + zoom.', 14, colors.muted)}
+  ${text(1052, 387, 'Settings, extensions.', 14, colors.muted)}
   `);
 
 for (const [file, title, first, second, expression] of [
   ['sites', 'Pick your regulars.', 'AI, notes, a translator, a wiki.', 'The grid has room for your own links.', 'curious'],
   ['window', 'Make some room.', 'Dock it, float it, pin it.', 'Keep the size that works for you.', 'normal'],
   ['settings', 'A few small preferences.', 'My gears mean settings.', 'Yours are under the three dots.', 'gears'],
+  ['extensions', 'Bring your extensions.', 'Paste a Chrome Web Store link.', 'They can tell which site is open.', 'curious'],
 ]) {
   svg(`guide-${file}.svg`, 600, 160, title, `${first} ${second}`, `
     <rect width="600" height="160" rx="18" fill="${colors.background}"/>
@@ -112,4 +113,4 @@ for (const [file, title, first, second, expression] of [
   `);
 }
 
-console.log('Generated five self-contained SVG illustrations in docs/readme/.');
+console.log('Generated six self-contained SVG illustrations in docs/readme/.');

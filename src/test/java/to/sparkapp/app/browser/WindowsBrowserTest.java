@@ -75,7 +75,7 @@ class WindowsBrowserTest {
             assertEquals("database-seeded", browser.message());
 
             int retainedHandlers = retainedHandlerCount(browser);
-            int pendingClears = ClearBrowsingDataCallback.retainedCount();
+            int pendingClears = BrowserStatusCallback.retainedCount();
             var cleared = new CountDownLatch(1);
             var success = new AtomicReference<Boolean>();
             browser.run(w -> w.windows().clearBrowsingData(ok -> {
@@ -95,10 +95,10 @@ class WindowsBrowserTest {
                     "Completed clears must not accumulate in event handlers");
 
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
-            while (ClearBrowsingDataCallback.retainedCount() != pendingClears && System.nanoTime() < deadline) {
+            while (BrowserStatusCallback.retainedCount() != pendingClears && System.nanoTime() < deadline) {
                 Thread.sleep(10);
             }
-            assertEquals(pendingClears, ClearBrowsingDataCallback.retainedCount(),
+            assertEquals(pendingClears, BrowserStatusCallback.retainedCount(),
                     "Native completion references must be released");
 
             for (String origin : new String[]{base, other}) {
@@ -194,8 +194,27 @@ class WindowsBrowserTest {
         final CountDownLatch ready = new CountDownLatch(1);
         final Thread thread;
         volatile Webview view;
+        private static Harness keepAlive;
 
         Harness() throws Exception {
+            this(true);
+        }
+
+        /**
+         * Spark keeps its main browser open for the whole session. Tests do the same with one hidden
+         * browser, because closing every browser and creating a new one at once can attach it to a
+         * WebView2 process that is still shutting down, where new extension service workers never start.
+         */
+        private static synchronized void keepBrowserProcessAlive() throws Exception {
+            if (keepAlive == null) {
+                keepAlive = new Harness(false);
+            }
+        }
+
+        private Harness(boolean requireKeepAlive) throws Exception {
+            if (requireKeepAlive) {
+                keepBrowserProcessAlive();
+            }
             thread = new Thread(() -> {
                 try {
                     view = new Webview(false);
@@ -213,7 +232,8 @@ class WindowsBrowserTest {
                     failure.set(error);
                     ready.countDown();
                 }
-            }, "native-test-browser");
+            }, requireKeepAlive ? "native-test-browser" : "native-test-keep-alive");
+            thread.setDaemon(!requireKeepAlive);
             thread.start();
             assertTrue(ready.await(20, TimeUnit.SECONDS));
             assertNull(failure.get(), () -> String.valueOf(failure.get()));

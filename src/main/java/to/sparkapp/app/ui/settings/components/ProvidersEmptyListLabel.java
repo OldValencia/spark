@@ -10,7 +10,7 @@ class ProvidersEmptyListLabel extends Label {
 
     ProvidersEmptyListLabel() {
         super("No providers yet — use “+ Add” to create one.");
-        this.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), 12));
+        this.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), 13));
         this.setTextFill(Theme.TEXT_TERTIARY);
         this.setPadding(new Insets(24, 12, 24, 12));
         this.setMaxWidth(Double.MAX_VALUE);

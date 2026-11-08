@@ -120,6 +120,30 @@ tasks.named('test') {
     useJUnitPlatform { excludeTags 'native' }
 }
 
+def nativeTestDirectory = layout.buildDirectory.dir("native-tests/${UUID.randomUUID()}")
+def testWebviewCleanup = layout.projectDirectory.file('tools/testing/stop-test-webviews.ps1')
+
+tasks.register('cleanupNativeTestWebviews', Exec) {
+    description = 'Stops remaining WebView2 processes belonging to this native test run.'
+    onlyIf { org.gradle.internal.os.OperatingSystem.current().isWindows() }
+    commandLine 'powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+            '-File', testWebviewCleanup.asFile.absolutePath,
+            '-ProfileRoot', nativeTestDirectory.get().dir('browser').asFile.absolutePath
+}
+
+tasks.register('cleanupOrphanedNativeTestWebviews', Exec) {
+    description = 'Releases abandoned test profiles before deleting build output.'
+    onlyIf { org.gradle.internal.os.OperatingSystem.current().isWindows() }
+    commandLine 'powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+            '-File', testWebviewCleanup.asFile.absolutePath,
+            '-ProfileRoot', layout.buildDirectory.dir('native-tests').get().asFile.absolutePath,
+            '-OrphansOnly'
+}
+
+tasks.named('clean') {
+    dependsOn 'cleanupOrphanedNativeTestWebviews'
+}
+
 tasks.register('nativeTest', Test) {
     description = 'Exercises real WebView2 using an isolated disposable browser profile.'
     group = 'verification'
@@ -133,13 +157,29 @@ tasks.register('nativeTest', Test) {
     }
     onlyIf { org.gradle.internal.os.OperatingSystem.current().isWindows() }
     // Never inherit the installed application's profile or user preferences.
-    def isolated = layout.buildDirectory.dir("native-tests/${UUID.randomUUID()}").get().asFile
+    def isolated = nativeTestDirectory.get().asFile
     environment 'WEBVIEW2_USER_DATA_FOLDER', new File(isolated, 'browser').absolutePath
     systemProperty 'spark.dataDir', new File(isolated, 'settings').absolutePath
     systemProperty 'spark.nativeTests', 'true'
     systemProperty 'spark.testRuntimeClasspath', sourceSets.test.runtimeClasspath.asPath
     outputs.upToDateWhen { false }
     testLogging { events 'passed', 'failed', 'standardOut', 'standardError' }
+    finalizedBy 'cleanupNativeTestWebviews'
+}
+
+def readmeCaptureDirectory = layout.buildDirectory.dir('readme-capture')
+
+tasks.register('readmeCapture', JavaExec) {
+    description = 'Records README media from a real Spark instance with a disposable profile. Moves the real mouse.'
+    group = 'documentation'
+    onlyIf { org.gradle.internal.os.OperatingSystem.current().isWindows() }
+    dependsOn 'testClasses'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'to.sparkapp.app.readme.ReadmeCapture'
+    def root = readmeCaptureDirectory.get().asFile
+    environment 'WEBVIEW2_USER_DATA_FOLDER', new File(root, 'browser').absolutePath
+    systemProperty 'spark.dataDir', new File(root, 'settings').absolutePath
+    args new File(root, 'output').absolutePath, project.findProperty('readmeMode') ?: 'tour'
 }
 
 if (project.hasProperty('generateCds')) {

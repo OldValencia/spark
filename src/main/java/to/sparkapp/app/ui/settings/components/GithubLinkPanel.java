@@ -24,7 +24,7 @@ public class GithubLinkPanel extends HBox {
     private Label buildGithubLabel() {
         var text = String.format(VERSION_TEMPLATE, SystemUtils.VERSION);
         var label = new Label(text);
-        label.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), 11));
+        label.setFont(Font.font(Theme.FONT_SETTINGS.getFamily(), 12.5));
         label.setTextFill(Theme.TEXT_TERTIARY);
         label.setCursor(Cursor.HAND);
 

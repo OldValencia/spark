@@ -23,8 +23,13 @@ import to.sparkapp.app.ui.topbar.TopBarArea;
 @RequiredArgsConstructor
 public class SettingsWindow {
     private final Window owner;
-    private final SettingsPanel panel;
+    private final VBox panel;
+    private final String caption;
     private Stage window;
+
+    public SettingsWindow(Window owner, SettingsPanel panel) {
+        this(owner, panel, "Settings");
+    }
 
     public void open() {
         if (window == null) {
@@ -61,18 +66,18 @@ public class SettingsWindow {
     private void createWindow() {
         window = new Stage(StageStyle.TRANSPARENT);
         window.initOwner(owner);
-        window.setTitle("Spark settings");
+        window.setTitle("Spark " + caption);
 
         if (owner instanceof Stage stage) {
             window.setAlwaysOnTop(stage.isAlwaysOnTop());
             stage.alwaysOnTopProperty().addListener((o, before, pinned) -> window.setAlwaysOnTop(pinned));
         }
 
-        var title = new Label("Settings");
+        var title = new Label(caption);
         var space = new Region();
         HBox.setHgrow(space, Priority.ALWAYS);
 
-        var close = TopBarArea.button("x-mark", "Close settings");
+        var close = TopBarArea.button("x-mark", "Close " + caption.toLowerCase());
         close.setOnAction(e -> close());
 
         var heading = new HBox(title, space, close);

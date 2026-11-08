@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" role="img" aria-labelledby="title desc">
-  <title id="title">A guide to the Spark header</title><desc id="desc">The mascot points out site tabs, the All sites grid, the drag handle, window size, settings and hide controls. This is an illustration of the shell.</desc>
+  <title id="title">A guide to the Spark header</title><desc id="desc">The mascot points out site tabs, the All sites grid, the drag handle, window size, options with settings and extensions, and hide controls. This is an illustration of the shell.</desc>
   <g font-family="Segoe UI, system-ui, sans-serif">
   <defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0 0L6 3.5L0 7" fill="none" stroke="#b19470" stroke-width="1.2"/></marker></defs>
   <rect width="1200" height="440" rx="24" fill="#191a1e"/>
@@ -52,6 +52,6 @@
   <text x="902" y="387" font-size="14" fill="#b3b1b9" >Size, pin, dock.</text>
   <path d="M1080 332L1060 294" fill="none" stroke="#b19470" stroke-width="1.5" stroke-linecap="round" marker-end="url(#arrow)"/>
   <text x="1052" y="363" font-size="18" fill="#f2eadc" >Options</text>
-  <text x="1052" y="387" font-size="14" fill="#b3b1b9" >Settings + zoom.</text>
+  <text x="1052" y="387" font-size="14" fill="#b3b1b9" >Settings, extensions.</text>
   </g>
 </svg>
