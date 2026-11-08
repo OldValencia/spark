@@ -116,7 +116,7 @@ Visited pages stay loaded until you remove the site or quit Spark. Switching sit
 
 After a restart, **Remember last site** restores saved page addresses from the configured site. Addresses containing `?` query parameters or `#` fragments are skipped by automatic history, so temporary sign-in parameters are not written to preferences. Sites that identify pages only through those parameters return to the previous saved address or the configured start page. Drafts and conversations across restarts depend on what the website itself saves.
 
-Each loaded website uses memory. **Settings → Browser → Reduce background memory** lets Windows reclaim memory from hidden pages while keeping them alive. The total depends on the sites you've opened. If the site takes a few seconds to appear when you reopen Spark, turn this setting off; see [troubleshooting](docs/troubleshooting.md).
+Each loaded website uses memory. **Settings → Browser → Reduce background memory** (off by default) lets Windows reclaim memory from pages once Spark has been hidden for a few minutes, while keeping them alive. The total depends on the sites you've opened. If the site takes a few seconds to appear when you reopen Spark, turn this setting off; see [troubleshooting](docs/troubleshooting.md).
 
 **Extensions are experimental in 0.3.3 and need Windows x64.** Extensions are installed unpacked into your Spark folder and run in Spark's browser profile; each enabled extension uses some memory of its own. Popovers tell an extension which site is open, but the full Chrome toolbar is not there: toolbar button events, automatic `activeTab` access and side panels are not implemented, and password-manager autofill is not guaranteed. See [extension usage and validation](docs/extensions.md).
 

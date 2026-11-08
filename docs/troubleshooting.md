@@ -2,11 +2,12 @@
 
 ## The site takes a few seconds to appear after I open Spark
 
-If Spark shows a black window for a few seconds before the site appears again, turn off
+If Spark shows a black window for a few seconds before the site appears again, check
 **Settings → Browser → Reduce background memory**.
 
-This setting is on by default. While Spark is hidden, it lets Windows reclaim memory from the hidden pages.
-The trade-off is that the page has to be redrawn when you open Spark again, which is what you see as the
+This setting is off by default. When you turn it on, Windows may reclaim memory from pages once Spark has
+been hidden for 3 minutes. Hiding and showing Spark more often than that stays instant. The trade-off is that
+after a longer break the page has to be redrawn when you open Spark again, which is what you see as the
 delay.
 
 In our tests, the setting saves about 100 MB on average. If that amount isn't critical on your PC, turn it

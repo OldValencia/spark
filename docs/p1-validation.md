@@ -61,7 +61,7 @@ The native FX integration test deliberately navigates the isolated active render
 
 ### Background memory policy follow-up
 
-The Browser setting **Reduce background memory** defaults to enabled. Inactive sites and a hidden Spark window request the native Low memory target. Before showing a page, the browser thread restores Normal and controller visibility, then shows the HWND. Generation checks prevent stale queued shows from overriding a newer hide. A page covered only by the loading overlay is hidden at the controller level but is not put in Low solely because it is loading.
+The Browser setting **Reduce background memory** defaults to disabled since 0.3.4 (enabled before). Inactive sites and a hidden Spark window request the native Low memory target. Before showing a page, the browser thread restores Normal and controller visibility, then shows the HWND. Generation checks prevent stale queued shows from overriding a newer hide. A page covered only by the loading overlay is hidden at the controller level but is not put in Low solely because it is loading.
 
 Turning the setting off applies Normal to already open background pages without reloading them. Older runtimes returning E_NOINTERFACE continue without the optional memory target. A failed target setter disables that optimization for the affected browser rather than blocking page display. No suspend, automatic refresh, page eviction, or cookie clearing is involved.
 

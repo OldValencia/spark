@@ -42,14 +42,14 @@ class SiteHistoryTest {
     private final AiConfig second = new AiConfig("second", "Second", "https://example.com", null, null);
 
     @Test
-    void backgroundMemoryReductionDefaultsOnAndCanBeDisabledPersistently() {
+    void backgroundMemoryReductionDefaultsOffAndCanBeEnabledPersistently() {
         var file = directory.resolve("settings.json").toFile();
         var preferences = new AppPreferences(file);
-        assertTrue(preferences.isBackgroundMemoryReductionEnabled());
-        preferences.setBackgroundMemoryReductionEnabled(false);
-        assertFalse(new AppPreferences(file).isBackgroundMemoryReductionEnabled());
+        assertFalse(preferences.isBackgroundMemoryReductionEnabled());
         preferences.setBackgroundMemoryReductionEnabled(true);
         assertTrue(new AppPreferences(file).isBackgroundMemoryReductionEnabled());
+        preferences.setBackgroundMemoryReductionEnabled(false);
+        assertFalse(new AppPreferences(file).isBackgroundMemoryReductionEnabled());
     }
 
     @Test

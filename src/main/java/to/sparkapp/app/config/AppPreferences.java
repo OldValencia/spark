@@ -235,8 +235,9 @@ public class AppPreferences {
         save();
     }
 
+    /** Off unless chosen: it saves memory, but a page hidden for a while takes longer to come back. */
     public synchronized boolean isBackgroundMemoryReductionEnabled() {
-        return !Boolean.FALSE.equals(config.reduceBackgroundMemory);
+        return Boolean.TRUE.equals(config.reduceBackgroundMemory);
     }
 
     public synchronized void setBackgroundMemoryReductionEnabled(boolean enabled) {

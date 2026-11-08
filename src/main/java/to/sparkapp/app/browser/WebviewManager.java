@@ -157,8 +157,7 @@ public class WebviewManager {
         var browser = webview.windows();
         // Set before the first navigation, so the page never appears at the wrong size.
         browser.setZoomFactor(zoomManager.currentFactor());
-        browser.setPresentation(false,
-                presentation.isHibernated() && appPreferences.isBackgroundMemoryReductionEnabled());
+        browser.setPresentation(false, presentation.wantsLowMemory());
         browser.observeProcessFailures(this::handleProcessFailure);
         browser.observeShortcuts(this::siteShortcutPressed);
         browser.observeTitles(this::titleChanged);
@@ -490,6 +489,17 @@ public class WebviewManager {
     public void hibernate() {
         presentation.hibernate();
         refreshResourcePolicy();
+        scheduleLowMemory();
+    }
+
+    /** Checks again once the page has been hidden long enough to give memory back. */
+    private void scheduleLowMemory() {
+        var delay = BrowserPresentation.LOW_MEMORY_DELAY.plusSeconds(1).toMillis();
+        CompletableFuture.delayedExecutor(delay, TimeUnit.MILLISECONDS).execute(() -> {
+            if (!disposed.get()) {
+                refreshResourcePolicy();
+            }
+        });
     }
 
     public void wakeup(long parentHandle) {
