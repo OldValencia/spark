@@ -59,6 +59,8 @@ public class FxWebViewPane extends StackPane {
     private Consumer<AiConfig> onEditSite;
     @Setter
     private Consumer<SiteShortcut> onSiteShortcut;
+    @Setter
+    private Consumer<String> onSiteUpdated;
 
     public FxWebViewPane(String startUrl, AppPreferences appPreferences) {
         this.startUrl = startUrl;
@@ -136,6 +138,7 @@ public class FxWebViewPane extends StackPane {
             }
         });
         // Any Spark page can report a shortcut: focus may still sit in the page that was just hidden.
+        source.setOnPageUpdated(() -> siteUpdated(source));
         source.setOnSiteShortcut(shortcut -> {
             if (!disposed && onSiteShortcut != null) {
                 onSiteShortcut.accept(shortcut);
@@ -146,6 +149,15 @@ public class FxWebViewPane extends StackPane {
                 extraPageOpen.set(extra);
             }
         });
+    }
+
+    /** Only a site that is not on screen can have news; the open one is being looked at. */
+    private void siteUpdated(WebviewManager source) {
+        var site = sessions.findSite(source);
+
+        if (!disposed && source != bridge && site != null && onSiteUpdated != null) {
+            onSiteUpdated.accept(site.id());
+        }
     }
 
     private boolean windowVisible() {

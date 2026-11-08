@@ -6,6 +6,7 @@ import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
@@ -34,6 +35,7 @@ public class DockItemNode extends HBox {
     private boolean isDragging;
     private final AiDock dock;
     private final Tooltip tooltip;
+    private final TabUpdateMark updateMark;
     private boolean selected;
     private boolean pressed;
 
@@ -54,20 +56,8 @@ public class DockItemNode extends HBox {
         tooltip = ShellTooltip.create(config.name());
         Tooltip.install(this, tooltip);
 
-        var image = config.icon() == null ? null : AiDock.ICON_CACHE.get(config.icon());
-
-        if (image != null && image.getWidth() > 1) {
-            var icon = new ImageView(image);
-            icon.setFitWidth(17);
-            icon.setFitHeight(17);
-            icon.setPreserveRatio(true);
-            getChildren().add(icon);
-        } else {
-            var icon = new Label("↗");
-            icon.setMinWidth(17);
-            icon.setTextFill(Theme.TEXT_SECONDARY);
-            getChildren().add(icon);
-        }
+        updateMark = new TabUpdateMark(createIcon(config), dock::isReducedMotion);
+        getChildren().add(updateMark);
 
         var name = new Label(config.name());
         name.setFont(Font.font(Theme.FONT_NAME, TAB_FONT_SIZE));
@@ -143,6 +133,40 @@ public class DockItemNode extends HBox {
             e.consume();
         });
         refreshState();
+    }
+
+    private static Node createIcon(AiConfig config) {
+        var image = config.icon() == null ? null : AiDock.ICON_CACHE.get(config.icon());
+
+        if (image != null && image.getWidth() > 1) {
+            var icon = new ImageView(image);
+            icon.setFitWidth(17);
+            icon.setFitHeight(17);
+            icon.setPreserveRatio(true);
+
+            return icon;
+        }
+
+        var icon = new Label("↗");
+        icon.setMinWidth(17);
+        icon.setTextFill(Theme.TEXT_SECONDARY);
+
+        return icon;
+    }
+
+    /** Marks a site that changed while another site was open. */
+    public void setUpdated(boolean updated) {
+        if (updated) {
+            updateMark.show();
+        } else {
+            updateMark.hide();
+        }
+
+        setAccessibleText(updated ? config.name() + ", updated" : config.name());
+    }
+
+    public boolean isUpdated() {
+        return updateMark.isShown();
     }
 
     public void updateDragPosition(double sceneX) {

@@ -434,6 +434,7 @@ public class MainWindow extends Stage {
                 this::hideMainWindow, windowController, this::handleProvidersChanged, this::toggleExtensions);
         topBar.getDock().setOnAccentChanged(this::showSiteAccent);
         fxWebViewPane.setOnSiteShortcut(topBar.getDock()::select);
+        fxWebViewPane.setOnSiteUpdated(topBar.getDock()::markUpdated);
         topArea.getChildren().setAll(topBar, loadingBar);
         StackPane.setAlignment(loadingBar, Pos.BOTTOM_LEFT);
         rootPane.setTop(topArea);

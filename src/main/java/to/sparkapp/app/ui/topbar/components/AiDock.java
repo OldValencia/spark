@@ -202,6 +202,13 @@ public class AiDock extends StackPane {
         selectItem(node, null);
     }
 
+    /** Puts a dot on the tab of a site that changed while another site was open. */
+    public void markUpdated(String siteId) {
+        dockItems.stream()
+                .filter(item -> item != selectedNode && item.getConfig().id().equals(siteId))
+                .forEach(item -> item.setUpdated(true));
+    }
+
     /** Opens the site a keyboard shortcut points to, such as Ctrl + 2 or Ctrl + Tab. */
     public void select(SiteShortcut shortcut) {
         var target = shortcut.targetIndex(dockItems.indexOf(selectedNode), dockItems.size());
@@ -231,6 +238,7 @@ public class AiDock extends StackPane {
 
         selectedNode = node;
         selectedNode.setSelected(true);
+        selectedNode.setUpdated(false);
         viewport.getIndicator().select(node);
         fxWebViewPane.setCurrentConfig(node.getConfig(), targetUrl);
         updateTopBarColor();

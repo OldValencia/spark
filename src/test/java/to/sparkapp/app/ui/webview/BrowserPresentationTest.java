@@ -180,4 +180,69 @@ class BrowserPresentationTest {
             Thread.currentThread().interrupt();
         }
     }
+
+    @Test
+    void onlyASiteThatIsNotOnScreenReportsNews() throws Exception {
+        JavaFxTestRuntime.start();
+
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            var bytes = "<!doctype html><title>Start</title>".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+
+        var base = "http://127.0.0.1:" + server.getAddress().getPort();
+        var first = new AiConfig("news-first", "First", base + "/first", null, null);
+        var second = new AiConfig("news-second", "Second", base + "/second", null, null);
+        var reported = new java.util.concurrent.LinkedBlockingQueue<String>();
+        var stage = fx(Stage::new);
+        var pane = fx(() -> new FxWebViewPane(first.url(), new AppPreferences()));
+
+        try {
+            fx(() -> {
+                pane.setOnSiteUpdated(reported::add);
+                stage.setScene(new Scene(pane, 500, 400));
+                stage.setX(-20000);
+                stage.setY(-20000);
+                pane.setCurrentConfig(first, null);
+                stage.show();
+
+                return null;
+            });
+            var firstBrowser = active(pane);
+            await(() -> !firstBrowser.isLoading() && firstBrowser.isPagePresentable());
+
+            fx(() -> {
+                pane.setCurrentConfig(second, null);
+
+                return null;
+            });
+            var secondBrowser = active(pane);
+            await(() -> !secondBrowser.isLoading() && secondBrowser.isPagePresentable());
+            firstBrowser.eval("document.title='Too early'");
+            Thread.sleep(500);
+            assertNull(reported.poll(), "A title set right after the first load is not news");
+
+            Thread.sleep(2000);
+            secondBrowser.eval("document.title='Seen'");
+            firstBrowser.eval("document.title='News'");
+
+            assertEquals("news-first", reported.poll(10, TimeUnit.SECONDS));
+            Thread.sleep(500);
+            assertNull(reported.poll(), "The site on screen has no news");
+        } finally {
+            var closed = new CompletableFuture<Void>();
+            fx(() -> {
+                stage.hide();
+                pane.shutdown(() -> closed.complete(null));
+
+                return null;
+            });
+            closed.get(15, TimeUnit.SECONDS);
+            server.stop(0);
+        }
+    }
 }

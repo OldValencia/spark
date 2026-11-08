@@ -27,6 +27,8 @@ import to.sparkapp.app.utils.SystemUtils;
 public class WebviewManager {
     private static final int EXTENSION_TIMEOUT_SECONDS = 30;
     private static final int CONTEXT_WINDOW_TIMEOUT_SECONDS = 5;
+    /** Sites often set their title just after the first load; that is not an update yet. */
+    private static final long TITLE_QUIET_NANOS = 2_000_000_000L;
 
     private final AppPreferences appPreferences;
     private final BrowserPresentation presentation;
@@ -77,6 +79,12 @@ public class WebviewManager {
 
     @Setter
     private Consumer<SiteShortcut> onSiteShortcut;
+
+    /** Runs when a page of the site changes its title after the site first finished loading. */
+    @Setter
+    private Runnable onPageUpdated;
+    private volatile boolean firstPageLoaded;
+    private volatile long titlesCountFrom;
 
     public WebviewManager(AppPreferences appPreferences) {
         this.appPreferences = appPreferences;
@@ -153,6 +161,7 @@ public class WebviewManager {
                 presentation.isHibernated() && appPreferences.isBackgroundMemoryReductionEnabled());
         browser.observeProcessFailures(this::handleProcessFailure);
         browser.observeShortcuts(this::siteShortcutPressed);
+        browser.observeTitles(this::titleChanged);
         browser.observe(this::navigationStarting, this::navigationCompleted);
         browser.observeDocument(this::documentReady);
         browser.observeSource(url -> Platform.runLater(() -> navigator.handleUrlChange(url)));
@@ -162,6 +171,15 @@ public class WebviewManager {
                 Platform.runLater(() -> onExtraPageChanged.accept(extra));
             }
         });
+    }
+
+    /** Titles set while the site first loads, or right after, are not news. */
+    private void titleChanged() {
+        var handler = onPageUpdated;
+
+        if (firstPageLoaded && System.nanoTime() - titlesCountFrom >= 0 && handler != null) {
+            Platform.runLater(handler);
+        }
     }
 
     private void siteShortcutPressed(SiteShortcut shortcut) {
@@ -215,6 +233,10 @@ public class WebviewManager {
         }
 
         Platform.runLater(() -> navigator.handleUrlChange(url));
+        if (!firstPageLoaded) {
+            titlesCountFrom = System.nanoTime() + TITLE_QUIET_NANOS;
+            firstPageLoaded = true;
+        }
 
         if (!success) {
             loadError = "This page could not be loaded. Check your connection and try again.";

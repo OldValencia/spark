@@ -16,6 +16,7 @@ final class WindowsBrowser implements AutoCloseable {
     private final BrowserContextStack pages;
     private final BrowserContextObserver observer;
     private final BrowserShortcutKeys shortcutKeys = new BrowserShortcutKeys();
+    private final BrowserTitleWatch titleWatch = new BrowserTitleWatch();
     private boolean closed;
     private boolean browserProcessExited;
     @Setter
@@ -45,6 +46,7 @@ final class WindowsBrowser implements AutoCloseable {
     private void installPage(BrowserContext context) {
         observer.install(context);
         shortcutKeys.install(context);
+        titleWatch.install(context);
     }
 
     BrowserContext activeContext() {
@@ -76,6 +78,11 @@ final class WindowsBrowser implements AutoCloseable {
     void observeSource(Consumer<String> changed) {
         requireOwner();
         observer.setSourceChanged(changed);
+    }
+
+    void observeTitles(Runnable changed) {
+        requireOwner();
+        titleWatch.setChanged(changed);
     }
 
     void observeShortcuts(Consumer<SiteShortcut> pressed) {
