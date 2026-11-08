@@ -21,7 +21,6 @@ final class BrowserPresentation {
     private volatile long nativeHandle;
     @Getter
     private volatile boolean hibernated;
-    @Getter
     private volatile long generation;
     private volatile long parentHandle;
     private volatile int x;
@@ -79,6 +78,13 @@ final class BrowserPresentation {
         // SetWindowPos accepts physical pixels; webview_set_size applies DPI scaling again.
 
         NativeWindowUtils.setBounds(nativeHandle, x, y, width, height);
+    }
+
+    /** Whether the page is meant to be on screen now. */
+    boolean isDisplayed() {
+        synchronized (lock) {
+            return displayRequested && !hibernated;
+        }
     }
 
     void hibernate() {

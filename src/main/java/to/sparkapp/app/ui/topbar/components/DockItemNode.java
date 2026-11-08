@@ -34,6 +34,7 @@ public class DockItemNode extends HBox {
     @Getter
     private boolean isDragging;
     private final AiDock dock;
+    private final Tooltip tooltip;
     private boolean selected;
     private boolean pressed;
 
@@ -51,7 +52,8 @@ public class DockItemNode extends HBox {
         setCursor(Cursor.HAND);
         setFocusTraversable(true);
         setAccessibleText(config.name());
-        Tooltip.install(this, ShellTooltip.create(config.name()));
+        tooltip = ShellTooltip.create(config.name());
+        Tooltip.install(this, tooltip);
 
         var image = config.icon() == null ? null : AiDock.ICON_CACHE.get(config.icon());
 
@@ -148,6 +150,11 @@ public class DockItemNode extends HBox {
         double x = dock.getDockContainer().sceneToLocal(sceneX, 0).getX() - dragStartLocalX;
         setTranslateX(x);
         dock.getDragManager().onDrag(getLayoutX() + x + getWidth() / 2);
+    }
+
+    /** Shows the site's keyboard shortcut, such as Ctrl+2, next to its name in the tooltip. */
+    public void setShortcutHint(String shortcut) {
+        tooltip.setText(shortcut == null ? config.name() : config.name() + " · " + shortcut);
     }
 
     public void setSelected(boolean selected) {

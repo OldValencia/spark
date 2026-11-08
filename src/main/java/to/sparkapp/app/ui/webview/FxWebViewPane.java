@@ -15,6 +15,7 @@ import javafx.util.Duration;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import to.sparkapp.app.browser.SiteShortcut;
 import to.sparkapp.app.browser.WebviewManager;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
 import to.sparkapp.app.config.AppPreferences;
@@ -56,6 +57,8 @@ public class FxWebViewPane extends StackPane {
     private Consumer<Boolean> onExternalPage;
     @Setter
     private Consumer<AiConfig> onEditSite;
+    @Setter
+    private Consumer<SiteShortcut> onSiteShortcut;
 
     public FxWebViewPane(String startUrl, AppPreferences appPreferences) {
         this.startUrl = startUrl;
@@ -130,6 +133,12 @@ public class FxWebViewPane extends StackPane {
 
             if (site != null) {
                 appPreferences.rememberSitePage(site, url, bridge == source);
+            }
+        });
+        // Any Spark page can report a shortcut: focus may still sit in the page that was just hidden.
+        source.setOnSiteShortcut(shortcut -> {
+            if (!disposed && onSiteShortcut != null) {
+                onSiteShortcut.accept(shortcut);
             }
         });
         source.setOnExtraPageChanged(extra -> {

@@ -5,6 +5,7 @@ import java.awt.*;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -13,6 +14,7 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration;
+import to.sparkapp.app.browser.SiteShortcut;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.extensions.ExtensionsPanel;
 import to.sparkapp.app.ui.settings.SettingsPanel;
@@ -326,6 +328,7 @@ public class MainWindow extends Stage {
             Scene scene = new Scene(rootPane, WIDTH, HEIGHT, Color.TRANSPARENT);
             this.setScene(scene);
             scene.getStylesheets().add(getClass().getResource("/css/shell.css").toExternalForm());
+            scene.addEventFilter(KeyEvent.KEY_PRESSED, this::handleSiteShortcutKey);
             windowController = new WindowController(this, appPreferences);
             windowController.setOnReveal(this::showMainWindow);
             autoHide = new WindowAutoHide(
@@ -406,10 +409,25 @@ public class MainWindow extends Stage {
         return pane;
     }
 
+    /** Site shortcuts while the Spark bar has focus; the browser handles them inside the page. */
+    private void handleSiteShortcutKey(KeyEvent event) {
+        if (!event.isControlDown() || event.isAltDown() || topBar == null) {
+            return;
+        }
+
+        var shortcut = SiteShortcut.fromKey(event.getCode().getCode(), event.isShiftDown());
+
+        if (shortcut != null) {
+            topBar.getDock().select(shortcut);
+            event.consume();
+        }
+    }
+
     private void installTopBar() {
         topBar = new TopBarArea(aiConfiguration, fxWebViewPane, this, appPreferences, this::toggleSettings,
                 this::hideMainWindow, windowController, this::handleProvidersChanged, this::toggleExtensions);
         topBar.getDock().setOnAccentChanged(frame::showAccent);
+        fxWebViewPane.setOnSiteShortcut(topBar.getDock()::select);
         rootPane.setTop(topBar);
     }
 

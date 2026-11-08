@@ -93,6 +93,7 @@ Something not working as expected? Check [troubleshooting and tips](docs/trouble
 | --- | --- |
 | Show or hide Spark | Your global shortcut |
 | Open Spark | The tray or top-edge pill |
+| Switch sites | **Ctrl + 1…8** by position, **Ctrl + 9** for the last, **Ctrl + Tab** / **Ctrl + Shift + Tab** |
 | Move the window | Drag the central handle |
 | Dock at the top | Double-click the handle, or **Window size → Dock at the top** |
 | Resize, pin, or fill the screen | **Window size** menu |

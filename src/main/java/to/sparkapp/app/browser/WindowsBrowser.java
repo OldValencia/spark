@@ -15,6 +15,7 @@ final class WindowsBrowser implements AutoCloseable {
     private final BrowserContext root;
     private final BrowserContextStack pages;
     private final BrowserContextObserver observer;
+    private final BrowserShortcutKeys shortcutKeys = new BrowserShortcutKeys();
     private boolean closed;
     private boolean browserProcessExited;
     @Setter
@@ -31,14 +32,19 @@ final class WindowsBrowser implements AutoCloseable {
 
             processFailure.accept(kind);
         });
-        observer.install(root);
+        installPage(root);
     }
 
     void enablePages(String script, Consumer<String> message) {
         requireOwner();
         observer.setMessage(message);
         pages.enable("window.sparkCall=(...args)=>{chrome.webview.postMessage(JSON.stringify(args));return Promise.resolve(null);};\n" + script,
-                observer::install);
+                this::installPage);
+    }
+
+    private void installPage(BrowserContext context) {
+        observer.install(context);
+        shortcutKeys.install(context);
     }
 
     BrowserContext activeContext() {
@@ -70,6 +76,11 @@ final class WindowsBrowser implements AutoCloseable {
     void observeSource(Consumer<String> changed) {
         requireOwner();
         observer.setSourceChanged(changed);
+    }
+
+    void observeShortcuts(Consumer<SiteShortcut> pressed) {
+        requireOwner();
+        shortcutKeys.setPressed(pressed);
     }
 
     void observeProcessFailures(Consumer<Integer> failed) {

@@ -75,6 +75,9 @@ public class WebviewManager {
     @Setter
     private Consumer<Boolean> onExtraPageChanged;
 
+    @Setter
+    private Consumer<SiteShortcut> onSiteShortcut;
+
     public WebviewManager(AppPreferences appPreferences) {
         this.appPreferences = appPreferences;
         this.presentation = new BrowserPresentation(appPreferences);
@@ -149,6 +152,7 @@ public class WebviewManager {
         browser.setPresentation(false,
                 presentation.isHibernated() && appPreferences.isBackgroundMemoryReductionEnabled());
         browser.observeProcessFailures(this::handleProcessFailure);
+        browser.observeShortcuts(this::siteShortcutPressed);
         browser.observe(this::navigationStarting, this::navigationCompleted);
         browser.observeDocument(this::documentReady);
         browser.observeSource(url -> Platform.runLater(() -> navigator.handleUrlChange(url)));
@@ -158,6 +162,14 @@ public class WebviewManager {
                 Platform.runLater(() -> onExtraPageChanged.accept(extra));
             }
         });
+    }
+
+    private void siteShortcutPressed(SiteShortcut shortcut) {
+        var handler = onSiteShortcut;
+
+        if (handler != null) {
+            Platform.runLater(() -> handler.accept(shortcut));
+        }
     }
 
     private void documentReady(long id) {
@@ -605,11 +617,14 @@ public class WebviewManager {
         focusBrowser(null);
     }
 
+    /**
+     * Moves keyboard focus into the page once it is on screen. A request made before the page was
+     * hidden again is dropped; showing it again does not cancel the request.
+     */
     public void focusBrowser(Consumer<Boolean> completed) {
-        long generation = presentation.getGeneration();
         dispatch(() -> {
-            if (generation == presentation.getGeneration() && !processFailed && !presentation.isHibernated() &&
-                    pagePresentable && loadError == null && SystemUtils.isWindows()) {
+            if (presentation.isDisplayed() && !processFailed && pagePresentable && loadError == null &&
+                    SystemUtils.isWindows()) {
                 boolean accepted = webview.windows().focus();
 
                 if (!accepted) {

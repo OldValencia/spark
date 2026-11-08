@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
 import to.sparkapp.app.config.AppPaths;
 import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.browser.SiteShortcut;
 import to.sparkapp.app.ui.SiteAccent;
 import to.sparkapp.app.ui.topbar.utils.AiDockDragManager;
 import to.sparkapp.app.ui.topbar.utils.AiDockIconUtils;
@@ -122,6 +123,7 @@ public class AiDock extends StackPane {
         dockItems.remove(from);
         dockItems.add(dockItems.indexOf(to) + (after ? 1 : 0), from);
         dockContainer.getChildren().setAll(dockItems);
+        refreshShortcutHints();
         AiDockOrderUtils.saveCurrentOrder(dockItems, appPreferences);
         orderChanged();
     }
@@ -178,6 +180,8 @@ public class AiDock extends StackPane {
             dockContainer.getChildren().add(node);
         }
 
+        refreshShortcutHints();
+
         if (!dockItems.isEmpty()) {
             selectItem(dockItems.get(initial.index()), initial.url());
         }
@@ -195,6 +199,21 @@ public class AiDock extends StackPane {
 
     public void selectItem(DockItemNode node) {
         selectItem(node, null);
+    }
+
+    /** Opens the site a keyboard shortcut points to, such as Ctrl + 2 or Ctrl + Tab. */
+    public void select(SiteShortcut shortcut) {
+        var target = shortcut.targetIndex(dockItems.indexOf(selectedNode), dockItems.size());
+
+        if (target >= 0) {
+            selectItem(dockItems.get(target));
+        }
+    }
+
+    private void refreshShortcutHints() {
+        for (var index = 0; index < dockItems.size(); index++) {
+            dockItems.get(index).setShortcutHint(SiteShortcut.hintFor(index, dockItems.size()));
+        }
     }
 
     /**
