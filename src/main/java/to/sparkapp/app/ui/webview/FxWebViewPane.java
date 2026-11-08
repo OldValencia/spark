@@ -389,6 +389,11 @@ public class FxWebViewPane extends StackPane {
         bridge.resetZoom();
     }
 
+    /** Reapplies the stored zoom of every open site, for example after zoom was switched off. */
+    public void refreshZoom() {
+        sessions.forEach(WebviewManager::refreshZoom);
+    }
+
     public void goBack() {
         bridge.goBack();
     }

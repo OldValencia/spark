@@ -28,6 +28,7 @@ public class AppPreferences {
     private final ObjectMapper mapper = new ObjectMapper();
     private AppConfig config;
     private final SiteHistory history;
+    private final SiteSettingsStore siteSettings;
 
     private final ScheduledExecutorService saveScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         var t = new Thread(r, "preferences-save");
@@ -46,6 +47,7 @@ public class AppPreferences {
         mapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
         load();
         history = new SiteHistory(config, this::save, this::saveDebounced);
+        siteSettings = new SiteSettingsStore(config, this::saveDebounced);
 
         if (config.initializeDefaults()) {
             save();
@@ -86,7 +88,7 @@ public class AppPreferences {
 
     /**
      * Deferred write — coalesces multiple rapid calls into one disk write 500 ms after the last
-     * mutation. Used for values that can change very frequently (current URL, zoom level).
+     * mutation. Used for values that can change very frequently (current URL, site zoom).
      */
     private void saveDebounced() {
         if (pendingDebouncedSave != null) {
@@ -98,7 +100,7 @@ public class AppPreferences {
 
     /**
      * Writes any pending debounced changes straight away. Must be called before the process exits,
-     * otherwise the last URL and zoom level are silently lost.
+     * otherwise the last URL and site zoom are silently lost.
      */
     public synchronized void flush() {
         var pending = pendingDebouncedSave;
@@ -149,23 +151,26 @@ public class AppPreferences {
         return Boolean.TRUE.equals(config.rememberLastAi);
     }
 
-    public synchronized void setLastZoomValue(Double zoomValue) {
+    public synchronized double getSiteZoomLevel(String siteId) {
+        return siteSettings.getZoomLevel(siteId);
+    }
+
+    public synchronized void setSiteZoomLevel(String siteId, double level) {
         if (Boolean.TRUE.equals(config.zoomEnabled)) {
-            config.lastZoomValue = zoomValue;
-            saveDebounced();
+            siteSettings.setZoomLevel(siteId, level);
         }
     }
 
-    public synchronized Double getLastZoomValue() {
-        return config.lastZoomValue != null ? config.lastZoomValue : 0.0;
+    public synchronized void pruneSiteSettings(List<AiConfig> sites) {
+        siteSettings.prune(sites);
     }
 
     public synchronized void setZoomEnabled(boolean zoomEnabled) {
         config.zoomEnabled = zoomEnabled;
 
         if (!zoomEnabled) {
-            // Written directly: setLastZoomValue() is a no-op once zoom is disabled.
-            config.lastZoomValue = 0.0;
+            // Every site starts again at 100 % when zoom is switched back on.
+            siteSettings.clearZoomLevels();
         }
 
         save();

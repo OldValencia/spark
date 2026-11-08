@@ -3,6 +3,7 @@ package to.sparkapp.app.browser;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -77,8 +78,8 @@ public class WebviewManager {
     public WebviewManager(AppPreferences appPreferences) {
         this.appPreferences = appPreferences;
         this.presentation = new BrowserPresentation(appPreferences);
-        this.zoomManager = new WebviewZoomManager(appPreferences, this);
-        this.navigator = new WebviewNavigator(this::dispatch, this::loadURL, zoomManager::applyZoomCss);
+        this.zoomManager = new WebviewZoomManager(appPreferences, this::applyZoomFactor);
+        this.navigator = new WebviewNavigator(this::dispatch, this::loadURL, this::reapplyDocumentZoom);
     }
 
     public void init(String startUrl, long parentHandle, int x, int y, int width, int height) {
@@ -143,6 +144,8 @@ public class WebviewManager {
         }
 
         var browser = webview.windows();
+        // Set before the first navigation, so the page never appears at the wrong size.
+        browser.setZoomFactor(zoomManager.currentFactor());
         browser.setPresentation(false,
                 presentation.isHibernated() && appPreferences.isBackgroundMemoryReductionEnabled());
         browser.observeProcessFailures(this::handleProcessFailure);
@@ -200,7 +203,6 @@ public class WebviewManager {
         }
 
         Platform.runLater(() -> navigator.handleUrlChange(url));
-        zoomManager.applyZoomCss();
 
         if (!success) {
             loadError = "This page could not be loaded. Check your connection and try again.";
@@ -235,7 +237,7 @@ public class WebviewManager {
         while ((task = pollPending()) != null) {
             task.run();
         }
-        zoomManager.applyZoomCss();
+        zoomManager.apply();
         presentation.attach(false);
         applyPresentation();
 
@@ -522,6 +524,31 @@ public class WebviewManager {
         }
     }
 
+    private void applyZoomFactor(double factor) {
+        if (ready.get()) {
+            dispatch(() -> renderZoom(factor));
+        }
+    }
+
+    private void renderZoom(double factor) {
+        if (SystemUtils.isWindows()) {
+            webview.windows().setZoomFactor(factor);
+        } else {
+            webview.eval(String.format(Locale.ROOT, "document.documentElement.style.zoom='%.4f';", factor));
+        }
+    }
+
+    /** CSS zoom belongs to each document. The native zoom on Windows survives navigation. */
+    private void reapplyDocumentZoom() {
+        if (!SystemUtils.isWindows()) {
+            zoomManager.apply();
+        }
+    }
+
+    public void refreshZoom() {
+        zoomManager.refresh();
+    }
+
     public void setZoomCallback(Consumer<Double> callback) {
         zoomManager.setZoomCallback(callback);
     }
@@ -551,6 +578,7 @@ public class WebviewManager {
     }
 
     public void setCurrentConfig(AiConfig config, String targetUrl) {
+        zoomManager.showSite(config.id());
         navigator.setCurrentConfig(config, targetUrl);
     }
 

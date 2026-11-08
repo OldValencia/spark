@@ -37,10 +37,6 @@ public class Theme {
     public static final int CARD_RADIUS = 14;
     public static final int ROW_RADIUS = 10;
 
-    public static final Color BTN_HOVER_SETTINGS = Color.rgb(140, 140, 150);
-    public static final Color BTN_HOVER_CLOSE = Color.rgb(255, 80, 80);
-    public static final Color BTN_RING = Color.rgb(80, 80, 90);
-
     public static final Color TOGGLE_BG_OFF = Color.rgb(60, 60, 64);
     public static final Color TOGGLE_BG_ON = Color.web("#6da784");
     public static final Color TOGGLE_THUMB = Color.rgb(250, 250, 252);

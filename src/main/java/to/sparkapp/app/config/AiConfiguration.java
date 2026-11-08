@@ -32,6 +32,7 @@ public class AiConfiguration {
             List<String> validUrls = configurations.stream().map(AiConfig::url).collect(Collectors.toList());
             appPreferences.cleanupLastUrlIfNeeded(validUrls);
             appPreferences.pruneSiteHistory(configurations);
+            appPreferences.pruneSiteSettings(configurations);
         }
     }
 

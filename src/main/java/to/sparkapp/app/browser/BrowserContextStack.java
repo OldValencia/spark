@@ -20,6 +20,7 @@ final class BrowserContextStack {
     private final Consumer<BrowserContext> changed;
     private final List<BrowserContext> contexts = new ArrayList<>();
     private final Set<BrowserPopupRequest> pending = new HashSet<>();
+    private final BrowserPageZoom zoom = new BrowserPageZoom();
     @Getter
     private BrowserContext active;
     private String script;
@@ -36,6 +37,7 @@ final class BrowserContextStack {
         this.changed = changed;
         active = root;
         contexts.add(root);
+        zoom.prepare(root);
     }
 
     void enable(String script, Consumer<BrowserContext> prepare) {
@@ -57,6 +59,7 @@ final class BrowserContextStack {
 
         try {
             request.create(script, context -> {
+                zoom.prepare(context);
                 prepare.accept(context);
                 installPopupEvents(context);
             }, context -> {
@@ -71,6 +74,8 @@ final class BrowserContextStack {
 
     private void activate(BrowserContext context) {
         active = context;
+        // A page opened by the site does not keep a zoom set before it was attached; set it again.
+        zoom.apply(context);
         setPresentation(visible, lowMemory);
         changed.accept(context);
     }
@@ -83,6 +88,10 @@ final class BrowserContextStack {
             context.resizeTo(root);
             context.setPresentation(visible && context == active, context == active ? lowMemory : reduceInactive);
         }
+    }
+
+    void setZoomFactor(double factor) {
+        zoom.setFactor(factor, contexts);
     }
 
     void back() {

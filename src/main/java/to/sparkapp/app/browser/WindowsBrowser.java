@@ -85,6 +85,15 @@ final class WindowsBrowser implements AutoCloseable {
         }
     }
 
+    /** Applies one site's zoom to its main page and to the pages it opened. */
+    void setZoomFactor(double factor) {
+        requireOwner();
+
+        if (!closed && !browserProcessExited) {
+            pages.setZoomFactor(factor);
+        }
+    }
+
     void setBackgroundMemoryReduction(boolean enabled) {
         requireOwner();
         pages.setReduceInactive(enabled);

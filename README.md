@@ -53,7 +53,7 @@ The little spark in the corner has volunteered to show you around.
   <img src="docs/readme/guide-settings.svg" alt="The mascot's gear eyes point you to settings under the three-dot menu" width="600">
 </p>
 
-**Three dots → Settings** is where the shortcut, startup behavior and top-edge pill live. Page zoom is right in the three-dot menu.
+**Three dots → Settings** is where the shortcut, startup behavior and top-edge pill live. Page zoom is right in the three-dot menu, and each site remembers its own zoom.
 
 <p align="center">
   <img src="docs/readme/guide-extensions.svg" alt="The mascot introduces Chrome extensions installed from a store link" width="600">

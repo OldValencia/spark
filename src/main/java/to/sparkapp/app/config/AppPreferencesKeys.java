@@ -9,7 +9,6 @@ public enum AppPreferencesKeys {
 
     LAST_URL("<skip_default>"),
     REMEMBER_LAST_AI("true"),
-    LAST_ZOOM_VALUE("0.0"),
     ZOOM_ENABLED("true"),
     AI_ORDER(""),
     CHECK_UPDATES_ON_STARTUP("true"),

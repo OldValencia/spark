@@ -378,7 +378,7 @@ public class MainWindow extends Stage {
                     topBar.refreshAppearance();
                 }
             });
-            settingsPanel.setOnZoomEnabledChanged(enabled -> fxWebViewPane.resetZoom());
+            settingsPanel.setOnZoomEnabledChanged(enabled -> fxWebViewPane.refreshZoom());
 
             settingsWindow = new SettingsWindow(this, settingsPanel);
             initializeExtensionsWindow();
