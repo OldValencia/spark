@@ -18,7 +18,6 @@ import javafx.scene.text.Text;
 import javafx.util.Duration;
 import lombok.Getter;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
-import to.sparkapp.app.ui.SiteAccent;
 import to.sparkapp.app.ui.Theme;
 
 /**
@@ -162,19 +161,9 @@ public class DockItemNode extends HBox {
         refreshState();
     }
 
+    /** The selected tab's highlight is drawn by the dock, so it can slide between tabs. */
     public void refreshState() {
         ((Label) getChildren().getLast()).setTextFill(Color.web(selected ? "#eeeeF3" : "#b9b9c3"));
-
-        if (!selected) {
-            setStyle("");
-
-            return;
-        }
-
-        var accent = SiteAccent.resolve(config.color());
-        String wash = Theme.toHex(Theme.lerp(Color.web("#25262a"), accent, .13));
-        String border = Theme.toHex(Theme.lerp(Color.web("#25262a"), accent, .30));
-        setStyle("-fx-background-color:" + wash + ";-fx-border-color:" + border + ";");
     }
 
     public void cancelDrag() {

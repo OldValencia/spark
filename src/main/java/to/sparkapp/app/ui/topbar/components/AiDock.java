@@ -129,6 +129,7 @@ public class AiDock extends StackPane {
     }
 
     public void dispose() {
+        viewport.getIndicator().dispose();
         cancelInteraction();
         prefWidthProperty().unbind();
         minWidthProperty().unbind();
@@ -230,6 +231,7 @@ public class AiDock extends StackPane {
 
         selectedNode = node;
         selectedNode.setSelected(true);
+        viewport.getIndicator().select(node);
         fxWebViewPane.setCurrentConfig(node.getConfig(), targetUrl);
         updateTopBarColor();
         revealSelection();

@@ -33,6 +33,7 @@
 .menu-item:focused { -fx-background-color: #484851; }
 .site-tab { -fx-background-color: transparent; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-color: transparent; -fx-border-width: 1; }
 .site-tab:hover { -fx-background-color: #ffffff09; }
+.site-tab-highlight { -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-width: 1; }
 .site-tab .label { -fx-font-family: 'Segoe UI'; -fx-font-size: 13px; }
 .site-tab:focused { -fx-border-color: #898994; }
 .dock-scroll-arrow { -fx-background-color: transparent; -fx-background-radius: 6; }
