@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.Theme;
 import to.sparkapp.app.ui.settings.components.AnimatedSettingsButton;
+import to.sparkapp.app.ui.settings.components.BackupSettingsCard;
 import to.sparkapp.app.ui.settings.components.DonationSection;
 import to.sparkapp.app.ui.settings.components.GeneralSettingsCard;
 import to.sparkapp.app.ui.settings.components.HotkeySection;
@@ -91,6 +92,9 @@ public class SettingsPanel extends VBox {
         addStrut(SECTION_GAP);
 
         buildBrowserSection();
+        addStrut(SECTION_GAP);
+
+        addSection("Backup", new BackupSettingsCard(appPreferences));
         addStrut(18);
     }
 

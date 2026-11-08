@@ -133,6 +133,8 @@ Settings on Windows live here:
 └── logs\               Application logs
 ```
 
+**Settings → Backup → Export…** saves your sites, their icons and preferences to a ZIP file for another PC; see [moving Spark to another PC](docs/troubleshooting.md#moving-spark-to-another-pc).
+
 **Settings → Browser → Clear site data** clears cookies and website storage across Spark's browser profile after confirmation. It signs you out and reloads open sites, so finish or copy any unsent text first.
 
 </details>

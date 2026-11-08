@@ -16,7 +16,6 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
@@ -62,7 +61,7 @@ public final class PresetNameDialog extends Stage {
         scene.getStylesheets().add(getClass().getResource("/css/shell.css").toExternalForm());
         setScene(scene);
         setOnShown(event -> {
-            centerOverOwner(owner);
+            DialogPlacement.centerOver(this, owner);
             Platform.runLater(() -> {
                 name.requestFocus();
                 name.selectAll();
@@ -88,15 +87,6 @@ public final class PresetNameDialog extends Stage {
         buttons.setAlignment(Pos.CENTER_RIGHT);
 
         return buttons;
-    }
-
-    private void centerOverOwner(Window owner) {
-        var screen = Screen.getScreensForRectangle(owner.getX(), owner.getY(), owner.getWidth(), owner.getHeight())
-                .stream().findFirst().orElse(Screen.getPrimary()).getVisualBounds();
-        setX(Math.clamp(owner.getX() + (owner.getWidth() - getWidth()) / 2, screen.getMinX(),
-                Math.max(screen.getMinX(), screen.getMaxX() - getWidth())));
-        setY(Math.clamp(owner.getY() + (owner.getHeight() - getHeight()) / 2, screen.getMinY(),
-                Math.max(screen.getMinY(), screen.getMaxY() - getHeight())));
     }
 
     public Optional<String> showNameAndWait() {
