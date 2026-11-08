@@ -21,6 +21,7 @@ final class BrowserLoadingView {
     @Getter
     private final WebViewLoadingOverlay overlay = new WebViewLoadingOverlay();
     private final ReadOnlyBooleanWrapper pageLoading = new ReadOnlyBooleanWrapper();
+    private final ReadOnlyBooleanWrapper pageFailed = new ReadOnlyBooleanWrapper();
 
     BrowserLoadingView(Supplier<WebviewManager> browser, BooleanSupplier visible, Runnable syncBounds,
                        Supplier<Runnable> editSite, BooleanSupplier reducedMotion) {
@@ -36,17 +37,24 @@ final class BrowserLoadingView {
         return pageLoading.getReadOnlyProperty();
     }
 
+    /** Whether the site on screen shows a load error. */
+    ReadOnlyBooleanProperty pageFailedProperty() {
+        return pageFailed.getReadOnlyProperty();
+    }
+
     void refresh() {
         loadTimeout.stop();
 
         if (!visible.getAsBoolean()) {
             pageLoading.set(false);
+            pageFailed.set(false);
 
             return;
         }
 
         var active = browser.get();
         pageLoading.set(active.isLoading() && active.getLoadError() == null);
+        pageFailed.set(active.getLoadError() != null);
 
         if (active.getLoadError() != null) {
             presented = null;
@@ -93,6 +101,7 @@ final class BrowserLoadingView {
 
     void pause() {
         pageLoading.set(false);
+        pageFailed.set(false);
         presented = null;
         overlay.pauseAnimation();
         loadTimeout.stop();
@@ -100,6 +109,7 @@ final class BrowserLoadingView {
 
     void stop() {
         pageLoading.set(false);
+        pageFailed.set(false);
         overlay.deactivate();
         loadTimeout.stop();
     }

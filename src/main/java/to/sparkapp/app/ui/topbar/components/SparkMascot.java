@@ -1,26 +1,35 @@
 package to.sparkapp.app.ui.topbar.components;
 
 import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.event.EventHandler;
 import javafx.geometry.Point2D;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
 import to.sparkapp.app.config.AppPreferences;
 
-/** Short, local reactions only; no idle loop or page inspection. */
+/**
+ * Short, local reactions plus a lasting mood from the page state and activity in Spark. The page
+ * content itself is never inspected.
+ */
 public final class SparkMascot extends Button {
+    private static final long AWAY_NANOS = 60_000_000_000L;
+
     private final AppPreferences preferences;
     private final Stage owner;
     private final MascotFace face = new MascotFace();
-    private final MascotMotion motion = new MascotMotion(face);
+    private final MascotExpressions expressions = new MascotExpressions(face, this::animated);
     private final MascotPointer pointer = new MascotPointer(this::lookAtScreen);
     private final EventHandler<MouseEvent> gaze = this::look;
+    private final EventHandler<KeyEvent> typing = event -> expressions.activity();
     private final ChangeListener<Boolean> showing = (observable, before, visible) -> windowChanged(visible);
     private final ChangeListener<Boolean> iconified = (observable, before, minimized) -> refresh();
     private final ChangeListener<Number> resized = (observable, before, size) -> react(MascotReaction.RESIZE);
     private final ChangeListener<Scene> sceneChanged = (observable, before, scene) -> attach(before, scene);
+    private long hiddenAt;
 
     public SparkMascot(Stage owner, AppPreferences preferences) {
         this.owner = owner;
@@ -48,11 +57,17 @@ public final class SparkMascot extends Button {
                 !preferences.isReducedMotion();
     }
 
+    /** Lets the mascot think while the page loads and look sad when it fails. */
+    public void observePage(ObservableBooleanValue loading, ObservableBooleanValue failed) {
+        expressions.observePage(loading, failed);
+    }
+
     private void look(MouseEvent event) {
         if (!animated()) {
             return;
         }
 
+        expressions.activity();
         lookAtLocal(sceneToLocal(event.getSceneX(), event.getSceneY()));
     }
 
@@ -70,6 +85,7 @@ public final class SparkMascot extends Button {
             return;
         }
 
+        expressions.activity();
         lookAtLocal(screenToLocal(position));
     }
 
@@ -81,45 +97,50 @@ public final class SparkMascot extends Button {
     }
 
     public void react(MascotReaction expression) {
-        if (!animated()) {
-            return;
-        }
-
-        motion.play(expression);
-    }
-
-    private void reset() {
-        motion.reset();
+        expressions.react(expression);
     }
 
     private void attach(Scene before, Scene scene) {
         if (before != null) {
             before.removeEventFilter(MouseEvent.MOUSE_MOVED, gaze);
+            before.removeEventFilter(KeyEvent.KEY_PRESSED, typing);
         }
 
         if (scene != null) {
             scene.addEventFilter(MouseEvent.MOUSE_MOVED, gaze);
+            scene.addEventFilter(KeyEvent.KEY_PRESSED, typing);
         }
     }
 
+    /** Opening Spark after a while, or while the mascot sleeps, wakes it instead of a greeting. */
     private void windowChanged(boolean visible) {
-        reset();
+        expressions.reset();
         pointer.setEnabled(animated());
 
-        if (visible) {
-            react(MascotReaction.GREETING);
+        if (!visible) {
+            hiddenAt = System.nanoTime();
+            expressions.setActive(false);
+
+            return;
         }
+
+        var waking = expressions.isAsleep() || System.nanoTime() - hiddenAt >= AWAY_NANOS;
+        expressions.setActive(animated());
+        react(waking ? MascotReaction.WAKE : MascotReaction.GREETING);
     }
 
     public void refresh() {
-        reset();
+        expressions.reset();
+        // A hidden mascot gives its place to the site tabs.
         setVisible(preferences.isMascotEnabled());
+        setManaged(isVisible());
         setMouseTransparent(!isVisible());
         pointer.setEnabled(animated());
+        expressions.setActive(animated());
     }
 
     public void dispose() {
-        reset();
+        expressions.dispose();
         pointer.dispose();
         attach(getScene(), null);
         sceneProperty().removeListener(sceneChanged);

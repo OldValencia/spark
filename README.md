@@ -70,7 +70,7 @@ The little spark in the corner has volunteered to show you around.
 
 Links and sign-in windows follow the website's normal browser behavior. Use **Three dots → Back** to go back, **Close page** to close an extra page, or **Open start page** to close extra pages and open the site's configured start address. **Close page** appears only while an extra page is open. Middle-click a link to send it to your default browser. Login windows share Spark's browser profile. Passkeys use the browser and Windows dialogs, with compatibility depending on the website and installed WebView2 runtime.
 
-The mascot follows your pointer, peeks at the site list, and briefly gets gear eyes when you open settings. Click it for a hello. **General → Reduce motion** keeps it still; **Show mascot** lets it sit this one out.
+The mascot follows your pointer, peeks at the site list, and briefly gets gear eyes when you open settings. It turns its gears while a page loads, looks sad when a page can't load, and dozes off when Spark sits untouched for a while. Click it for a hello. **General → Reduce motion** keeps it still; **Show mascot** lets it sit this one out.
 
 <sub>The tour and mascot cards are illustrations. The screenshots show the Windows app in 0.3.3; click one for a closer look. <a href="docs/previews/0.3.1-mascot-topbar-860.png">Current header</a> · <a href="docs/previews/0.3.1-mascot-settings.png">Gear eyes</a></sub>
 

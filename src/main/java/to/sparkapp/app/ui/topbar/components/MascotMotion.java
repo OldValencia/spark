@@ -19,8 +19,12 @@ final class MascotMotion {
     private MascotReaction active;
     private long lastResize;
 
-    MascotMotion(MascotFace face) {
+    /**
+     * @param settled runs when a reaction has finished, so a lasting mood can return
+     */
+    MascotMotion(MascotFace face, Runnable settled) {
         this.face = face;
+        reaction.setOnFinished(event -> settled.run());
         openness.addListener((observable, before, value) -> face.blink(value.doubleValue()));
         gearBlend.addListener((observable, before, value) -> face.blendGears(value.doubleValue()));
         gearAngle.addListener((observable, before, value) -> face.turnGears(value.doubleValue()));
@@ -50,11 +54,17 @@ final class MascotMotion {
             return;
         }
 
+        if (expression == MascotReaction.WAKE) {
+            wake();
+
+            return;
+        }
+
         var pose = switch (expression) {
             case HOVER -> new Pose(4, -1, 0, 1, 1, 1.08);
             case GREETING -> new Pose(-7, -3, 0, 1, 1, 0.15);
             case SITES -> new Pose(7, -1, 1, 1, 1, 1.18);
-            case SETTINGS -> throw new IllegalStateException("Settings has its own gear animation");
+            case SETTINGS, WAKE -> throw new IllegalStateException(expression + " has its own animation");
             case RESIZE -> new Pose(0, 0, 0, 1.08, 0.93, 1);
             case SITE_SWITCH -> new Pose(0, 2, 0, 1, 1, 0.12);
         };
@@ -83,6 +93,23 @@ final class MascotMotion {
                         value(gearAngle, 90)),
                 new KeyFrame(Duration.millis(460), value(gearBlend, 0), value(gearAngle, 110)));
         reaction.playFromStart();
+    }
+
+    /** Eyes open from sleep with a small stretch. */
+    private void wake() {
+        reaction.getKeyFrames().setAll(
+                new KeyFrame(Duration.ZERO, new KeyValue(openness, 0.12), new KeyValue(face.translateYProperty(), 1),
+                        new KeyValue(face.scaleYProperty(), 1)),
+                new KeyFrame(Duration.millis(140), value(openness, 0.35)),
+                new KeyFrame(Duration.millis(260), value(openness, 1), value(face.translateYProperty(), -2),
+                        value(face.scaleYProperty(), 1.06)),
+                new KeyFrame(Duration.millis(420), value(face.translateYProperty(), 0),
+                        value(face.scaleYProperty(), 1)));
+        reaction.playFromStart();
+    }
+
+    boolean isPlaying() {
+        return reaction.getStatus() == Animation.Status.RUNNING;
     }
 
     private KeyValue value(DoubleProperty property, double target) {

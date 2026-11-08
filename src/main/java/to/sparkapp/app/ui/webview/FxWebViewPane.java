@@ -416,6 +416,11 @@ public class FxWebViewPane extends StackPane {
         return loadingView.pageLoadingProperty();
     }
 
+    /** Whether the site on screen shows a load error. */
+    public ReadOnlyBooleanProperty pageFailedProperty() {
+        return loadingView.pageFailedProperty();
+    }
+
     public ReadOnlyBooleanProperty extraPageOpenProperty() {
         return extraPageOpen.getReadOnlyProperty();
     }
