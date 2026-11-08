@@ -2,6 +2,7 @@ package to.sparkapp.app.windows;
 
 import java.awt.*;
 
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -13,6 +14,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.browser.SiteShortcut;
@@ -24,6 +26,7 @@ import to.sparkapp.app.ui.topbar.SitesEditor;
 import to.sparkapp.app.ui.topbar.components.AiDock;
 import to.sparkapp.app.ui.topbar.components.PageLoadingBar;
 import to.sparkapp.app.ui.topbar.utils.AiDockOrderUtils;
+import to.sparkapp.app.ui.tutorial.SparkTutorial;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
 import to.sparkapp.app.utils.GlobalHotkeyManager;
 import to.sparkapp.app.utils.NativeWindowUtils;
@@ -45,6 +48,9 @@ public class MainWindow extends Stage {
     private TopBarArea topBar;
     private final StackPane topArea = new StackPane();
     private PageLoadingBar loadingBar;
+    private SparkTutorial tutorial;
+    /** Lets the window finish opening before the tour starts. */
+    private final PauseTransition tutorialDelay = new PauseTransition(Duration.millis(700));
     private WindowFrame frame;
     private long previousForeground;
 
@@ -153,6 +159,8 @@ public class MainWindow extends Stage {
         if (fxWebViewPane != null) {
             fxWebViewPane.onWindowRestored(requestedAt);
         }
+
+        scheduleTutorial();
     }
 
     /**
@@ -167,6 +175,8 @@ public class MainWindow extends Stage {
         if (autoHide != null) {
             autoHide.cancel();
         }
+
+        cancelTutorial();
 
         if (topBar != null) {
             topBar.closeMenus();
@@ -222,6 +232,8 @@ public class MainWindow extends Stage {
         Platform.runLater(() -> {
             aiConfiguration.reload();
             fxWebViewPane.reconcileSites(aiConfiguration.getConfigurations());
+
+            cancelTutorial();
 
             if (topBar != null) {
                 topBar.dispose();
@@ -389,11 +401,13 @@ public class MainWindow extends Stage {
                 }
             });
             settingsPanel.setOnZoomEnabledChanged(enabled -> fxWebViewPane.refreshZoom());
+            settingsPanel.setOnShowTutorial(this::replayTutorial);
 
             settingsWindow = new SettingsWindow(this, settingsPanel);
             initializeExtensionsWindow();
 
             installTopBar();
+            tutorial = new SparkTutorial(this, appPreferences, () -> topBar, this::openShortcutSettings);
 
             tray.show();
 
@@ -441,6 +455,39 @@ public class MainWindow extends Stage {
         topArea.getChildren().setAll(topBar, loadingBar);
         StackPane.setAlignment(loadingBar, Pos.BOTTOM_LEFT);
         rootPane.setTop(topArea);
+    }
+
+    private void scheduleTutorial() {
+        if (tutorial == null || !appPreferences.isTutorialPending()) {
+            return;
+        }
+
+        tutorialDelay.setOnFinished(event -> {
+            if (isShowing() && !isHiding()) {
+                tutorial.startIfPending();
+            }
+        });
+        tutorialDelay.playFromStart();
+    }
+
+    private void replayTutorial() {
+        settingsWindow.close();
+        tutorialDelay.setOnFinished(event -> tutorial.start());
+        tutorialDelay.playFromStart();
+    }
+
+    private void cancelTutorial() {
+        tutorialDelay.stop();
+
+        if (tutorial != null) {
+            tutorial.cancel();
+        }
+    }
+
+    private void openShortcutSettings() {
+        if (!settingsWindow.isOpen() || !settingsWindow.isShowing()) {
+            toggleSettings();
+        }
     }
 
     private void refreshTraySites() {

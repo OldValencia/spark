@@ -45,11 +45,14 @@ public class AppPreferences {
     AppPreferences(File file) {
         this.file = file;
         mapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
+        var existingUser = file.exists() || new File(file + ".bak").exists();
         load();
         history = new SiteHistory(config, this::save, this::saveDebounced);
         siteSettings = new SiteSettingsStore(config, this::saveDebounced);
+        var defaultsAdded = config.initializeDefaults();
+        var tutorialDecided = config.initializeTutorial(existingUser);
 
-        if (config.initializeDefaults()) {
+        if (defaultsAdded || tutorialDecided) {
             save();
         }
     }
@@ -362,6 +365,16 @@ public class AppPreferences {
     public synchronized void setTopEdgeReveal(boolean enabled) {
         config.topEdgeReveal = enabled;
         saveDebounced();
+    }
+
+    public synchronized boolean isTutorialPending() {
+        return !Boolean.TRUE.equals(config.tutorialDone);
+    }
+
+    /** Set once the tour was finished or skipped, so it does not come back on its own. */
+    public synchronized void setTutorialDone(boolean done) {
+        config.tutorialDone = done;
+        save();
     }
 
     public synchronized void setReducedMotion(boolean enabled) {

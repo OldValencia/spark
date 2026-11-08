@@ -37,6 +37,7 @@ final class AppConfig {
     List<Integer> hotkeyToStartApplication;
     Boolean darkModeEnabled;
     Boolean reduceBackgroundMemory;
+    Boolean tutorialDone;
 
     boolean initializeDefaults() {
         boolean changed = false;
@@ -95,5 +96,19 @@ final class AppConfig {
         }
 
         return changed;
+    }
+
+    /**
+     * The tour is for new users and for anyone who never picked a shortcut; people who already use
+     * Spark with a shortcut are not interrupted.
+     */
+    boolean initializeTutorial(boolean existingUser) {
+        if (tutorialDone != null) {
+            return false;
+        }
+
+        tutorialDone = existingUser && hotkeyToStartApplication != null && !hotkeyToStartApplication.isEmpty();
+
+        return true;
     }
 }

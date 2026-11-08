@@ -61,6 +61,10 @@
 .field-hint { -fx-font-size: 12.5; -fx-text-fill: #b9b9c6 !important; }
 .field-error { -fx-font-size: 12.5; -fx-text-fill: #efb59f !important; }
 .dialog-text { -fx-font-size: 13.5; }
+.tutorial-bubble { -fx-background-color: #2d2e33; -fx-background-radius: 12; -fx-border-color: #50515b; -fx-border-radius: 12; -fx-padding: 14 16; -fx-effect: dropshadow(gaussian, #00000059, 14, 0, 0, 5); }
+.tutorial-counter { -fx-text-fill: #9a9aa8; -fx-font-size: 11.5; }
+.tutorial-title { -fx-text-fill: #eeeef3; -fx-font-size: 15; -fx-font-weight: 600; }
+.tutorial-text { -fx-text-fill: #ceced8; -fx-font-size: 13; }
 .shell-dialog .dialog-value { -fx-font-family: 'Consolas', monospace; -fx-font-size: 12.5; -fx-text-fill: #e6e6ee; -fx-padding: 8 10; }
 .shell-dialog .text-field { -fx-background-color: #232429; -fx-text-fill: #eeeef3; -fx-prompt-text-fill: #858593; -fx-border-color: #ffffff1c; -fx-border-radius: 7; -fx-background-radius: 7; -fx-padding: 9 11; }
 .shell-dialog .text-field:focused { -fx-border-color: #91919f; }

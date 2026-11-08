@@ -100,6 +100,23 @@ public final class SparkMascot extends Button {
         expressions.react(expression);
     }
 
+    /** Whether the mascot can leave the bar to guide the tour. */
+    public boolean canGuide() {
+        return preferences.isMascotEnabled() && isVisible() && getScene() != null;
+    }
+
+    /** The mascot's top-left corner on screen, where a guide steps out and returns. */
+    public Point2D screenPosition() {
+        return localToScreen(0, 0);
+    }
+
+    /** Hides the mascot in the bar while its guide is away showing the tour. */
+    public void setAway(boolean away) {
+        expressions.reset();
+        setOpacity(away ? 0 : 1);
+        setMouseTransparent(away || !isVisible());
+    }
+
     private void attach(Scene before, Scene scene) {
         if (before != null) {
             before.removeEventFilter(MouseEvent.MOUSE_MOVED, gaze);

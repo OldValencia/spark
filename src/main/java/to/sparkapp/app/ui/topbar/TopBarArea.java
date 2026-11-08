@@ -31,7 +31,14 @@ public class TopBarArea extends HBox {
     private final SitesPopup sites;
     private final ShellPopover sizes;
     private final ShellPopover options;
+    @Getter
     private final SparkMascot mascot;
+    @Getter
+    private final Button sitesButton;
+    @Getter
+    private final Button sizeButton;
+    @Getter
+    private final Button optionsButton;
 
     public TopBarArea(AiConfiguration configuration, FxWebViewPane browser, Stage frame, AppPreferences preferences, Runnable onSettings, Runnable onHide, WindowController controller, Runnable onSitesChanged) {
         this(configuration, browser, frame, preferences, onSettings, onHide, controller, onSitesChanged, () -> {});
@@ -67,6 +74,7 @@ public class TopBarArea extends HBox {
         });
 
         var allSites = button("squares-2x2", "All sites");
+        sitesButton = allSites;
         allSites.setOnAction(e -> {
             sizes.dismiss();
             options.dismiss();
@@ -87,6 +95,7 @@ public class TopBarArea extends HBox {
         controller.installDragArea(drag);
 
         var size = button("arrows-pointing-out", "Window size");
+        sizeButton = size;
         size.getStyleClass().setAll("button", "shell-size");
         size.setPrefWidth(Region.USE_COMPUTED_SIZE);
         size.setMinWidth(Region.USE_PREF_SIZE);
@@ -97,6 +106,7 @@ public class TopBarArea extends HBox {
         });
 
         var more = button("ellipsis-horizontal", "Window options");
+        optionsButton = more;
         more.setOnAction(e -> {
             sites.hide();
             sizes.dismiss();

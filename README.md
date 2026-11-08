@@ -80,6 +80,8 @@ The mascot follows your pointer, peeks at the site list, and briefly gets gear e
 2. Choose a site and sign in as you normally would.
 3. Open **Three dots → Settings → Global Hotkey** and record your **Toggle window shortcut**.
 
+On first launch, the mascot gives a three-step tour of the bar. You can skip it, and replay it later from **Settings → Help → Show tutorial**.
+
 A spare mouse button makes a good home for that shortcut.
 
 Something not working as expected? Check [troubleshooting and tips](docs/troubleshooting.md).
