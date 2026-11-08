@@ -1,5 +1,7 @@
 package to.sparkapp.app.utils;
 
+import java.util.UUID;
+
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.User32;
@@ -7,6 +9,8 @@ import com.sun.jna.platform.win32.WinDef;
 import com.sun.jna.platform.win32.WinUser;
 import com.sun.jna.win32.StdCallLibrary;
 import com.sun.jna.win32.W32APIOptions;
+import javafx.stage.Stage;
+import javafx.stage.Window;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -72,6 +76,37 @@ public final class NativeWindowUtils {
     }
 
     public static final int DEFAULT_DPI = 96;
+
+    /** The native handle of a JavaFX stage, found through a temporary unique title. */
+    public static long windowHandle(Stage stage) {
+        if (!SystemUtils.isWindows() || stage == null) {
+            return 0L;
+        }
+
+        var originalTitle = stage.getTitle();
+        var uniqueTitle = "SparkWindow-" + UUID.randomUUID();
+        stage.setTitle(uniqueTitle);
+        var handle = getJavaFXWindowHandle(uniqueTitle);
+        stage.setTitle(originalTitle != null ? originalTitle : "");
+
+        return handle;
+    }
+
+    /**
+     * Moves keyboard focus from the embedded browser back to a JavaFX window. JavaFX focus alone is
+     * not enough: Windows keeps sending typing to the browser's child window that last had focus.
+     * Must be called on the JavaFX thread, which owns the window.
+     */
+    public static void focusWindow(Window window) {
+        if (!(window instanceof Stage stage)) {
+            return;
+        }
+
+        var handle = windowHandle(stage);
+        if (handle != 0) {
+            User32.INSTANCE.SetFocus(new WinDef.HWND(new Pointer(handle)));
+        }
+    }
 
     public static long getJavaFXWindowHandle(String windowTitle) {
         if (!SystemUtils.isWindows() || windowTitle == null || windowTitle.isEmpty()) {
