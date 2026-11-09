@@ -3,16 +3,14 @@ package to.sparkapp.app.ui.webview;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
-import javafx.animation.Animation;
-import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
-import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
 import lombok.Getter;
 import lombok.Setter;
 import to.sparkapp.app.browser.WebviewManager;
+import to.sparkapp.app.utils.FxTimer;
 import to.sparkapp.app.utils.NativeWindowUtils;
 import to.sparkapp.app.utils.SystemUtils;
 
@@ -20,8 +18,8 @@ final class BrowserViewport {
     private final StackPane host;
     private final Supplier<WebviewManager> browser;
     private final BooleanSupplier started;
-    private final Timeline hostGeometryWatchdog = new Timeline(
-            new KeyFrame(Duration.millis(400), event -> checkHostGeometry()));
+    /** Not an animation: a running animation would keep JavaFX drawing frames while Spark is idle. */
+    private final FxTimer hostGeometryWatchdog = FxTimer.repeating(Duration.millis(400), this::checkHostGeometry);
     @Getter
     @Setter
     private long parentHandle;
@@ -33,7 +31,6 @@ final class BrowserViewport {
         this.host = host;
         this.browser = browser;
         this.started = started;
-        hostGeometryWatchdog.setCycleCount(Animation.INDEFINITE);
     }
 
     void stop() {
@@ -57,8 +54,8 @@ final class BrowserViewport {
     }
 
     void start() {
-        if (SystemUtils.isWindows() && hostGeometryWatchdog.getStatus() != Animation.Status.RUNNING) {
-            hostGeometryWatchdog.play();
+        if (SystemUtils.isWindows()) {
+            hostGeometryWatchdog.start();
         }
     }
 

@@ -11,6 +11,7 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
 import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.utils.FxTimer;
 import to.sparkapp.app.utils.NativeWindowUtils;
 import to.sparkapp.app.utils.SystemUtils;
 
@@ -21,7 +22,7 @@ final class WindowAutoHide {
     private final BooleanSupplier externalPage;
     private final Runnable hideWithoutFocus;
     private final PauseTransition outsideClick = new PauseTransition(Duration.millis(100));
-    private final PauseTransition pointerDelay = new PauseTransition(Duration.millis(16));
+    private final FxTimer pointerDelay = FxTimer.once(Duration.millis(16), this::sampleHiddenPointer);
     private final PointerMotion motion = new PointerMotion();
     private final AtomicReference<PointerApproach> latestApproach = new AtomicReference<>();
     private final AtomicBoolean pointerUpdateQueued = new AtomicBoolean();
@@ -37,7 +38,6 @@ final class WindowAutoHide {
         this.hideWithoutFocus = hideWithoutFocus;
         windowHidden = !window.isShowing();
         window.showingProperty().addListener((observable, previous, showing) -> windowHidden = !showing);
-        pointerDelay.setOnFinished(event -> sampleHiddenPointer());
     }
 
     void shown() {
@@ -89,8 +89,8 @@ final class WindowAutoHide {
 
         if (pointerUpdateQueued.compareAndSet(false, true)) {
             Platform.runLater(() -> {
-                pointerDelay.setDuration(Duration.millis(appPreferences.isFastTopEdgeReveal() ? 16 : 40));
-                pointerDelay.playFromStart();
+                pointerDelay.setDelay(Duration.millis(appPreferences.isFastTopEdgeReveal() ? 16 : 40));
+                pointerDelay.restart();
             });
         }
     }

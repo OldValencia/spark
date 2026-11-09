@@ -2,9 +2,9 @@ package to.sparkapp.app.ui.topbar.components;
 
 import java.util.function.Consumer;
 
-import javafx.animation.PauseTransition;
 import javafx.util.Duration;
 import lombok.Getter;
+import to.sparkapp.app.utils.FxTimer;
 
 /**
  * Decides the mascot's mood: thinking while a page takes a moment to load, sad when it fails, and
@@ -15,8 +15,8 @@ final class MascotMoods {
     static final Duration SLEEP_AFTER = Duration.minutes(5);
 
     private final Consumer<MascotMood> changed;
-    private final PauseTransition thinkingDelay = new PauseTransition(THINKING_DELAY);
-    private final PauseTransition sleepTimer;
+    private final FxTimer thinkingDelay;
+    private final FxTimer sleepTimer;
     private boolean active;
     private boolean loading;
     private boolean failed;
@@ -32,12 +32,12 @@ final class MascotMoods {
 
     MascotMoods(Consumer<MascotMood> changed, Duration sleepAfter) {
         this.changed = changed;
-        sleepTimer = new PauseTransition(sleepAfter);
-        thinkingDelay.setOnFinished(event -> {
+        thinkingDelay = FxTimer.once(THINKING_DELAY, () -> {
             thinking = loading;
             update();
         });
-        sleepTimer.setOnFinished(event -> {
+        // The sleep wait lasts minutes, so it must not be a JavaFX animation.
+        sleepTimer = FxTimer.once(sleepAfter, () -> {
             asleep = true;
             update();
         });
@@ -48,10 +48,10 @@ final class MascotMoods {
         this.active = active;
 
         if (active) {
-            sleepTimer.playFromStart();
+            sleepTimer.restart();
 
             if (loading) {
-                thinkingDelay.playFromStart();
+                thinkingDelay.restart();
             }
         } else {
             thinkingDelay.stop();
@@ -71,7 +71,7 @@ final class MascotMoods {
             wake();
 
             if (active) {
-                thinkingDelay.playFromStart();
+                thinkingDelay.restart();
             }
         }
 
@@ -93,7 +93,7 @@ final class MascotMoods {
         asleep = false;
 
         if (active) {
-            sleepTimer.playFromStart();
+            sleepTimer.restart();
         }
 
         update();

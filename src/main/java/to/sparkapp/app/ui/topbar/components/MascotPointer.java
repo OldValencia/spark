@@ -6,23 +6,22 @@ import java.util.function.Consumer;
 import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.mouse.NativeMouseEvent;
 import com.github.kwhat.jnativehook.mouse.NativeMouseMotionListener;
-import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Point2D;
 import javafx.scene.robot.Robot;
 import javafx.util.Duration;
+import to.sparkapp.app.utils.FxTimer;
 
 /** Reuses the application's native hook without inspecting the embedded page. */
 final class MascotPointer implements NativeMouseMotionListener {
     private final Consumer<Point2D> look;
-    private final PauseTransition sampleDelay = new PauseTransition(Duration.millis(24));
+    private final FxTimer sampleDelay = FxTimer.once(Duration.millis(24), this::sample);
     private final AtomicBoolean queued = new AtomicBoolean();
     private volatile boolean enabled;
     private Robot pointer;
 
     MascotPointer(Consumer<Point2D> look) {
         this.look = look;
-        sampleDelay.setOnFinished(event -> sample());
     }
 
     void setEnabled(boolean requested) {
@@ -49,7 +48,7 @@ final class MascotPointer implements NativeMouseMotionListener {
 
         Platform.runLater(() -> {
             if (enabled) {
-                sampleDelay.playFromStart();
+                sampleDelay.restart();
             } else {
                 queued.set(false);
             }
