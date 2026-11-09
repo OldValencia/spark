@@ -19,7 +19,7 @@ Product decisions confirmed by the user:
 
 ## Validation
 
-Run with JDK 21 and, for native tests, Windows with the WebView2 Runtime:
+Run with JDK 25 and, for native tests, Windows with the WebView2 Runtime:
 
 ```powershell
 ./gradlew.bat test nativeTest --offline --no-daemon

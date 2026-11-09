@@ -143,7 +143,7 @@ Settings on Windows live here:
 
 ## Build it
 
-Use **JDK 21**, with `JAVA_HOME` pointing to it. The Gradle wrapper is included.
+Use **JDK 25**, with `JAVA_HOME` pointing to it. The Gradle wrapper is included.
 
 ```powershell
 git clone https://github.com/OldValencia/spark.git
@@ -153,7 +153,7 @@ cd spark
 .\gradlew.bat test              # Unit and regression tests
 .\gradlew.bat installDist       # Build an application distribution
 .\gradlew.bat nativeTest        # Windows UI and real WebView2 tests
-.\gradlew.bat createInstaller   # Windows installer; requires WiX on PATH
+.\gradlew.bat createInstaller   # Windows installer with a trained AOT cache; requires WiX on PATH
 .\gradlew.bat readmeCapture     # README video and screenshots; moves the real mouse
 ```
 
