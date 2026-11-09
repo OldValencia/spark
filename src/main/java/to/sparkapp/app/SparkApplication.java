@@ -1,6 +1,8 @@
 package to.sparkapp.app;
 
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.util.Duration;
 import to.sparkapp.app.config.AiConfiguration;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.utils.LogSetup;
@@ -18,6 +20,8 @@ import java.net.CookiePolicy;
 
 @Slf4j
 public class SparkApplication extends Application {
+    /** The first site starts loading about half a second after the window appears on a fresh profile. */
+    private static final Duration AOT_TRAINING_TIME_AFTER_WINDOW = Duration.seconds(1);
 
     private static Logger initLog;
 
@@ -39,16 +43,12 @@ public class SparkApplication extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        if (Boolean.getBoolean("spark.aot.training")) {
-            System.out.println("AOT training run finished. Exiting...");
-            Platform.exit();
-            System.exit(0);
-        }
+        MainWindow mainWindow = null;
 
         try {
             var appPreferences = new AppPreferences();
             var aiConfiguration = new AiConfiguration(appPreferences);
-            var mainWindow = new MainWindow(aiConfiguration, appPreferences);
+            mainWindow = new MainWindow(aiConfiguration, appPreferences);
 
             SingleInstanceLock.setOnActivate(mainWindow::showMainWindow);
 
@@ -57,6 +57,30 @@ public class SparkApplication extends Application {
         } catch (Exception e) {
             initLog.error("Failed to show main window", e);
         }
+
+        if (Boolean.getBoolean("spark.aot.training")) {
+            finishAotTraining(mainWindow);
+        }
+    }
+
+    /**
+     * The packaging-time training run records the classes Spark loads until its window is shown and the first
+     * site starts loading in the browser, then quits like the tray menu does. Exiting while the browser runs
+     * would skip its shutdown.
+     */
+    private static void finishAotTraining(MainWindow mainWindow) {
+        var finish = new PauseTransition(AOT_TRAINING_TIME_AFTER_WINDOW);
+        finish.setOnFinished(event -> {
+            System.out.println("AOT training run finished. Exiting...");
+
+            if (mainWindow != null) {
+                mainWindow.quit();
+            } else {
+                Platform.exit();
+                System.exit(0);
+            }
+        });
+        finish.play();
     }
 
     private static void setupCookies() {

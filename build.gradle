@@ -37,13 +37,14 @@ def javaOpts = [
         '-XX:MaxMetaspaceSize=64m',
         '-XX:MetaspaceSize=16m',
 
-        '-XX:+UseG1GC',
+        // Serial GC: for a heap this small its pauses stay within a few milliseconds, and it needs about 55 MB
+        // and 19 threads less than G1, whose marking stack and per-core workers outgrow the heap itself.
+        '-XX:+UseSerialGC',
         '-XX:MinHeapFreeRatio=5',
         '-XX:MaxHeapFreeRatio=15',
-        '-XX:GCTimeRatio=4',
-        '-XX:G1HeapRegionSize=1m',
-        '-XX:InitiatingHeapOccupancyPercent=25',
-        '-XX:G1ReservePercent=5',
+        // Unload compiled code only after the code cache grows by half, not by the default 15 %: with Serial
+        // GC each unloading is a full collection, which during startup took up to 30 ms.
+        '-XX:SweeperThreshold=50',
 
         '-XX:+UseStringDeduplication',
         '-XX:StringTableSize=40009',
@@ -56,6 +57,10 @@ def javaOpts = [
 
         '-XX:ReservedCodeCacheSize=32m',
         '-XX:InitialCodeCacheSize=4m',
+
+        // JavaFX draws Spark's windows; Java2D only renders icons into memory and the tray uses native menus.
+        // Without this, starting the tray also starts Java2D's Direct3D device: about 45 MB and 20 threads.
+        '-Dsun.java2d.d3d=false',
 
         // Classes loaded and linked ahead of time, from a training run (see generateAot).
         "-XX:AOTCache=\$APPDIR/spark.aot",
@@ -263,9 +268,14 @@ tasks.register('trainAot', Exec) {
                 .findAll { !it.startsWith('-XX:AOTCache=') && !it.startsWith('-Djpackage.app-version') }
 
         delete cache, trainingData
+        // The training run opens a real browser; keep its profile with the other disposable training data.
+        environment 'WEBVIEW2_USER_DATA_FOLDER', new File(trainingData, 'browser').path
         commandLine([new File(image, 'runtime/bin/java.exe').path] + options + [
                 "-XX:AOTCacheOutput=${cache.path}",
                 '-Dspark.aot.training=true',
+                // Training runs until the first site starts loading; writing that many classes needs more
+                // room than Spark's own metaspace limit. The installed launcher keeps its limit.
+                '-XX:MaxMetaspaceSize=192m',
                 "-Dspark.dataDir=${trainingData.path}",
                 '-cp', classpath.join(File.pathSeparator),
                 values('app.mainclass=').first()])
