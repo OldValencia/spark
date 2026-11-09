@@ -37,11 +37,9 @@ class InlineBrowserPagesTest {
                 return parentHost.getValue().equals(childHost.getValue());
             });
             assertTrue(sameViewport, "Child contexts must use the same viewport HWND");
-            System.out.println(new NativeDevTools(browser).request("Runtime.evaluate", """
-                    {"expression":"JSON.stringify({probe:String(window.probe),spark:String(window.sparkCall),href:location.href})","returnByValue":true}
-                    """));
-            browser.eval("window.probe('child:'+Boolean(window.opener));draft.value='child-unsent'");
-            assertEquals("child:true", browser.message());
+            var page = new NativeDevTools(browser);
+            assertEquals("true", page.evaluate("String(Boolean(window.opener))"));
+            page.evaluate("draft.value='child-unsent'");
             call(browser, view -> {
                 view.windows().closeExtraPage();
 

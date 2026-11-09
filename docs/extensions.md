@@ -68,8 +68,12 @@ The sample packages are downloaded from official distribution sources and are no
 
 ```powershell
 ./tools/extensions/download-samples.ps1
+$env:SPARK_EXTENSION_SAMPLES = '1'
 ./gradlew.bat nativeTest --tests to.sparkapp.app.browser.ExtensionSamplesTest
 ```
+
+The sample report takes about 45 seconds, so it runs only when `SPARK_EXTENSION_SAMPLES=1` is set; a regular
+`nativeTest` skips it.
 
 Packages are cached under ignored `local/extensions-samples/`, so a Gradle clean does not remove them. The optional sample tests skip when the packages are absent. There are no network downloads inside the tests themselves. The sample report is written to `build/reports/extensions/samples.json`; visible popovers are captured under `build/previews/extension-*.png` and their dimensions and visibility recorded in the report. A capture may show an extension's loading screen rather than a ready interface. The UI test creates `build/previews/extensions-manager.png`.
 

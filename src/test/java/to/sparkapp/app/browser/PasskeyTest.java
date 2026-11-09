@@ -36,7 +36,8 @@ class PasskeyTest {
                 focused.complete(view.windows().focus());
             });
             assertTrue(focused.get(10, TimeUnit.SECONDS));
-            browser.eval("""
+            // Read through DevTools: a same-origin page's messages are not delivered by WebView2.
+            var outcome = protocol.evaluate("""
                     (async()=>{
                         try {
                             const challenge=new Uint8Array(32);crypto.getRandomValues(challenge);
@@ -50,12 +51,12 @@ class PasskeyTest {
                                 allowCredentials:[{type:'public-key',id:credential.rawId}],
                                 userVerification:'required',timeout:10000}});
                             const client=JSON.parse(new TextDecoder().decode(assertion.response.clientDataJSON));
-                            window.probe(JSON.stringify({sameId:assertion.id===credential.id,
-                                type:client.type,origin:client.origin,signature:assertion.response.signature.byteLength}));
-                        } catch(error) { window.probe(JSON.stringify({error:error.name,message:error.message})); }
+                            return JSON.stringify({sameId:assertion.id===credential.id,
+                                type:client.type,origin:client.origin,signature:assertion.response.signature.byteLength});
+                        } catch(error) { return JSON.stringify({error:error.name,message:error.message}); }
                     })()
                     """);
-            var result = new ObjectMapper().readTree(browser.message());
+            var result = new ObjectMapper().readTree(outcome);
             assertFalse(result.has("error"), result.toString());
             assertTrue(result.get("sameId").asBoolean());
             assertEquals("webauthn.get", result.get("type").asText());

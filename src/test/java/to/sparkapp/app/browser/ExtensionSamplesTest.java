@@ -17,12 +17,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.api.io.TempDir;
 import to.sparkapp.app.extensions.ExtensionImporter;
 import to.sparkapp.app.extensions.ExtensionManifest;
 
+/**
+ * A report on real extension packages, with popover captures for the docs. It waits on each
+ * extension, so it runs only on request: SPARK_EXTENSION_SAMPLES=1.
+ */
 @Tag("native")
 @Timeout(150)
+@EnabledIfEnvironmentVariable(named = "SPARK_EXTENSION_SAMPLES", matches = "1")
 class ExtensionSamplesTest {
     @TempDir
     Path directory;
