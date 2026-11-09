@@ -2,24 +2,31 @@ package to.sparkapp.app.windows;
 
 import java.awt.*;
 
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration;
+import to.sparkapp.app.browser.SiteShortcut;
 import to.sparkapp.app.config.AppPreferences;
-import to.sparkapp.app.ui.Theme;
 import to.sparkapp.app.ui.extensions.ExtensionsPanel;
 import to.sparkapp.app.ui.settings.SettingsPanel;
 import to.sparkapp.app.ui.topbar.TopBarArea;
 import to.sparkapp.app.ui.topbar.SitesEditor;
 import to.sparkapp.app.ui.topbar.components.AiDock;
+import to.sparkapp.app.ui.topbar.components.PageLoadingBar;
+import to.sparkapp.app.ui.topbar.utils.AiDockOrderUtils;
+import to.sparkapp.app.ui.tutorial.SparkTutorial;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
 import to.sparkapp.app.utils.GlobalHotkeyManager;
 import to.sparkapp.app.utils.NativeWindowUtils;
@@ -39,17 +46,22 @@ public class MainWindow extends Stage {
     private GlobalHotkeyManager globalHotkeyManager;
     private WindowController windowController;
     private TopBarArea topBar;
+    private final StackPane topArea = new StackPane();
+    private PageLoadingBar loadingBar;
+    private SparkTutorial tutorial;
+    /** Lets the window finish opening before the tour starts. */
+    private final PauseTransition tutorialDelay = new PauseTransition(Duration.millis(700));
+    private WindowFrame frame;
     private long previousForeground;
 
     // Сохраняем иконку трея, чтобы можно было удалить её при выходе
-    private final SparkTray tray = new SparkTray(this::showMainWindow, this::performShutdown);
+    private final SparkTray tray = new SparkTray(this::showMainWindow, this::openSite, this::performShutdown);
     private WindowAutoHide autoHide;
 
     private boolean externalPage = false;
 
     public static final int HEIGHT = 700;
     private static final int WIDTH = 860;
-    private static final int RADIUS = 14;
 
     public MainWindow(AiConfiguration aiConfiguration, AppPreferences appPreferences) {
         this.aiConfiguration = aiConfiguration;
@@ -147,6 +159,8 @@ public class MainWindow extends Stage {
         if (fxWebViewPane != null) {
             fxWebViewPane.onWindowRestored(requestedAt);
         }
+
+        scheduleTutorial();
     }
 
     /**
@@ -161,6 +175,8 @@ public class MainWindow extends Stage {
         if (autoHide != null) {
             autoHide.cancel();
         }
+
+        cancelTutorial();
 
         if (topBar != null) {
             topBar.closeMenus();
@@ -217,6 +233,8 @@ public class MainWindow extends Stage {
             aiConfiguration.reload();
             fxWebViewPane.reconcileSites(aiConfiguration.getConfigurations());
 
+            cancelTutorial();
+
             if (topBar != null) {
                 topBar.dispose();
             }
@@ -245,9 +263,15 @@ public class MainWindow extends Stage {
     }
 
     private void toggleExtensions() {
-        if (!SystemUtils.isWindows() || extensionsWindow == null) {
+        if (!SystemUtils.isWindows()) {
             return;
         }
+
+        // Built on first use: most sessions never open it.
+        if (extensionsWindow == null) {
+            initializeExtensionsWindow();
+        }
+
         settingsWindow.close();
         if (extensionsWindow.isShowing()) {
             extensionsWindow.close();
@@ -322,10 +346,12 @@ public class MainWindow extends Stage {
     private void initializeOnFX() {
         try {
             rootPane = createRootPane();
+            frame = new WindowFrame(rootPane, appPreferences::isReducedMotion);
 
             Scene scene = new Scene(rootPane, WIDTH, HEIGHT, Color.TRANSPARENT);
             this.setScene(scene);
             scene.getStylesheets().add(getClass().getResource("/css/shell.css").toExternalForm());
+            scene.addEventFilter(KeyEvent.KEY_PRESSED, this::handleSiteShortcutKey);
             windowController = new WindowController(this, appPreferences);
             windowController.setOnReveal(this::showMainWindow);
             autoHide = new WindowAutoHide(
@@ -335,7 +361,7 @@ public class MainWindow extends Stage {
                     () -> externalPage,
                     () -> hideMainWindow(false)
             );
-            windowController.dockedProperty().addListener((o, before, docked) -> updateShellStyle());
+            windowController.dockedProperty().addListener((o, before, docked) -> frame.setDocked(docked));
 
             var grip = new Region();
             grip.setPrefSize(36, 3);
@@ -348,10 +374,12 @@ public class MainWindow extends Stage {
             foot.setMaxHeight(12);
             rootPane.setBottom(foot);
             windowController.installResize(scene, foot);
-            updateShellStyle();
+            frame.setDocked(windowController.isDocked());
 
             fxWebViewPane = getFxWebViewPane();
             rootPane.setCenter(fxWebViewPane);
+            loadingBar = new PageLoadingBar(appPreferences::isReducedMotion);
+            fxWebViewPane.pageLoadingProperty().addListener((o, wasLoading, loading) -> loadingBar.setLoading(loading));
 
             if (appPreferences.isStartApplicationHiddenEnabled()) {
                 fxWebViewPane.onWindowHidden();
@@ -378,12 +406,13 @@ public class MainWindow extends Stage {
                     topBar.refreshAppearance();
                 }
             });
-            settingsPanel.setOnZoomEnabledChanged(enabled -> fxWebViewPane.resetZoom());
+            settingsPanel.setOnZoomEnabledChanged(enabled -> fxWebViewPane.refreshZoom());
+            settingsPanel.setOnShowTutorial(this::replayTutorial);
 
             settingsWindow = new SettingsWindow(this, settingsPanel);
-            initializeExtensionsWindow();
 
             installTopBar();
+            tutorial = new SparkTutorial(this, appPreferences, () -> topBar, this::openShortcutSettings);
 
             tray.show();
 
@@ -402,23 +431,89 @@ public class MainWindow extends Stage {
     private BorderPane createRootPane() {
         var pane = new BorderPane();
         pane.setPadding(new Insets(0, 5, 0, 5));
-        pane.setStyle("-fx-background-color: " + Theme.toHex(Theme.BG_DEEP) + ";" + "-fx-background-radius: " + RADIUS +
-                "px;" + "-fx-border-radius: " + RADIUS + "px;");
 
         return pane;
+    }
+
+    /** Site shortcuts while the Spark bar has focus; the browser handles them inside the page. */
+    private void handleSiteShortcutKey(KeyEvent event) {
+        if (!event.isControlDown() || event.isAltDown() || topBar == null) {
+            return;
+        }
+
+        var shortcut = SiteShortcut.fromKey(event.getCode().getCode(), event.isShiftDown());
+
+        if (shortcut != null) {
+            topBar.getDock().select(shortcut);
+            event.consume();
+        }
     }
 
     private void installTopBar() {
         topBar = new TopBarArea(aiConfiguration, fxWebViewPane, this, appPreferences, this::toggleSettings,
                 this::hideMainWindow, windowController, this::handleProvidersChanged, this::toggleExtensions);
-        topBar.getDock().setOnAccentChanged(accent -> updateShellStyle());
-        rootPane.setTop(topBar);
+        topBar.getDock().setOnAccentChanged(this::showSiteAccent);
+        topBar.getDock().addOrderListener(this::refreshTraySites);
+        refreshTraySites();
+        fxWebViewPane.setOnSiteShortcut(topBar.getDock()::select);
+        fxWebViewPane.setOnSiteUpdated(topBar.getDock()::markUpdated);
+        topArea.getChildren().setAll(topBar, loadingBar);
+        StackPane.setAlignment(loadingBar, Pos.BOTTOM_LEFT);
+        rootPane.setTop(topArea);
+    }
+
+    private void scheduleTutorial() {
+        if (tutorial == null || !appPreferences.isTutorialPending()) {
+            return;
+        }
+
+        tutorialDelay.setOnFinished(event -> {
+            if (isShowing() && !isHiding()) {
+                tutorial.startIfPending();
+            }
+        });
+        tutorialDelay.playFromStart();
+    }
+
+    private void replayTutorial() {
+        settingsWindow.close();
+        tutorialDelay.setOnFinished(event -> tutorial.start());
+        tutorialDelay.playFromStart();
+    }
+
+    private void cancelTutorial() {
+        tutorialDelay.stop();
+
+        if (tutorial != null) {
+            tutorial.cancel();
+        }
+    }
+
+    private void openShortcutSettings() {
+        if (!settingsWindow.isOpen() || !settingsWindow.isShowing()) {
+            toggleSettings();
+        }
+    }
+
+    private void refreshTraySites() {
+        tray.showSites(AiDockOrderUtils.applyCustomOrder(aiConfiguration.getConfigurations(), appPreferences));
+    }
+
+    /** Opens a site from the tray: switch first, so the previous site never flashes. */
+    private void openSite(String siteId) {
+        if (topBar != null) {
+            topBar.getDock().selectSite(siteId);
+        }
+
+        showMainWindow();
+    }
+
+    private void showSiteAccent(Color accent) {
+        frame.showAccent(accent);
+        loadingBar.setAccent(accent);
     }
 
     private void initializeExtensionsWindow() {
-        if (!SystemUtils.isWindows()) {
-            return;
-        }
         extensionsPanel = new ExtensionsPanel(fxWebViewPane::extensionBrowser);
         extensionsWindow = new SettingsWindow(this, extensionsPanel, "Extensions");
         xProperty().addListener(observable -> extensionsWindow.close());
@@ -433,18 +528,6 @@ public class MainWindow extends Stage {
                 extensionsWindow.close();
             }
         });
-    }
-
-    private void updateShellStyle() {
-        if (rootPane == null) {
-            return;
-        }
-
-        var radius = windowController != null && windowController.isDocked() ? "0 0 16 16" : "16";
-        var outline = "#414247";
-        rootPane.setStyle(
-                "-fx-background-color:#25262a;-fx-background-radius:" + radius + ";-fx-border-radius:" + radius +
-                        ";-fx-border-color:" + outline + ";-fx-border-width:1;");
     }
 
     private FxWebViewPane getFxWebViewPane() {

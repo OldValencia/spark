@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.Theme;
 import to.sparkapp.app.ui.settings.components.AnimatedSettingsButton;
+import to.sparkapp.app.ui.settings.components.BackupSettingsCard;
 import to.sparkapp.app.ui.settings.components.DonationSection;
 import to.sparkapp.app.ui.settings.components.GeneralSettingsCard;
 import to.sparkapp.app.ui.settings.components.HotkeySection;
@@ -44,6 +45,8 @@ public class SettingsPanel extends VBox {
     private Runnable onPillSettingsChanged;
     @Setter
     private Runnable onAppearanceChanged;
+    @Setter
+    private Runnable onShowTutorial;
 
     private final AppPreferences appPreferences;
     private final GlobalHotkeyManager hotkeyManager;
@@ -91,6 +94,12 @@ public class SettingsPanel extends VBox {
         addStrut(SECTION_GAP);
 
         buildBrowserSection();
+        addStrut(SECTION_GAP);
+
+        addSection("Backup", new BackupSettingsCard(appPreferences));
+        addStrut(SECTION_GAP);
+
+        buildHelpSection();
         addStrut(18);
     }
 
@@ -157,6 +166,17 @@ public class SettingsPanel extends VBox {
         card.addRow(new SettingsRow("Site data", "Clear cookies and website storage for all sites", clearCookiesBtn));
 
         addSection("Browser", card);
+    }
+
+    private void buildHelpSection() {
+        var card = new SettingsCard();
+        var replay = new AnimatedSettingsButton("Show tutorial", () -> {
+            if (onShowTutorial != null) {
+                onShowTutorial.run();
+            }
+        });
+        card.addRow(new SettingsRow("Tutorial", "A short tour of the Spark bar", replay));
+        addSection("Help", card);
     }
 
     private void addSection(String title, Node card) {

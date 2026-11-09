@@ -1,8 +1,6 @@
 package to.sparkapp.app.config;
 
-import com.formdev.flatlaf.extras.FlatSVGIcon;
 
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +11,7 @@ import java.nio.file.StandardCopyOption;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.utils.DominantColorExtractor;
+import to.sparkapp.app.utils.SvgImages;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -26,18 +25,10 @@ final class ProviderIcons {
 
         if (iconName.toLowerCase().endsWith(".svg")) {
             try {
-                var icon = new FlatSVGIcon(new File(iconsDir, iconName)).derive(64, 64);
-                var image = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
-                var graphics = image.createGraphics();
-
-                try {
-                    icon.paintIcon(null, graphics, 0, 0);
-                } finally {
-                    graphics.dispose();
-                }
+                var image = SvgImages.render(new File(iconsDir, iconName).toURI().toURL(), 64, 0);
 
                 return DominantColorExtractor.fromImage(image);
-            } catch (RuntimeException error) {
+            } catch (IOException | RuntimeException error) {
                 return null;
             }
         }

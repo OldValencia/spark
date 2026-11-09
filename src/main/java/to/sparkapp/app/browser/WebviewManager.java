@@ -3,6 +3,7 @@ package to.sparkapp.app.browser;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -26,6 +27,8 @@ import to.sparkapp.app.utils.SystemUtils;
 public class WebviewManager {
     private static final int EXTENSION_TIMEOUT_SECONDS = 30;
     private static final int CONTEXT_WINDOW_TIMEOUT_SECONDS = 5;
+    /** Sites often set their title just after the first load; that is not an update yet. */
+    private static final long TITLE_QUIET_NANOS = 2_000_000_000L;
 
     private final AppPreferences appPreferences;
     private final BrowserPresentation presentation;
@@ -74,11 +77,20 @@ public class WebviewManager {
     @Setter
     private Consumer<Boolean> onExtraPageChanged;
 
+    @Setter
+    private Consumer<SiteShortcut> onSiteShortcut;
+
+    /** Runs when a page of the site changes its title after the site first finished loading. */
+    @Setter
+    private Runnable onPageUpdated;
+    private volatile boolean firstPageLoaded;
+    private volatile long titlesCountFrom;
+
     public WebviewManager(AppPreferences appPreferences) {
         this.appPreferences = appPreferences;
         this.presentation = new BrowserPresentation(appPreferences);
-        this.zoomManager = new WebviewZoomManager(appPreferences, this);
-        this.navigator = new WebviewNavigator(this::dispatch, this::loadURL, zoomManager::applyZoomCss);
+        this.zoomManager = new WebviewZoomManager(appPreferences, this::applyZoomFactor);
+        this.navigator = new WebviewNavigator(this::dispatch, this::loadURL, this::reapplyDocumentZoom);
     }
 
     public void init(String startUrl, long parentHandle, int x, int y, int width, int height) {
@@ -143,9 +155,12 @@ public class WebviewManager {
         }
 
         var browser = webview.windows();
-        browser.setPresentation(false,
-                presentation.isHibernated() && appPreferences.isBackgroundMemoryReductionEnabled());
+        // Set before the first navigation, so the page never appears at the wrong size.
+        browser.setZoomFactor(zoomManager.currentFactor());
+        browser.setPresentation(false, presentation.wantsLowMemory());
         browser.observeProcessFailures(this::handleProcessFailure);
+        browser.observeShortcuts(this::siteShortcutPressed);
+        browser.observeTitles(this::titleChanged);
         browser.observe(this::navigationStarting, this::navigationCompleted);
         browser.observeDocument(this::documentReady);
         browser.observeSource(url -> Platform.runLater(() -> navigator.handleUrlChange(url)));
@@ -155,6 +170,23 @@ public class WebviewManager {
                 Platform.runLater(() -> onExtraPageChanged.accept(extra));
             }
         });
+    }
+
+    /** Titles set while the site first loads, or right after, are not news. */
+    private void titleChanged() {
+        var handler = onPageUpdated;
+
+        if (firstPageLoaded && System.nanoTime() - titlesCountFrom >= 0 && handler != null) {
+            Platform.runLater(handler);
+        }
+    }
+
+    private void siteShortcutPressed(SiteShortcut shortcut) {
+        var handler = onSiteShortcut;
+
+        if (handler != null) {
+            Platform.runLater(() -> handler.accept(shortcut));
+        }
     }
 
     private void documentReady(long id) {
@@ -200,7 +232,10 @@ public class WebviewManager {
         }
 
         Platform.runLater(() -> navigator.handleUrlChange(url));
-        zoomManager.applyZoomCss();
+        if (!firstPageLoaded) {
+            titlesCountFrom = System.nanoTime() + TITLE_QUIET_NANOS;
+            firstPageLoaded = true;
+        }
 
         if (!success) {
             loadError = "This page could not be loaded. Check your connection and try again.";
@@ -235,7 +270,7 @@ public class WebviewManager {
         while ((task = pollPending()) != null) {
             task.run();
         }
-        zoomManager.applyZoomCss();
+        zoomManager.apply();
         presentation.attach(false);
         applyPresentation();
 
@@ -454,6 +489,17 @@ public class WebviewManager {
     public void hibernate() {
         presentation.hibernate();
         refreshResourcePolicy();
+        scheduleLowMemory();
+    }
+
+    /** Checks again once the page has been hidden long enough to give memory back. */
+    private void scheduleLowMemory() {
+        var delay = BrowserPresentation.LOW_MEMORY_DELAY.plusSeconds(1).toMillis();
+        CompletableFuture.delayedExecutor(delay, TimeUnit.MILLISECONDS).execute(() -> {
+            if (!disposed.get()) {
+                refreshResourcePolicy();
+            }
+        });
     }
 
     public void wakeup(long parentHandle) {
@@ -522,6 +568,31 @@ public class WebviewManager {
         }
     }
 
+    private void applyZoomFactor(double factor) {
+        if (ready.get()) {
+            dispatch(() -> renderZoom(factor));
+        }
+    }
+
+    private void renderZoom(double factor) {
+        if (SystemUtils.isWindows()) {
+            webview.windows().setZoomFactor(factor);
+        } else {
+            webview.eval(String.format(Locale.ROOT, "document.documentElement.style.zoom='%.4f';", factor));
+        }
+    }
+
+    /** CSS zoom belongs to each document. The native zoom on Windows survives navigation. */
+    private void reapplyDocumentZoom() {
+        if (!SystemUtils.isWindows()) {
+            zoomManager.apply();
+        }
+    }
+
+    public void refreshZoom() {
+        zoomManager.refresh();
+    }
+
     public void setZoomCallback(Consumer<Double> callback) {
         zoomManager.setZoomCallback(callback);
     }
@@ -551,6 +622,7 @@ public class WebviewManager {
     }
 
     public void setCurrentConfig(AiConfig config, String targetUrl) {
+        zoomManager.showSite(config.id());
         navigator.setCurrentConfig(config, targetUrl);
     }
 
@@ -577,11 +649,14 @@ public class WebviewManager {
         focusBrowser(null);
     }
 
+    /**
+     * Moves keyboard focus into the page once it is on screen. A request made before the page was
+     * hidden again is dropped; showing it again does not cancel the request.
+     */
     public void focusBrowser(Consumer<Boolean> completed) {
-        long generation = presentation.getGeneration();
         dispatch(() -> {
-            if (generation == presentation.getGeneration() && !processFailed && !presentation.isHibernated() &&
-                    pagePresentable && loadError == null && SystemUtils.isWindows()) {
+            if (presentation.isDisplayed() && !processFailed && pagePresentable && loadError == null &&
+                    SystemUtils.isWindows()) {
                 boolean accepted = webview.windows().focus();
 
                 if (!accepted) {

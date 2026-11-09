@@ -5,11 +5,21 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.SVGPath;
+import javafx.scene.shape.StrokeLineCap;
 
 /** A small ember-shaped face, drawn locally without image assets. */
 final class MascotFace extends Group {
+    private static final Color GLOW = Color.web("#f7e7ca");
+    private static final double SAD_EYES = 0.35;
+    private static final double SLEEPY_EYES = 0.88;
+
     private final Group eyes;
     private final MascotGears gears = new MascotGears();
+    private final SVGPath mouth = stroke("M 16.5 34 Q 20 31.2 23.5 34", GLOW);
+    private final SVGPath sleepMark = stroke("M 31 5 H 35 L 31 10 H 35", Color.web("#dfb584"));
+    private double openness = 1;
+    private double sadness;
+    private double sleepiness;
 
     MascotFace() {
         var bounds = new Rectangle(40, 44, Color.TRANSPARENT);
@@ -25,11 +35,14 @@ final class MascotFace extends Group {
 
         var left = new Ellipse(14, 25, 2.6, 4.5);
         var right = new Ellipse(26, 25, 2.6, 4.5);
-        left.setFill(Color.web("#f7e7ca"));
+        left.setFill(GLOW);
         right.setFill(left.getFill());
         eyes = new Group(left, right);
+        mouth.setOpacity(0);
+        sleepMark.setOpacity(0);
 
-        getChildren().addAll(bounds, spark, body, gears, eyes);
+        // The eyes stay last: tests and the pointer gaze look them up there.
+        getChildren().addAll(bounds, spark, body, gears, mouth, sleepMark, eyes);
     }
 
     void look(double x, double y) {
@@ -38,7 +51,8 @@ final class MascotFace extends Group {
     }
 
     void blink(double openness) {
-        eyes.setScaleY(openness);
+        this.openness = openness;
+        updateEyes();
     }
 
     void blendGears(double amount) {
@@ -48,5 +62,35 @@ final class MascotFace extends Group {
 
     void turnGears(double degrees) {
         gears.turn(degrees);
+    }
+
+    /** Narrowed eyes and a small frown. */
+    void frown(double amount) {
+        sadness = amount;
+        mouth.setOpacity(amount);
+        updateEyes();
+    }
+
+    /** Closed eyes and a little "z". */
+    void doze(double amount) {
+        sleepiness = amount;
+        sleepMark.setOpacity(amount);
+        updateEyes();
+    }
+
+    private void updateEyes() {
+        eyes.setScaleY(openness * (1 - SAD_EYES * sadness) * (1 - SLEEPY_EYES * sleepiness));
+    }
+
+    private static SVGPath stroke(String path, Color color) {
+        var shape = new SVGPath();
+        shape.setContent(path);
+        shape.setFill(Color.TRANSPARENT);
+        shape.setStroke(color);
+        shape.setStrokeWidth(1.4);
+        shape.setStrokeLineCap(StrokeLineCap.ROUND);
+        shape.setMouseTransparent(true);
+
+        return shape;
     }
 }

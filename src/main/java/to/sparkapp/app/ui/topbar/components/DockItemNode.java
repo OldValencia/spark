@@ -6,6 +6,7 @@ import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
@@ -18,7 +19,6 @@ import javafx.scene.text.Text;
 import javafx.util.Duration;
 import lombok.Getter;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
-import to.sparkapp.app.ui.SiteAccent;
 import to.sparkapp.app.ui.Theme;
 
 /**
@@ -34,6 +34,8 @@ public class DockItemNode extends HBox {
     @Getter
     private boolean isDragging;
     private final AiDock dock;
+    private final Tooltip tooltip;
+    private final TabUpdateMark updateMark;
     private boolean selected;
     private boolean pressed;
 
@@ -51,22 +53,11 @@ public class DockItemNode extends HBox {
         setCursor(Cursor.HAND);
         setFocusTraversable(true);
         setAccessibleText(config.name());
-        Tooltip.install(this, ShellTooltip.create(config.name()));
+        tooltip = ShellTooltip.create(config.name());
+        Tooltip.install(this, tooltip);
 
-        var image = config.icon() == null ? null : AiDock.ICON_CACHE.get(config.icon());
-
-        if (image != null && image.getWidth() > 1) {
-            var icon = new ImageView(image);
-            icon.setFitWidth(17);
-            icon.setFitHeight(17);
-            icon.setPreserveRatio(true);
-            getChildren().add(icon);
-        } else {
-            var icon = new Label("↗");
-            icon.setMinWidth(17);
-            icon.setTextFill(Theme.TEXT_SECONDARY);
-            getChildren().add(icon);
-        }
+        updateMark = new TabUpdateMark(createIcon(config), dock::isReducedMotion);
+        getChildren().add(updateMark);
 
         var name = new Label(config.name());
         name.setFont(Font.font(Theme.FONT_NAME, TAB_FONT_SIZE));
@@ -144,10 +135,49 @@ public class DockItemNode extends HBox {
         refreshState();
     }
 
+    private static Node createIcon(AiConfig config) {
+        var image = config.icon() == null ? null : AiDock.ICON_CACHE.get(config.icon());
+
+        if (image != null && image.getWidth() > 1) {
+            var icon = new ImageView(image);
+            icon.setFitWidth(17);
+            icon.setFitHeight(17);
+            icon.setPreserveRatio(true);
+
+            return icon;
+        }
+
+        var icon = new Label("↗");
+        icon.setMinWidth(17);
+        icon.setTextFill(Theme.TEXT_SECONDARY);
+
+        return icon;
+    }
+
+    /** Marks a site that changed while another site was open. */
+    public void setUpdated(boolean updated) {
+        if (updated) {
+            updateMark.show();
+        } else {
+            updateMark.hide();
+        }
+
+        setAccessibleText(updated ? config.name() + ", updated" : config.name());
+    }
+
+    public boolean isUpdated() {
+        return updateMark.isShown();
+    }
+
     public void updateDragPosition(double sceneX) {
         double x = dock.getDockContainer().sceneToLocal(sceneX, 0).getX() - dragStartLocalX;
         setTranslateX(x);
         dock.getDragManager().onDrag(getLayoutX() + x + getWidth() / 2);
+    }
+
+    /** Shows the site's keyboard shortcut, such as Ctrl+2, next to its name in the tooltip. */
+    public void setShortcutHint(String shortcut) {
+        tooltip.setText(shortcut == null ? config.name() : config.name() + " · " + shortcut);
     }
 
     public void setSelected(boolean selected) {
@@ -155,19 +185,9 @@ public class DockItemNode extends HBox {
         refreshState();
     }
 
+    /** The selected tab's highlight is drawn by the dock, so it can slide between tabs. */
     public void refreshState() {
         ((Label) getChildren().getLast()).setTextFill(Color.web(selected ? "#eeeeF3" : "#b9b9c3"));
-
-        if (!selected) {
-            setStyle("");
-
-            return;
-        }
-
-        var accent = SiteAccent.resolve(config.color());
-        String wash = Theme.toHex(Theme.lerp(Color.web("#25262a"), accent, .13));
-        String border = Theme.toHex(Theme.lerp(Color.web("#25262a"), accent, .30));
-        setStyle("-fx-background-color:" + wash + ";-fx-border-color:" + border + ";");
     }
 
     public void cancelDrag() {

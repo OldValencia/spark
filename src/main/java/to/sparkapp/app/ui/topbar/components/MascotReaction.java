@@ -6,5 +6,6 @@ public enum MascotReaction {
     SITES,
     SETTINGS,
     RESIZE,
-    SITE_SWITCH
+    SITE_SWITCH,
+    WAKE
 }

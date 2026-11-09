@@ -1,28 +1,45 @@
 package to.sparkapp.app.browser;
 
-import java.util.Locale;
 import java.util.function.Consumer;
+import java.util.function.DoubleConsumer;
 
 import javafx.application.Platform;
 import lombok.Setter;
 import to.sparkapp.app.config.AppPreferences;
 
 /**
- * Manages browser zoom levels, CSS injection, and zoom UI callbacks.
+ * Keeps the zoom of one site: reads and stores it by site id, and reports it to the zoom controls.
  */
 class WebviewZoomManager {
 
     private final AppPreferences appPreferences;
-    private final WebviewManager bridge;
+    private final DoubleConsumer renderer;
 
     @Setter
     private Consumer<Double> zoomCallback;
-    private volatile double currentZoom;
+    private volatile String siteId;
+    private volatile double level = ZoomSteps.DEFAULT_LEVEL;
 
-    WebviewZoomManager(AppPreferences appPreferences, WebviewManager bridge) {
+    /**
+     * @param renderer applies a page scale factor, such as 1.2 for 120 %
+     */
+    WebviewZoomManager(AppPreferences appPreferences, DoubleConsumer renderer) {
         this.appPreferences = appPreferences;
-        this.bridge = bridge;
-        this.currentZoom = appPreferences.getLastZoomValue();
+        this.renderer = renderer;
+    }
+
+    /** Switches to the stored zoom of the site this browser shows. */
+    void showSite(String siteId) {
+        this.siteId = siteId;
+        refresh();
+    }
+
+    /** Reloads the stored zoom, for example after zoom was switched off or on in the settings. */
+    void refresh() {
+        var site = siteId;
+        level = site == null ? ZoomSteps.DEFAULT_LEVEL : ZoomSteps.clamp(appPreferences.getSiteZoomLevel(site));
+        apply();
+        updateZoomDisplay();
     }
 
     void handleZoomCommand(String direction) {
@@ -31,48 +48,53 @@ class WebviewZoomManager {
         }
 
         switch (direction) {
-            case "up" -> changeZoom(true);
-            case "down" -> changeZoom(false);
+            case "up" -> setLevel(ZoomSteps.next(level, true));
+            case "down" -> setLevel(ZoomSteps.next(level, false));
             case "reset" -> resetZoom();
+            default -> {
+            }
         }
     }
 
-    private void changeZoom(boolean increase) {
-        var step = 0.5;
-        var newLevel = currentZoom + (increase ? step : -step);
-        newLevel = Math.clamp(newLevel, -3.0, 4.0);
-        setZoomInternal(newLevel);
+    void resetZoom() {
+        setLevel(ZoomSteps.DEFAULT_LEVEL);
     }
 
-    public void resetZoom() {
-        setZoomInternal(0.0);
+    double getZoomPercent() {
+        return ZoomSteps.percent(effectiveLevel());
     }
 
-    public double getZoomPercent() {
-        return Math.round(Math.pow(1.2, appPreferences.isZoomEnabled() ? currentZoom : 0) * 100);
+    double currentFactor() {
+        return ZoomSteps.factor(effectiveLevel());
     }
 
-    private void setZoomInternal(double level) {
-        this.currentZoom = level;
-        appPreferences.setLastZoomValue(level);
-        bridge.dispatch(this::applyZoomCss);
-        updateZoomDisplay(level);
+    void apply() {
+        renderer.accept(currentFactor());
     }
 
-    public void applyZoomCss() {
-        // With zoom switched off the page must render at 100 %, whatever level was
-        // stored back when the feature was still enabled.
-        var level = appPreferences.isZoomEnabled() ? currentZoom : 0.0;
-        var scale = Math.pow(1.2, level);
-        var js = String.format(Locale.ROOT, "document.documentElement.style.zoom='%.4f';", scale);
-        bridge.eval(js);
+    private void setLevel(double newLevel) {
+        level = newLevel;
+        var site = siteId;
+
+        if (site != null) {
+            appPreferences.setSiteZoomLevel(site, newLevel);
+        }
+
+        apply();
+        updateZoomDisplay();
     }
 
-    private void updateZoomDisplay(double level) {
-        if (zoomCallback != null) {
-            var pct = Math.pow(1.2, level) * 100.0;
-            var displayVal = (double) Math.round(pct);
-            Platform.runLater(() -> zoomCallback.accept(displayVal));
+    /** With zoom switched off the page renders at 100 %, whatever level is stored. */
+    private double effectiveLevel() {
+        return appPreferences.isZoomEnabled() ? level : ZoomSteps.DEFAULT_LEVEL;
+    }
+
+    private void updateZoomDisplay() {
+        var callback = zoomCallback;
+
+        if (callback != null) {
+            var percent = getZoomPercent();
+            Platform.runLater(() -> callback.accept(percent));
         }
     }
 }

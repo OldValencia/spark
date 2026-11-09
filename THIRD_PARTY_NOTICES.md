@@ -14,19 +14,18 @@ Versions below correspond to the resolved runtime classpath. Libraries are shipp
 
 | Component | Version | License used | Source |
 | --- | --- | --- | --- |
-| Jackson annotations | 2.21 | Apache-2.0 | [Jackson](https://github.com/FasterXML/jackson-annotations/tree/jackson-annotations-2.21) |
-| Jackson core and databind | 2.21.0 | Apache-2.0 | [Core](https://github.com/FasterXML/jackson-core), [databind](https://github.com/FasterXML/jackson-databind) |
-| FlatLaf and FlatLaf extras | 3.7 | Apache-2.0 | [FlatLaf](https://github.com/JFormDesigner/FlatLaf/tree/3.7) |
+| Jackson annotations | 2.22 | Apache-2.0 | [Jackson](https://github.com/FasterXML/jackson-annotations/tree/jackson-annotations-2.22) |
+| Jackson core and databind | 2.22.4 | Apache-2.0; core embeds FastDoubleParser and Schubfach (MIT) | [Core](https://github.com/FasterXML/jackson-core), [databind](https://github.com/FasterXML/jackson-databind) |
 | JSVG | 2.0.0 | MIT | [JSVG](https://github.com/weisJ/jsvg/tree/v2.0.0) |
 | JNA and JNA platform | 5.14.0 | Apache-2.0, selected from Apache-2.0 / LGPL-2.1-or-later | [JNA](https://github.com/java-native-access/jna/tree/5.14.0) |
-| SLF4J API | 2.0.17 | MIT | [SLF4J](https://github.com/qos-ch/slf4j/tree/v_2.0.17) |
-| Logback classic and core | 1.5.27 | EPL-2.0, selected from EPL-2.0 / LGPL-2.1 | [Logback source](https://github.com/qos-ch/logback/tree/v_1.5.27) |
+| SLF4J API | 2.0.18 | MIT | [SLF4J](https://github.com/qos-ch/slf4j/tree/v_2.0.18) |
+| Logback classic and core | 1.6.3 | EPL-2.0, selected from EPL-2.0 / LGPL-2.1 | [Logback source](https://github.com/qos-ch/logback/tree/v_1.6.3) |
 | JNativeHook | 2.2.2 | LGPL-3.0-or-later | [JNativeHook source and build files](https://github.com/kwhat/jnativehook/tree/2.2.2) |
-| JavaFX base, graphics, controls and swing | 21.0.2 | GPL-2.0 with the Classpath exception; individual files may carry additional notices | [OpenJFX source](https://github.com/openjdk/jfx21u/tree/21.0.2%2B5) |
+| JavaFX base, graphics, controls and swing | 25.0.5 | GPL-2.0 with the Classpath exception; individual files may carry additional notices | [OpenJFX source](https://github.com/openjdk/jfx25u/tree/25.0.5%2B1) |
 
 JNativeHook is copyright (C) 2006–2021 Alexander Barker. Its LGPL permission is stated in the version 2.2.2 source headers. Its native code uses [libuiohook at commit 23acecfe207f8a8b5161bec97a8a6fd6ad0aea88](https://github.com/kwhat/libuiohook/tree/23acecfe207f8a8b5161bec97a8a6fd6ad0aea88); that submodule's license documents are preserved as well. The library is used without modifications. LGPL-3.0 and GPL-3.0 texts are included. Users may replace its JAR with an interface-compatible version, including one built from modified library sources. Spark imposes no restriction on reverse engineering needed to debug such modifications. Retain this permission and the library's notices when redistributing a combined application.
 
-Logback's copyright and dual-license notice are preserved in `logback-LICENSE.txt`; its selected EPL-2.0 text is included. Corresponding library source is available at the versioned upstream link above. JNA's Apache license selection and full text are preserved separately. The JavaFX GPL text includes its Classpath exception, which permits independent modules under their own licenses. The graphics module's JPEG and Mesa notices are preserved under `javafx-21.0.2/`.
+Logback's copyright and dual-license notice are preserved in `logback-LICENSE.txt`; its selected EPL-2.0 text is included. Corresponding library source is available at the versioned upstream link above. JNA's Apache license selection and full text are preserved separately. The JavaFX GPL text includes its Classpath exception, which permits independent modules under their own licenses. The graphics module's JPEG, Mesa and PipeWire notices are preserved under `javafx-25.0.5/`.
 
 ## Packaging and source availability
 

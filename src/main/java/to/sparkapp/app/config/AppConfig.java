@@ -4,10 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import lombok.Data;
 import to.sparkapp.app.config.AppPreferences.WindowPlacement;
 
+/**
+ * The stored preferences. Removed keys stay listed as ignored, so an older file still loads.
+ */
 @Data
+@JsonIgnoreProperties({"lastZoomValue"})
 final class AppConfig {
     WindowPlacement windowPlacement;
     Map<String, WindowSizePreset> windowSizePresets;
@@ -21,8 +27,8 @@ final class AppConfig {
     String lastUrl;
     String lastSiteId;
     Map<String, String> siteUrls;
+    Map<String, SiteSettings> siteSettings;
     Boolean rememberLastAi;
-    Double lastZoomValue;
     Boolean zoomEnabled;
     List<String> aiOrder;
     Boolean checkUpdatesOnStartup;
@@ -31,17 +37,13 @@ final class AppConfig {
     List<Integer> hotkeyToStartApplication;
     Boolean darkModeEnabled;
     Boolean reduceBackgroundMemory;
+    Boolean tutorialDone;
 
     boolean initializeDefaults() {
         boolean changed = false;
 
         if (rememberLastAi == null) {
             rememberLastAi = Boolean.parseBoolean(AppPreferencesKeys.REMEMBER_LAST_AI.getDefaultValue());
-            changed = true;
-        }
-
-        if (lastZoomValue == null) {
-            lastZoomValue = Double.parseDouble(AppPreferencesKeys.LAST_ZOOM_VALUE.getDefaultValue());
             changed = true;
         }
 
@@ -94,5 +96,19 @@ final class AppConfig {
         }
 
         return changed;
+    }
+
+    /**
+     * The tour is for new users and for anyone who never picked a shortcut; people who already use
+     * Spark with a shortcut are not interrupted.
+     */
+    boolean initializeTutorial(boolean existingUser) {
+        if (tutorialDone != null) {
+            return false;
+        }
+
+        tutorialDone = existingUser && hotkeyToStartApplication != null && !hotkeyToStartApplication.isEmpty();
+
+        return true;
     }
 }

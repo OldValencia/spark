@@ -15,6 +15,7 @@ import javafx.util.Duration;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import to.sparkapp.app.browser.SiteShortcut;
 import to.sparkapp.app.browser.WebviewManager;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
 import to.sparkapp.app.config.AppPreferences;
@@ -56,6 +57,10 @@ public class FxWebViewPane extends StackPane {
     private Consumer<Boolean> onExternalPage;
     @Setter
     private Consumer<AiConfig> onEditSite;
+    @Setter
+    private Consumer<SiteShortcut> onSiteShortcut;
+    @Setter
+    private Consumer<String> onSiteUpdated;
 
     public FxWebViewPane(String startUrl, AppPreferences appPreferences) {
         this.startUrl = startUrl;
@@ -132,11 +137,27 @@ public class FxWebViewPane extends StackPane {
                 appPreferences.rememberSitePage(site, url, bridge == source);
             }
         });
+        // Any Spark page can report a shortcut: focus may still sit in the page that was just hidden.
+        source.setOnPageUpdated(() -> siteUpdated(source));
+        source.setOnSiteShortcut(shortcut -> {
+            if (!disposed && onSiteShortcut != null) {
+                onSiteShortcut.accept(shortcut);
+            }
+        });
         source.setOnExtraPageChanged(extra -> {
             if (!disposed && bridge == source) {
                 extraPageOpen.set(extra);
             }
         });
+    }
+
+    /** Only a site that is not on screen can have news; the open one is being looked at. */
+    private void siteUpdated(WebviewManager source) {
+        var site = sessions.findSite(source);
+
+        if (!disposed && source != bridge && site != null && onSiteUpdated != null) {
+            onSiteUpdated.accept(site.id());
+        }
     }
 
     private boolean windowVisible() {
@@ -389,12 +410,27 @@ public class FxWebViewPane extends StackPane {
         bridge.resetZoom();
     }
 
+    /** Reapplies the stored zoom of every open site, for example after zoom was switched off. */
+    public void refreshZoom() {
+        sessions.forEach(WebviewManager::refreshZoom);
+    }
+
     public void goBack() {
         bridge.goBack();
     }
 
     public WebviewManager extensionBrowser() {
         return bridge;
+    }
+
+    /** Whether the site on screen is loading a page. */
+    public ReadOnlyBooleanProperty pageLoadingProperty() {
+        return loadingView.pageLoadingProperty();
+    }
+
+    /** Whether the site on screen shows a load error. */
+    public ReadOnlyBooleanProperty pageFailedProperty() {
+        return loadingView.pageFailedProperty();
     }
 
     public ReadOnlyBooleanProperty extraPageOpenProperty() {

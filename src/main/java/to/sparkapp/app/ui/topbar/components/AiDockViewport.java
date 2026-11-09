@@ -20,6 +20,8 @@ final class AiDockViewport extends StackPane {
     private final HBox dockContainer;
     @Getter
     private final ScrollPane scrollPane;
+    @Getter
+    private final TabSelectionIndicator indicator;
     private final AiDockScrollArrow leftArrow;
     private final AiDockScrollArrow rightArrow;
 
@@ -42,7 +44,12 @@ final class AiDockViewport extends StackPane {
         dockContainer.setSpacing(ITEM_MARGIN);
         dockContainer.setStyle("-fx-background-color: transparent;");
         dockContainer.setPadding(new Insets(4, 0, 4, 0));
-        scrollPane.setContent(dockContainer);
+
+        // The highlight lies under the tabs in the same coordinates, outside the tab list.
+        indicator = new TabSelectionIndicator(dock::isReducedMotion);
+        var content = new StackPane(indicator, dockContainer);
+        content.setAlignment(Pos.TOP_LEFT);
+        scrollPane.setContent(content);
 
         scrollPane.addEventFilter(ScrollEvent.SCROLL, e -> {
             double delta = Math.abs(e.getDeltaX()) > Math.abs(e.getDeltaY()) ? e.getDeltaX() : e.getDeltaY();

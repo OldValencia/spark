@@ -20,8 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
 import to.sparkapp.app.config.AppPaths;
 import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.browser.SiteShortcut;
 import to.sparkapp.app.ui.SiteAccent;
-import to.sparkapp.app.ui.Theme;
 import to.sparkapp.app.ui.topbar.utils.AiDockDragManager;
 import to.sparkapp.app.ui.topbar.utils.AiDockIconUtils;
 import to.sparkapp.app.ui.topbar.utils.AiDockOrderUtils;
@@ -61,20 +61,21 @@ public class AiDock extends StackPane {
     private Consumer<Color> onAccentChanged;
     @Setter
     private Runnable onSiteSelected;
-    @Setter
-    private Runnable onOrderChanged;
+    private final List<Runnable> orderListeners = new ArrayList<>();
 
     public void setOnAccentChanged(Consumer<Color> callback) {
         onAccentChanged = callback;
         updateTopBarColor();
     }
 
+    /** Runs after the user reorders the sites. */
+    public void addOrderListener(Runnable listener) {
+        orderListeners.add(listener);
+    }
+
     public void orderChanged() {
         SiteOrderDiagnostics.record(this);
-
-        if (onOrderChanged != null) {
-            onOrderChanged.run();
-        }
+        orderListeners.forEach(Runnable::run);
     }
 
     public boolean isReducedMotion() {
@@ -123,11 +124,13 @@ public class AiDock extends StackPane {
         dockItems.remove(from);
         dockItems.add(dockItems.indexOf(to) + (after ? 1 : 0), from);
         dockContainer.getChildren().setAll(dockItems);
+        refreshShortcutHints();
         AiDockOrderUtils.saveCurrentOrder(dockItems, appPreferences);
         orderChanged();
     }
 
     public void dispose() {
+        viewport.getIndicator().dispose();
         cancelInteraction();
         prefWidthProperty().unbind();
         minWidthProperty().unbind();
@@ -179,6 +182,8 @@ public class AiDock extends StackPane {
             dockContainer.getChildren().add(node);
         }
 
+        refreshShortcutHints();
+
         if (!dockItems.isEmpty()) {
             selectItem(dockItems.get(initial.index()), initial.url());
         }
@@ -198,6 +203,28 @@ public class AiDock extends StackPane {
         selectItem(node, null);
     }
 
+    /** Puts a dot on the tab of a site that changed while another site was open. */
+    public void markUpdated(String siteId) {
+        dockItems.stream()
+                .filter(item -> item != selectedNode && item.getConfig().id().equals(siteId))
+                .forEach(item -> item.setUpdated(true));
+    }
+
+    /** Opens the site a keyboard shortcut points to, such as Ctrl + 2 or Ctrl + Tab. */
+    public void select(SiteShortcut shortcut) {
+        var target = shortcut.targetIndex(dockItems.indexOf(selectedNode), dockItems.size());
+
+        if (target >= 0) {
+            selectItem(dockItems.get(target));
+        }
+    }
+
+    private void refreshShortcutHints() {
+        for (var index = 0; index < dockItems.size(); index++) {
+            dockItems.get(index).setShortcutHint(SiteShortcut.hintFor(index, dockItems.size()));
+        }
+    }
+
     /**
      * @param targetUrl page of the provider to open instead of its base URL, or {@code null}
      */
@@ -212,6 +239,8 @@ public class AiDock extends StackPane {
 
         selectedNode = node;
         selectedNode.setSelected(true);
+        selectedNode.setUpdated(false);
+        viewport.getIndicator().select(node);
         fxWebViewPane.setCurrentConfig(node.getConfig(), targetUrl);
         updateTopBarColor();
         revealSelection();
@@ -229,27 +258,6 @@ public class AiDock extends StackPane {
 
             if (onAccentChanged != null) {
                 onAccentChanged.accept(SiteAccent.resolve(selectedNode.getConfig().color()));
-
-                return;
-            }
-
-            var parent = this.getParent();
-            while (parent != null && !(parent instanceof GradientPanel)) {
-                parent = parent.getParent();
-            }
-
-            if (parent instanceof GradientPanel gradientPanel) {
-                var accent = Theme.ACCENT;
-
-                try {
-                    if (selectedNode.getConfig().color() != null) {
-                        accent = Color.web(selectedNode.getConfig().color());
-                    }
-                } catch (Exception e) {
-                    log.warn("Warning while trying to update topBarColor", e);
-                }
-
-                gradientPanel.updateAccentColor(accent);
             }
         });
     }

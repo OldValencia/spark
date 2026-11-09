@@ -22,12 +22,23 @@ import to.sparkapp.app.windows.WindowController;
 
 public class TopBarArea extends HBox {
     public static final int HEIGHT = 52;
+    /** Room the bar keeps for the mascot, buttons and drag handle next to the tabs. */
+    private static final double RESERVED_WIDTH = 250;
+    /** The mascot's width and its gap to the tabs. */
+    private static final double MASCOT_WIDTH = 46;
     @Getter
     private final AiDock dock;
     private final SitesPopup sites;
     private final ShellPopover sizes;
     private final ShellPopover options;
+    @Getter
     private final SparkMascot mascot;
+    @Getter
+    private final Button sitesButton;
+    @Getter
+    private final Button sizeButton;
+    @Getter
+    private final Button optionsButton;
 
     public TopBarArea(AiConfiguration configuration, FxWebViewPane browser, Stage frame, AppPreferences preferences, Runnable onSettings, Runnable onHide, WindowController controller, Runnable onSitesChanged) {
         this(configuration, browser, frame, preferences, onSettings, onHide, controller, onSitesChanged, () -> {});
@@ -35,6 +46,7 @@ public class TopBarArea extends HBox {
 
     public TopBarArea(AiConfiguration configuration, FxWebViewPane browser, Stage frame, AppPreferences preferences, Runnable onSettings, Runnable onHide, WindowController controller, Runnable onSitesChanged, Runnable onExtensions) {
         mascot = new SparkMascot(frame, preferences);
+        mascot.observePage(browser.pageLoadingProperty(), browser.pageFailedProperty());
         sizes = new WindowSizeMenu(frame, preferences, controller);
         options = new WindowOptionsMenu(preferences, browser, () -> {
             mascot.react(MascotReaction.SETTINGS);
@@ -49,9 +61,9 @@ public class TopBarArea extends HBox {
         dock.setOnSiteSelected(() -> mascot.react(MascotReaction.SITE_SWITCH));
 
         double dockBudget = dock.desiredWidth();
-        dock.prefWidthProperty().bind(
-                Bindings.createDoubleBinding(() -> Math.max(36, Math.min(dockBudget, frame.getWidth() - 250)),
-                        frame.widthProperty()));
+        dock.prefWidthProperty().bind(Bindings.createDoubleBinding(
+                () -> Math.max(36, Math.min(dockBudget, frame.getWidth() - reservedWidth())),
+                frame.widthProperty(), mascot.managedProperty()));
         dock.maxWidthProperty().bind(dock.prefWidthProperty());
         dock.minWidthProperty().bind(dock.prefWidthProperty());
         sites = new SitesPopup(frame, dock, configuration, preferences, onSitesChanged);
@@ -62,6 +74,7 @@ public class TopBarArea extends HBox {
         });
 
         var allSites = button("squares-2x2", "All sites");
+        sitesButton = allSites;
         allSites.setOnAction(e -> {
             sizes.dismiss();
             options.dismiss();
@@ -82,6 +95,7 @@ public class TopBarArea extends HBox {
         controller.installDragArea(drag);
 
         var size = button("arrows-pointing-out", "Window size");
+        sizeButton = size;
         size.getStyleClass().setAll("button", "shell-size");
         size.setPrefWidth(Region.USE_COMPUTED_SIZE);
         size.setMinWidth(Region.USE_PREF_SIZE);
@@ -92,6 +106,7 @@ public class TopBarArea extends HBox {
         });
 
         var more = button("ellipsis-horizontal", "Window options");
+        optionsButton = more;
         more.setOnAction(e -> {
             sites.hide();
             sizes.dismiss();
@@ -102,6 +117,10 @@ public class TopBarArea extends HBox {
         hide.setOnAction(e -> onHide.run());
         getChildren().addAll(mascot, dock, allSites, drag, size, more, hide);
         setAlignment(Pos.CENTER_LEFT);
+    }
+
+    private double reservedWidth() {
+        return mascot.isManaged() ? RESERVED_WIDTH : RESERVED_WIDTH - MASCOT_WIDTH;
     }
 
     public void closeMenus() {

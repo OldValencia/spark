@@ -53,7 +53,7 @@ The little spark in the corner has volunteered to show you around.
   <img src="docs/readme/guide-settings.svg" alt="The mascot's gear eyes point you to settings under the three-dot menu" width="600">
 </p>
 
-**Three dots → Settings** is where the shortcut, startup behavior and top-edge pill live. Page zoom is right in the three-dot menu.
+**Three dots → Settings** is where the shortcut, startup behavior and top-edge pill live. Page zoom is right in the three-dot menu, and each site remembers its own zoom.
 
 <p align="center">
   <img src="docs/readme/guide-extensions.svg" alt="The mascot introduces Chrome extensions installed from a store link" width="600">
@@ -70,7 +70,7 @@ The little spark in the corner has volunteered to show you around.
 
 Links and sign-in windows follow the website's normal browser behavior. Use **Three dots → Back** to go back, **Close page** to close an extra page, or **Open start page** to close extra pages and open the site's configured start address. **Close page** appears only while an extra page is open. Middle-click a link to send it to your default browser. Login windows share Spark's browser profile. Passkeys use the browser and Windows dialogs, with compatibility depending on the website and installed WebView2 runtime.
 
-The mascot follows your pointer, peeks at the site list, and briefly gets gear eyes when you open settings. Click it for a hello. **General → Reduce motion** keeps it still; **Show mascot** lets it sit this one out.
+The mascot follows your pointer, peeks at the site list, and briefly gets gear eyes when you open settings. It turns its gears while a page loads, looks sad when a page can't load, and dozes off when Spark sits untouched for a while. Click it for a hello. **General → Reduce motion** keeps it still; **Show mascot** lets it sit this one out.
 
 <sub>The tour and mascot cards are illustrations. The screenshots show the Windows app in 0.3.3; click one for a closer look. <a href="docs/previews/0.3.1-mascot-topbar-860.png">Current header</a> · <a href="docs/previews/0.3.1-mascot-settings.png">Gear eyes</a></sub>
 
@@ -79,6 +79,8 @@ The mascot follows your pointer, peeks at the site list, and briefly gets gear e
 1. Grab the Windows `.exe` from [Releases](https://github.com/OldValencia/spark/releases) and install it. Java is included.
 2. Choose a site and sign in as you normally would.
 3. Open **Three dots → Settings → Global Hotkey** and record your **Toggle window shortcut**.
+
+On first launch, the mascot gives a three-step tour of the bar. You can skip it, and replay it later from **Settings → Help → Show tutorial**.
 
 A spare mouse button makes a good home for that shortcut.
 
@@ -93,6 +95,8 @@ Something not working as expected? Check [troubleshooting and tips](docs/trouble
 | --- | --- |
 | Show or hide Spark | Your global shortcut |
 | Open Spark | The tray or top-edge pill |
+| Open a particular site | Right-click the tray icon → **Open site** |
+| Switch sites | **Ctrl + 1…8** by position, **Ctrl + 9** for the last, **Ctrl + Tab** / **Ctrl + Shift + Tab** |
 | Move the window | Drag the central handle |
 | Dock at the top | Double-click the handle, or **Window size → Dock at the top** |
 | Resize, pin, or fill the screen | **Window size** menu |
@@ -112,7 +116,7 @@ Visited pages stay loaded until you remove the site or quit Spark. Switching sit
 
 After a restart, **Remember last site** restores saved page addresses from the configured site. Addresses containing `?` query parameters or `#` fragments are skipped by automatic history, so temporary sign-in parameters are not written to preferences. Sites that identify pages only through those parameters return to the previous saved address or the configured start page. Drafts and conversations across restarts depend on what the website itself saves.
 
-Each loaded website uses memory. **Settings → Browser → Reduce background memory** lets Windows reclaim memory from hidden pages while keeping them alive. The total depends on the sites you've opened. If the site takes a few seconds to appear when you reopen Spark, turn this setting off; see [troubleshooting](docs/troubleshooting.md).
+Each loaded website uses memory. **Settings → Browser → Reduce background memory** (off by default) lets Windows reclaim memory from pages once Spark has been hidden for a few minutes, while keeping them alive. The total depends on the sites you've opened. If the site takes a few seconds to appear when you reopen Spark, turn this setting off; see [troubleshooting](docs/troubleshooting.md).
 
 **Extensions are experimental in 0.3.3 and need Windows x64.** Extensions are installed unpacked into your Spark folder and run in Spark's browser profile; each enabled extension uses some memory of its own. Popovers tell an extension which site is open, but the full Chrome toolbar is not there: toolbar button events, automatic `activeTab` access and side panels are not implemented, and password-manager autofill is not guaranteed. See [extension usage and validation](docs/extensions.md).
 
@@ -131,13 +135,15 @@ Settings on Windows live here:
 └── logs\               Application logs
 ```
 
+**Settings → Backup → Export…** saves your sites, their icons and preferences to a ZIP file for another PC; see [moving Spark to another PC](docs/troubleshooting.md#moving-spark-to-another-pc).
+
 **Settings → Browser → Clear site data** clears cookies and website storage across Spark's browser profile after confirmation. It signs you out and reloads open sites, so finish or copy any unsent text first.
 
 </details>
 
 ## Build it
 
-Use **JDK 21**, with `JAVA_HOME` pointing to it. The Gradle wrapper is included.
+Use **JDK 25**, with `JAVA_HOME` pointing to it. The Gradle wrapper is included.
 
 ```powershell
 git clone https://github.com/OldValencia/spark.git
@@ -147,7 +153,7 @@ cd spark
 .\gradlew.bat test              # Unit and regression tests
 .\gradlew.bat installDist       # Build an application distribution
 .\gradlew.bat nativeTest        # Windows UI and real WebView2 tests
-.\gradlew.bat createInstaller   # Windows installer; requires WiX on PATH
+.\gradlew.bat createInstaller   # Windows installer with a trained AOT cache; requires WiX on PATH
 .\gradlew.bat readmeCapture     # README video and screenshots; moves the real mouse
 ```
 

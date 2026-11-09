@@ -39,8 +39,8 @@ public class SparkApplication extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        if (Boolean.getBoolean("spark.cds.generate")) {
-            System.out.println("CDS Archive successfully generated. Exiting...");
+        if (Boolean.getBoolean("spark.aot.training")) {
+            System.out.println("AOT training run finished. Exiting...");
             Platform.exit();
             System.exit(0);
         }

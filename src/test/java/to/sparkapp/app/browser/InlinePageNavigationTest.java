@@ -25,8 +25,8 @@ class InlinePageNavigationTest {
             assertEquals(server.site + "/custom-return?nieznany=temporary", call(browser, view -> view.windows().source()));
             var extra = call(browser, view -> view.windows().hasExtraPage());
             assertTrue(extra, "The returned site must remain visible in the existing Spark viewport");
-            browser.eval("window.probe('returned:'+Boolean(opener))");
-            assertEquals("returned:true", browser.message());
+            // Chromium opens a form's _blank target without an opener; the page must simply be live.
+            assertEquals("complete", new NativeDevTools(browser).await("document.readyState", "complete"));
         }
     }
 
@@ -39,21 +39,27 @@ class InlinePageNavigationTest {
             open(browser, server.site + "/first-child");
             browser.eval("draft.value='first-child-unsent'");
             open(browser, server.identity + "/arbitrary-company-route");
+            // As in Spark: the window was on screen, then the user hid it.
+            call(browser, view -> {
+                view.windows().setPresentation(true, false);
+
+                return null;
+            });
             call(browser, view -> {
                 view.windows().setPresentation(false, true);
 
                 return null;
             });
-            browser.eval("setTimeout(()=>window.probe('hidden:'+document.hidden),250)");
-            assertEquals("hidden:true", browser.message());
+            var page = new NativeDevTools(browser);
+            assertEquals("true", page.await("String(document.hidden)", "true"),
+                    "WebView2 must report the page as hidden");
             call(browser, view -> {
                 view.windows().closeExtraPage();
 
                 return null;
             });
             assertEquals(server.site + "/first-child", call(browser, view -> view.windows().source()));
-            browser.eval("window.probe(draft.value)");
-            assertEquals("first-child-unsent", browser.message());
+            assertEquals("first-child-unsent", page.evaluate("draft.value"));
             call(browser, view -> {
                 view.windows().returnToRoot();
 

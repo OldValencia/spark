@@ -25,4 +25,24 @@ public class AppPaths {
         DATA_DIR = new File(DIR);
         DATA_DIR.mkdirs();
     }
+
+    /**
+     * The settings folder as a person would type it: %USERPROFILE% on Windows and ~ elsewhere, so
+     * it also fits another user's PC.
+     */
+    public static String displayDir() {
+        var home = System.getProperty("user.home");
+
+        if (!DIR.startsWith(home)) {
+            return DIR;
+        }
+
+        var rest = DIR.substring(home.length());
+
+        if (SystemUtils.isWindows()) {
+            return "%USERPROFILE%" + rest.replace('/', '\\');
+        }
+
+        return "~" + rest;
+    }
 }

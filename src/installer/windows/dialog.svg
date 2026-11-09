@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="493" height="312" viewBox="0 0 493 312">
+  <g font-family="Segoe UI, system-ui, sans-serif">
+  <rect width="493" height="312" fill="#ffffff"/>
+  <rect width="164" height="312" fill="#191a1e"/>
+  <ellipse cx="82" cy="171" rx="36" ry="5" fill="#000000" opacity=".35"/>
+  <g transform="translate(30 62) scale(2.6)">
+    <path d="M16 12C16 9 18 8 20 5C22 8 24 9 24 12Z" fill="#dfb584"/>
+    <rect x="4" y="11" width="32" height="28" rx="10" fill="#45434a" stroke="#b19470" stroke-opacity=".8"/>
+    <g fill="#f7e7ca" transform="translate(-1 0)">
+      <ellipse cx="14" cy="25" rx="2.6" ry="4.5"/>
+      <ellipse cx="26" cy="25" rx="2.6" ry="4.5"/></g></g>
+  <text x="82" y="214" font-size="26" font-weight="600" fill="#f2eadc" text-anchor="middle"
+    letter-spacing="-0.5">Spark</text>
+  <text x="82" y="238" font-size="12" fill="#b3b1b9" text-anchor="middle">Your sites, one</text>
+  <text x="82" y="255" font-size="12" fill="#b3b1b9" text-anchor="middle">shortcut away.</text>
+</g>
+</svg>
