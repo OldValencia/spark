@@ -278,17 +278,51 @@ tasks.register('trainAot', Exec) {
     }
 }
 
+// jpackage has no option for the WiX bitmaps, so the JDK's own main.wxs gets two WixVariable lines.
+// Reading it from the running JDK keeps the rest of the file in step with the jpackage that uses it.
+def installerArt = layout.projectDirectory.dir('src/installer/windows')
+def installerResources = layout.buildDirectory.dir('installer-resources')
+
+tasks.register('prepareInstallerResources') {
+    group = 'distribution'
+    description = 'Writes the WiX source that shows the Spark artwork in the Windows installer.'
+    onlyIf { isWindows }
+    inputs.files(installerArt.file('banner.bmp'), installerArt.file('dialog.bmp'))
+    outputs.dir(installerResources)
+
+    doLast {
+        def jdkModules = java.nio.file.FileSystems.getFileSystem(URI.create('jrt:/'))
+        def jdkMainWxs = jdkModules.getPath('/modules/jdk.jpackage/jdk/jpackage/internal/resources/main.wxs')
+        def source = java.nio.file.Files.readString(jdkMainWxs)
+        def anchor = '<UIRef Id="JpUI"/>'
+
+        if (!source.contains(anchor)) {
+            throw new GradleException("The JDK's main.wxs no longer contains $anchor")
+        }
+
+        def art = installerArt.asFile
+        def variables = """<WixVariable Id="WixUIBannerBmp" Value="${new File(art, 'banner.bmp')}"/>
+    <WixVariable Id="WixUIDialogBmp" Value="${new File(art, 'dialog.bmp')}"/>
+    $anchor"""
+        def target = installerResources.get().file('main.wxs').asFile
+
+        target.parentFile.mkdirs()
+        target.text = source.replace(anchor, variables)
+    }
+}
+
 tasks.register('createInstaller', Exec) {
     group = 'distribution'
     description = 'Builds a standalone installer using jpackage'
-    dependsOn(isWindows ? 'trainAot' : installDist)
+    dependsOn(isWindows ? ['trainAot', 'prepareInstallerResources'] : installDist)
 
     def windowsOptions = [
             '--win-dir-chooser',
             '--win-menu',
             '--win-shortcut-prompt',
             '--win-per-user-install',
-            '--win-upgrade-uuid', 'f3c4e5d6-a7b8-9c0d-1e2f-3a4b5c6d7e8f'
+            '--win-upgrade-uuid', 'f3c4e5d6-a7b8-9c0d-1e2f-3a4b5c6d7e8f',
+            '--resource-dir', installerResources.get().asFile.path
     ]
     def macOptions = [
             '--mac-package-identifier', 'to.sparkapp.app',
