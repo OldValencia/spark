@@ -16,7 +16,6 @@ Versions below correspond to the resolved runtime classpath. Libraries are shipp
 | --- | --- | --- | --- |
 | Jackson annotations | 2.21 | Apache-2.0 | [Jackson](https://github.com/FasterXML/jackson-annotations/tree/jackson-annotations-2.21) |
 | Jackson core and databind | 2.21.0 | Apache-2.0 | [Core](https://github.com/FasterXML/jackson-core), [databind](https://github.com/FasterXML/jackson-databind) |
-| FlatLaf and FlatLaf extras | 3.7 | Apache-2.0 | [FlatLaf](https://github.com/JFormDesigner/FlatLaf/tree/3.7) |
 | JSVG | 2.0.0 | MIT | [JSVG](https://github.com/weisJ/jsvg/tree/v2.0.0) |
 | JNA and JNA platform | 5.14.0 | Apache-2.0, selected from Apache-2.0 / LGPL-2.1-or-later | [JNA](https://github.com/java-native-access/jna/tree/5.14.0) |
 | SLF4J API | 2.0.17 | MIT | [SLF4J](https://github.com/qos-ch/slf4j/tree/v_2.0.17) |

@@ -13,8 +13,8 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import javafx.application.Platform;
+import javafx.util.Duration;
 
-import javax.swing.Timer;
 
 import lombok.Getter;
 import to.sparkapp.app.config.AppPreferences;
@@ -33,9 +33,14 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
     private Runnable onRecordComplete;
 
     private boolean hotkeyTriggered = false;
+    private static final long STALE_KEYS_MILLIS = 1500;
     private long lastEventTime = System.currentTimeMillis();
 
-    private final Timer watchdogTimer;
+    /** Lets a recording ignore the click or keys that started it. */
+    private final FxTimer recordingDelay = FxTimer.once(Duration.millis(200), () -> {
+        pressedKeys.clear();
+        recording = true;
+    });
 
     @Getter
     private boolean initialized = false;
@@ -47,13 +52,6 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
         var logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
         logger.setLevel(Level.OFF);
         logger.setUseParentHandlers(false);
-
-        watchdogTimer = new Timer(1000, e -> {
-            if (System.currentTimeMillis() - lastEventTime > 1500) {
-                pressedKeys.clear();
-                hotkeyTriggered = false;
-            }
-        });
     }
 
     public void start() {
@@ -62,7 +60,6 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
             GlobalScreen.addNativeKeyListener(this);
             GlobalScreen.addNativeMouseListener(this);
             GlobalScreen.addNativeMouseMotionListener(this);
-            watchdogTimer.start();
             initialized = true;
         } catch (NativeHookException e) {
             initialized = false;
@@ -75,13 +72,29 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
         }
 
         try {
-            watchdogTimer.stop();
+            recordingDelay.stop();
             GlobalScreen.removeNativeKeyListener(this);
             GlobalScreen.removeNativeMouseListener(this);
             GlobalScreen.removeNativeMouseMotionListener(this);
             GlobalScreen.unregisterNativeHook();
         } catch (NativeHookException ignored) {
         }
+    }
+
+    /**
+     * Forgets keys whose release was missed, for example while another app held the keyboard, once
+     * nothing has happened for a moment. Checked on the next event instead of with a timer that
+     * would wake Spark every second.
+     */
+    private void noteKeyEvent() {
+        var now = System.currentTimeMillis();
+
+        if (now - lastEventTime > STALE_KEYS_MILLIS) {
+            pressedKeys.clear();
+            hotkeyTriggered = false;
+        }
+
+        lastEventTime = now;
     }
 
     public void startRecording(Runnable onRecordComplete) {
@@ -93,11 +106,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
         recording = false;
         pressedKeys.clear();
 
-        new Timer(200, e -> {
-            ((Timer) e.getSource()).stop();
-            pressedKeys.clear();
-            recording = true;
-        }).start();
+        recordingDelay.restart();
     }
 
     public void clearHotkey() {
@@ -135,7 +144,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
 
     @Override
     public void nativeKeyPressed(NativeKeyEvent e) {
-        lastEventTime = System.currentTimeMillis();
+        noteKeyEvent();
 
         var code = e.getKeyCode();
 
@@ -165,7 +174,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
 
     @Override
     public void nativeKeyReleased(NativeKeyEvent e) {
-        lastEventTime = System.currentTimeMillis();
+        noteKeyEvent();
 
         if (recording) {
             if (!pressedKeys.isEmpty()) {
@@ -179,7 +188,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
 
     @Override
     public void nativeMousePressed(NativeMouseEvent e) {
-        lastEventTime = System.currentTimeMillis();
+        noteKeyEvent();
         pressedKeys.add(MOUSE_OFFSET + e.getButton());
 
         if (!recording) {
@@ -190,7 +199,7 @@ public class GlobalHotkeyManager implements NativeKeyListener, NativeMouseInputL
 
     @Override
     public void nativeMouseReleased(NativeMouseEvent e) {
-        lastEventTime = System.currentTimeMillis();
+        noteKeyEvent();
 
         var code = MOUSE_OFFSET + e.getButton();
 

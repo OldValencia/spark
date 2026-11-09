@@ -1,10 +1,10 @@
 package to.sparkapp.app.ui.topbar.utils;
 
-import com.formdev.flatlaf.extras.FlatSVGIcon;
-
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
+import java.net.URL;
 
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
@@ -15,6 +15,7 @@ import javax.imageio.ImageIO;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
 import to.sparkapp.app.ui.topbar.components.AiDock;
+import to.sparkapp.app.utils.SvgImages;
 
 @Slf4j
 public class AiDockIconUtils {
@@ -38,9 +39,7 @@ public class AiDockIconUtils {
 
                 if (resourceUrl != null) {
                     if (key.toLowerCase().endsWith(".svg")) {
-                        var icon = new FlatSVGIcon(resourceUrl);
-
-                        return renderSvgToFx(icon);
+                        return renderSvgToFx(resourceUrl);
                     } else {
                         return resizeToFx(ImageIO.read(resourceUrl));
                     }
@@ -50,9 +49,7 @@ public class AiDockIconUtils {
 
                 if (userIconFile.exists()) {
                     if (key.toLowerCase().endsWith(".svg")) {
-                        var icon = new FlatSVGIcon(userIconFile);
-
-                        return renderSvgToFx(icon);
+                        return renderSvgToFx(userIconFile.toURI().toURL());
                     } else {
                         return resizeToFx(ImageIO.read(userIconFile));
                     }
@@ -70,21 +67,8 @@ public class AiDockIconUtils {
         });
     }
 
-    private static Image renderSvgToFx(FlatSVGIcon icon) {
-        int padding = 2 * RENDER_SCALE;
-        int innerSize = RENDER_SIZE - padding * 2;
-
-        var scaledIcon = icon.derive(innerSize, innerSize);
-        var img = new BufferedImage(RENDER_SIZE, RENDER_SIZE, BufferedImage.TYPE_INT_ARGB);
-        var g = img.createGraphics();
-
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-
-        scaledIcon.paintIcon(null, g, padding, padding);
-        g.dispose();
-
-        return SwingFXUtils.toFXImage(img, null);
+    private static Image renderSvgToFx(URL svg) throws IOException {
+        return SwingFXUtils.toFXImage(SvgImages.render(svg, RENDER_SIZE, 2 * RENDER_SCALE), null);
     }
 
     private static Image resizeToFx(BufferedImage img) {
