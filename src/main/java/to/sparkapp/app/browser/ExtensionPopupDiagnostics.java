@@ -24,7 +24,7 @@ final class ExtensionPopupDiagnostics {
         if (!json.equals(previousMeasurement) && (lastMeasurementLog == 0 || now - lastMeasurementLog > 1_000_000_000L)) {
             previousMeasurement = json;
             lastMeasurementLog = now;
-            log.info("Extension popup [{}] measurement: {}", session, json);
+            log.debug("Extension popup [{}] measurement: {}", session, json);
         }
     }
 
@@ -34,7 +34,7 @@ final class ExtensionPopupDiagnostics {
     }
 
     void resized(ExtensionPopupSize size, double width, double height) {
-        log.info("Extension popup [{}] resize: document={}x{}, ratio={}, targetHost={}x{}", session,
+        log.debug("Extension popup [{}] resize: document={}x{}, ratio={}, targetHost={}x{}", session,
                 size.width(), size.height(), size.ratio(), width, height);
     }
 

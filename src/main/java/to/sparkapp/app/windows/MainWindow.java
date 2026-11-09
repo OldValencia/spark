@@ -263,9 +263,15 @@ public class MainWindow extends Stage {
     }
 
     private void toggleExtensions() {
-        if (!SystemUtils.isWindows() || extensionsWindow == null) {
+        if (!SystemUtils.isWindows()) {
             return;
         }
+
+        // Built on first use: most sessions never open it.
+        if (extensionsWindow == null) {
+            initializeExtensionsWindow();
+        }
+
         settingsWindow.close();
         if (extensionsWindow.isShowing()) {
             extensionsWindow.close();
@@ -404,7 +410,6 @@ public class MainWindow extends Stage {
             settingsPanel.setOnShowTutorial(this::replayTutorial);
 
             settingsWindow = new SettingsWindow(this, settingsPanel);
-            initializeExtensionsWindow();
 
             installTopBar();
             tutorial = new SparkTutorial(this, appPreferences, () -> topBar, this::openShortcutSettings);
@@ -509,9 +514,6 @@ public class MainWindow extends Stage {
     }
 
     private void initializeExtensionsWindow() {
-        if (!SystemUtils.isWindows()) {
-            return;
-        }
         extensionsPanel = new ExtensionsPanel(fxWebViewPane::extensionBrowser);
         extensionsWindow = new SettingsWindow(this, extensionsPanel, "Extensions");
         xProperty().addListener(observable -> extensionsWindow.close());
