@@ -6,7 +6,6 @@ import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.robot.Robot;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import to.sparkapp.app.config.AppPreferences;
@@ -14,19 +13,26 @@ import to.sparkapp.app.config.AppPreferences;
 final class QuickAccessPill {
     private final Stage stage;
     private final AppPreferences preferences;
-    private final Supplier<Rectangle2D> monitor;
+    private final TopEdgeZone edge;
     private final Runnable reveal;
     private final QuickAccessPillWindow pill;
+    private final FullscreenGuard fullscreen;
     private final PauseTransition edgeHover = new PauseTransition(Duration.millis(300));
     private final PauseTransition pillDismissal = new PauseTransition(Duration.millis(180));
     private boolean disposed;
     private boolean edgeArmed = true;
 
     QuickAccessPill(Stage stage, AppPreferences preferences, Supplier<Rectangle2D> monitor, Runnable reveal) {
+        this(stage, preferences, monitor, reveal, new NativeFullscreenSensor(monitor));
+    }
+
+    QuickAccessPill(Stage stage, AppPreferences preferences, Supplier<Rectangle2D> monitor, Runnable reveal,
+                    FullscreenSensor fullscreenSensor) {
         this.stage = stage;
         this.preferences = preferences;
-        this.monitor = monitor;
+        edge = new TopEdgeZone(monitor);
         this.reveal = reveal;
+        fullscreen = new FullscreenGuard(preferences, fullscreenSensor);
         pill = new QuickAccessPillWindow(preferences, monitor, reveal, pillDismissal::stop, this::schedulePillHide);
         edgeHover.setOnFinished(event -> revealAfterHover());
     }
@@ -34,12 +40,14 @@ final class QuickAccessPill {
     void windowShown() {
         edgeArmed = false;
         edgeHover.stop();
+        fullscreen.stopWatching();
         pill.hideImmediately();
     }
 
     void dispose() {
         disposed = true;
         edgeHover.stop();
+        fullscreen.stopWatching();
         pill.close();
     }
 
@@ -49,9 +57,14 @@ final class QuickAccessPill {
             return;
         }
 
-        var atEdge = preferences.isTopPill() ? nearPill(x, y, false) : nearTopEdge(x, y, false, 200);
+        var atEdge = preferences.isTopPill() ? edge.nearPill(x, y, false) : edge.nearTopEdge(x, y, false, 200);
         if (!atEdge) {
             edgeArmed = true;
+        } else if (fullscreen.blocksTopEdge()) {
+            // A game, video or presentation fills this monitor: no preview, hover or gesture.
+            edgeHover.stop();
+            schedulePillHide();
+            return;
         }
         if (!preferences.isTopPill()) {
             edgeHover.stop();
@@ -73,7 +86,7 @@ final class QuickAccessPill {
             reveal.run();
             return;
         }
-        if (nearPill(x, y, pill.isShowing())) {
+        if (edge.nearPill(x, y, pill.isShowing())) {
             pillDismissal.stop();
             pill.show(true);
         } else {
@@ -84,7 +97,7 @@ final class QuickAccessPill {
     private void revealAfterHover() {
         var current = new Robot().getMousePosition();
         if (!disposed && !stage.isShowing() && edgeArmed && preferences.isTopPill() && preferences.isTopEdgeReveal() &&
-                nearPill(current.getX(), current.getY(), false)) {
+                edge.nearPill(current.getX(), current.getY(), false) && !fullscreen.blocksTopEdge()) {
             edgeArmed = false;
             reveal.run();
         }
@@ -95,40 +108,41 @@ final class QuickAccessPill {
             return false;
         }
 
-        var screen = targetScreen();
+        var screen = edge.screen();
         return approach.isFastUpward(screen.getOutputScaleX(), screen.getOutputScaleY(), System.nanoTime());
-    }
-
-    private Screen targetScreen() {
-        return Screen.getScreens().stream().filter(
-                screen -> screen.getVisualBounds().equals(monitor.get())).findFirst().orElse(Screen.getPrimary());
-    }
-
-    private boolean nearPill(double x, double y, boolean includePill) {
-        return nearTopEdge(x, y, includePill, 110);
-    }
-
-    private boolean nearTopEdge(double x, double y, boolean includePill, double halfWidth) {
-        var bounds = targetScreen().getBounds();
-        var center = monitor.get().getMinX() + monitor.get().getWidth() / 2;
-        var bottom = includePill ? monitor.get().getMinY() + 36 : bounds.getMinY() + 10;
-        return Math.abs(x - center) <= halfWidth && y >= bounds.getMinY() && y <= bottom;
     }
 
     void refreshPill() {
         edgeHover.stop();
         if (disposed || stage.isShowing()) {
+            fullscreen.stopWatching();
             pill.hideImmediately();
             return;
         }
 
         var current = new Robot().getMousePosition();
-        edgeArmed = edgeArmed || !nearPill(current.getX(), current.getY(), false);
+        edgeArmed = edgeArmed || !edge.nearPill(current.getX(), current.getY(), false);
         if (!preferences.isTopPill()) {
+            fullscreen.stopWatching();
             pill.hideImmediately();
             return;
         }
-        pill.show(false);
+        fullscreen.watchPill(this::followFullscreen);
+        followFullscreen();
+    }
+
+    /** The always-visible pill steps aside while a fullscreen app fills its monitor. */
+    private void followFullscreen() {
+        if (disposed || stage.isShowing() || !preferences.isTopPill()) {
+            return;
+        }
+
+        if (fullscreen.hidesPill()) {
+            pill.hideImmediately();
+        } else {
+            pill.show(false);
+            fullscreen.pillShown(pill.windowHandle());
+        }
     }
 
     private void schedulePillHide() {
@@ -137,7 +151,7 @@ final class QuickAccessPill {
         }
         pillDismissal.setOnFinished(event -> {
             var point = new Robot().getMousePosition();
-            if (!preferences.isTopPill() && !nearPill(point.getX(), point.getY(), true)) {
+            if (!preferences.isTopPill() && !edge.nearPill(point.getX(), point.getY(), true)) {
                 pill.animate(false);
             }
         });

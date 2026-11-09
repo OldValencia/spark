@@ -28,8 +28,16 @@ public final class PillSettingsCard extends SettingsCard {
                     onChanged.run();
                 });
 
+        var fullscreen = new SettingsToggleRow("Hide over fullscreen apps",
+                "Over games, videos and presentations, hide the pill and ignore the top edge. The hotkey still works.",
+                preferences.isTopEdgeQuietInFullscreen(), enabled -> {
+                    preferences.setTopEdgeQuietInFullscreen(enabled);
+                    onChanged.run();
+                });
+
         addRow(autoHide);
         addRow(hover);
         addRow(quickOpen);
+        addRow(fullscreen);
     }
 }

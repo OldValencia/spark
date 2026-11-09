@@ -368,6 +368,16 @@ public class AppPreferences {
         saveDebounced();
     }
 
+    /** On by default: opening Spark over a game or presentation by accident is worse than a missed gesture. */
+    public synchronized boolean isTopEdgeQuietInFullscreen() {
+        return !Boolean.FALSE.equals(config.topEdgeQuietInFullscreen);
+    }
+
+    public synchronized void setTopEdgeQuietInFullscreen(boolean enabled) {
+        config.topEdgeQuietInFullscreen = enabled;
+        saveDebounced();
+    }
+
     public synchronized boolean isTutorialPending() {
         return !Boolean.TRUE.equals(config.tutorialDone);
     }

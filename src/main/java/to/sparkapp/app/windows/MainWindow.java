@@ -281,6 +281,11 @@ public class MainWindow extends Stage {
         }
     }
 
+    /** Quits Spark the same way as the tray menu. */
+    public void quit() {
+        performShutdown();
+    }
+
     private void performShutdown() {
         log.info("Starting application shutdown...");
 

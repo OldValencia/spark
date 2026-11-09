@@ -14,15 +14,19 @@ final class QuickAccessPillFixture implements AutoCloseable {
     final Stage stage = new Stage();
     final Screen screen = Screen.getPrimary();
     final AtomicInteger opens = new AtomicInteger();
+    final FakeFullscreenSensor fullscreen = new FakeFullscreenSensor();
     final QuickAccessPill pill;
     private final boolean previousPill = preferences.isTopPill();
     private final boolean previousQuickOpen = preferences.isFastTopEdgeReveal();
+    private final boolean previousQuietInFullscreen = preferences.isTopEdgeQuietInFullscreen();
 
     QuickAccessPillFixture(boolean autoHide, boolean quickOpen) {
         assertEquals("true", System.getProperty("spark.nativeTests"));
         preferences.setTopPill(!autoHide);
         preferences.setFastTopEdgeReveal(quickOpen);
-        pill = new QuickAccessPill(stage, preferences, screen::getVisualBounds, opens::incrementAndGet);
+        preferences.setTopEdgeQuietInFullscreen(true);
+        pill = new QuickAccessPill(stage, preferences, screen::getVisualBounds, opens::incrementAndGet,
+                fullscreen);
     }
 
     double centerX() {
@@ -50,6 +54,7 @@ final class QuickAccessPillFixture implements AutoCloseable {
         stage.close();
         preferences.setTopPill(previousPill);
         preferences.setFastTopEdgeReveal(previousQuickOpen);
+        preferences.setTopEdgeQuietInFullscreen(previousQuietInFullscreen);
         preferences.flush();
     }
 }
