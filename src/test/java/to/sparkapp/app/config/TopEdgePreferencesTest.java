@@ -19,6 +19,7 @@ class TopEdgePreferencesTest {
 
         assertTrue(preferences.isTopPill());
         assertFalse(preferences.isFastTopEdgeReveal());
+        assertTrue(preferences.isTopEdgeQuietInFullscreen());
     }
 
     @Test
@@ -29,7 +30,22 @@ class TopEdgePreferencesTest {
 
         assertTrue(preferences.isTopPill());
         assertFalse(preferences.isFastTopEdgeReveal());
+        assertTrue(preferences.isTopEdgeQuietInFullscreen());
         assertFalse(preferences.isRememberLastAi());
+    }
+
+    @Test
+    void topEdgeOverFullscreenAppsCanBeTurnedBackOn() {
+        var file = directory.resolve("preferences.json").toFile();
+        var preferences = new AppPreferences(file);
+
+        preferences.setTopEdgeQuietInFullscreen(false);
+        preferences.flush();
+        assertFalse(new AppPreferences(file).isTopEdgeQuietInFullscreen());
+
+        preferences.setTopEdgeQuietInFullscreen(true);
+        preferences.flush();
+        assertTrue(new AppPreferences(file).isTopEdgeQuietInFullscreen());
     }
 
     @Test

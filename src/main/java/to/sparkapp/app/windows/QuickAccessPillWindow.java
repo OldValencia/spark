@@ -34,6 +34,11 @@ final class QuickAccessPillWindow {
         return pill != null && pill.isShowing();
     }
 
+    /** The native window of the shown pill, or 0. */
+    long windowHandle() {
+        return isShowing() ? NativeWindowUtils.getJavaFXWindowHandle(pill.getTitle()) : 0;
+    }
+
     boolean canDismiss() {
         return pillPreview && isShowing() && !pillHiding;
     }

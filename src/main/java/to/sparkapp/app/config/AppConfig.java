@@ -24,6 +24,7 @@ final class AppConfig {
     Boolean topPill;
     Boolean topEdgeReveal;
     Boolean fastTopEdgeReveal;
+    Boolean topEdgeQuietInFullscreen;
     String lastUrl;
     String lastSiteId;
     Map<String, String> siteUrls;
