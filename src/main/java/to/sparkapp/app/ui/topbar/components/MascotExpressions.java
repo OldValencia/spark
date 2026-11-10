@@ -11,6 +11,7 @@ import javafx.beans.value.ObservableBooleanValue;
  */
 final class MascotExpressions {
     private final BooleanSupplier animated;
+    private final Runnable lookBack;
     private final MascotMotion motion;
     private final MascotMoodMotion moodMotion;
     private final MascotMoods moods = new MascotMoods(this::moodChanged);
@@ -24,12 +25,14 @@ final class MascotExpressions {
 
     /**
      * @param animated whether the mascot may move now
+     * @param lookBack turns the eyes back to the pointer once a glance or a reaction has moved them away
      */
-    MascotExpressions(MascotFace face, BooleanSupplier animated) {
+    MascotExpressions(MascotFace face, BooleanSupplier animated, Runnable lookBack) {
         this.animated = animated;
+        this.lookBack = lookBack;
         motion = new MascotMotion(face, this::settled);
         moodMotion = new MascotMoodMotion(face);
-        idle = new MascotIdle(face, this::idleFree);
+        idle = new MascotIdle(face, this::idleFree, lookBack);
     }
 
     void observePage(ObservableBooleanValue loading, ObservableBooleanValue failed) {
@@ -100,6 +103,7 @@ final class MascotExpressions {
     private void settled() {
         if (animated.getAsBoolean()) {
             moodMotion.show(moods.getMood());
+            lookBack.run();
         }
     }
 

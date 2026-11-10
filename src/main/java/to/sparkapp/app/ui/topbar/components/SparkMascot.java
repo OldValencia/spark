@@ -18,7 +18,7 @@ public final class SparkMascot extends Button {
     private final AppPreferences preferences;
     private final Stage owner;
     private final MascotFace face = new MascotFace();
-    private final MascotExpressions expressions = new MascotExpressions(face, this::animated);
+    private final MascotExpressions expressions = new MascotExpressions(face, this::animated, this::lookAtPointer);
     private final MascotPointer pointer = new MascotPointer(this::lookAtScreen);
     private final MascotClicks clicks = new MascotClicks();
     private final MascotSceneWatch watch = new MascotSceneWatch(this::lookAtScene, expressions::activity,
@@ -74,9 +74,24 @@ public final class SparkMascot extends Button {
         lookAtLocal(sceneToLocal(position));
     }
 
+    /** The pointer moved: the mascot follows it, and the movement counts as activity. */
     private void lookAtScreen(Point2D position) {
+        if (aimAt(position)) {
+            expressions.activity();
+        }
+    }
+
+    /** Looks back at the pointer after a glance or a reaction; the pointer has not moved, so it is not activity. */
+    private void lookAtPointer() {
+        if (animated()) {
+            aimAt(pointer.position());
+        }
+    }
+
+    /** @return whether the pointer is over Spark's window, where the mascot can look at it */
+    private boolean aimAt(Point2D position) {
         if (!animated() || getScene() == null) {
-            return;
+            return false;
         }
 
         var root = getScene().getRoot();
@@ -85,11 +100,12 @@ public final class SparkMascot extends Button {
         if (inside == null || !root.getLayoutBounds().contains(inside)) {
             face.look(0, 0);
 
-            return;
+            return false;
         }
 
-        expressions.activity();
         lookAtLocal(screenToLocal(position));
+
+        return true;
     }
 
     private void lookAtLocal(Point2D position) {

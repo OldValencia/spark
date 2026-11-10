@@ -32,11 +32,13 @@ final class MascotIdle {
     private long lastActivity = System.nanoTime();
 
     /**
-     * @param free whether the face is free for idle motion now: no reaction plays and the mascot is awake
+     * @param free     whether the face is free for idle motion now: no reaction plays and the mascot is awake
+     * @param lookBack turns the eyes back to the pointer once a glance ends
      */
-    MascotIdle(MascotFace face, BooleanSupplier free) {
+    MascotIdle(MascotFace face, BooleanSupplier free, Runnable lookBack) {
         this.face = face;
         this.free = free;
+        glance.setOnFinished(event -> lookBack.run());
         lids.addListener((observable, before, value) -> face.blink(value.doubleValue()));
         gazeX.addListener((observable, before, value) -> face.look(value.doubleValue(), gazeY.get()));
         gazeY.addListener((observable, before, value) -> face.look(gazeX.get(), value.doubleValue()));

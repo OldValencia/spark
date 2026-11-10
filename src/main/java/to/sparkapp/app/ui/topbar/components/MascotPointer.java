@@ -67,13 +67,18 @@ final class MascotPointer implements NativeMouseMotionListener {
             return;
         }
 
+        look.accept(position());
+    }
+
+    /** Where the pointer is now, on the screen. Called on the JavaFX thread. */
+    Point2D position() {
         if (pointer == null) {
             pointer = new Robot();
         }
 
         // Native hook coordinates may be physical pixels on mixed-DPI monitors.
         // JavaFX Robot supplies screen coordinates compatible with screenToLocal.
-        look.accept(pointer.getMousePosition());
+        return pointer.getMousePosition();
     }
 
     void dispose() {
