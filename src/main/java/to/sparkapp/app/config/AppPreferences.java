@@ -298,6 +298,16 @@ public class AppPreferences {
         save();
     }
 
+    /** The site's own window size, or {@code null} when it uses the size shared by all sites. */
+    public synchronized SiteWindowSize getSiteWindowSize(String siteId) {
+        return siteSettings.getWindowSize(siteId);
+    }
+
+    /** Gives the site its own window size, or makes it use the shared size again with {@code null}. */
+    public synchronized void setSiteWindowSize(String siteId, SiteWindowSize size) {
+        siteSettings.setWindowSize(siteId, size);
+    }
+
     public record WindowPlacement(boolean docked, double x, double y, double width, double height, double manualWidth,
                                   double manualHeight, double monitorX, double monitorY) {
     }

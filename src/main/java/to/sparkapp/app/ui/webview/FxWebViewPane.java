@@ -64,6 +64,9 @@ public class FxWebViewPane extends StackPane {
     private Consumer<SiteShortcut> onSiteShortcut;
     @Setter
     private Consumer<String> onSiteUpdated;
+    /** Receives the id of each site that comes on screen, before its page is shown. */
+    @Setter
+    private Consumer<String> onSiteShown;
 
     public FxWebViewPane(String startUrl, AppPreferences appPreferences) {
         this.startUrl = startUrl;
@@ -362,6 +365,10 @@ public class FxWebViewPane extends StackPane {
         bridge = sessions.getActive();
         sound.refresh();
         refreshOffSitePage();
+
+        if (onSiteShown != null) {
+            onSiteShown.accept(config.id());
+        }
 
         if (onExternalPage != null) {
             onExternalPage.accept(bridge.isExternalPage());

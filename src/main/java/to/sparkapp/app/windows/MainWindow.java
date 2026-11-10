@@ -390,6 +390,7 @@ public class MainWindow extends Stage {
             frame.setDocked(windowController.isDocked());
 
             fxWebViewPane = getFxWebViewPane();
+            fxWebViewPane.setOnSiteShown(windowController::showSite);
             rootPane.setCenter(pageArea(fxWebViewPane));
             loadingBar = new PageLoadingBar(appPreferences::isReducedMotion);
             fxWebViewPane.pageLoadingProperty().addListener((o, wasLoading, loading) -> loadingBar.setLoading(loading));

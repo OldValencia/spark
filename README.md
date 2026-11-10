@@ -42,7 +42,7 @@ The little spark in the corner has volunteered to show you around.
     </td>
     <td width="50%" valign="top">
       <img src="docs/readme/guide-window.svg" alt="The mascot introduces floating, docking and window sizing" width="600">
-      <p><strong>Drag the handle to move the window.</strong> Double-click it to dock at the top. Resize by the edges, or use S / M / L in the size menu. Each preset's arrow lets you save the current size, rename the preset, or reset it to its default. Hover over a preset to see its full name and dimensions.</p>
+      <p><strong>Drag the handle to move the window.</strong> Double-click it to dock at the top. Resize by the edges, or use S / M / L in the size menu. Each preset's arrow lets you save the current size, rename the preset, or reset it to its default. Hover over a preset to see its full name and dimensions. To give the site on screen a size of its own, turn on <strong>Remember size for …</strong> in the size menu: the window takes that size whenever you open the site. Pick a preset there and the site follows the preset; resize by hand and it keeps that exact size.</p>
       <p>Pin Spark above other apps when you want it handy. Hide on outside click is a separate choice. Your size and placement are remembered.</p>
       <a href="docs/screenshots/window-size.png"><img src="docs/screenshots/window-size.png" alt="Window size menu with presets, always-on-top, outside-click hiding and docking" width="600"></a>
     </td>

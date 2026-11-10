@@ -57,6 +57,16 @@ final class SiteSettingsStore {
         removeEmptySettings();
     }
 
+    /** The site's own window size, or {@code null} when it uses the size shared by all sites. */
+    SiteWindowSize getWindowSize(String siteId) {
+        return find(siteId).windowSize();
+    }
+
+    void setWindowSize(String siteId, SiteWindowSize size) {
+        put(siteId, find(siteId).withWindowSize(size));
+        changed.run();
+    }
+
     void prune(List<AiConfig> sites) {
         if (config.siteSettings == null) {
             return;

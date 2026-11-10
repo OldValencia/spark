@@ -11,6 +11,7 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import lombok.Getter;
 import to.sparkapp.app.config.AiConfiguration;
+import to.sparkapp.app.config.AiConfiguration.AiConfig;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.topbar.components.AiDock;
 import to.sparkapp.app.ui.topbar.components.ShellIcon;
@@ -48,7 +49,7 @@ public class TopBarArea extends HBox {
     public TopBarArea(AiConfiguration configuration, FxWebViewPane browser, Stage frame, AppPreferences preferences, Runnable onSettings, Runnable onHide, WindowController controller, Runnable onSitesChanged, Runnable onExtensions) {
         mascot = new SparkMascot(frame, preferences);
         mascot.observePage(browser.pageLoadingProperty(), browser.pageFailedProperty());
-        sizes = new WindowSizeMenu(frame, preferences, controller);
+        sizes = new WindowSizeMenu(frame, preferences, controller, this::siteOnScreen);
         options = new WindowOptionsMenu(preferences, () -> {
             mascot.react(MascotReaction.SETTINGS);
             onSettings.run();
@@ -73,7 +74,8 @@ public class TopBarArea extends HBox {
                 mascot.react(MascotReaction.SITES);
             }
         });
-        tabMenu = new SiteTabMenu(dock, browser, new SitesEditor(frame, configuration, onSitesChanged), preferences);
+        var editor = new SitesEditor(frame, configuration, onSitesChanged);
+        tabMenu = new SiteTabMenu(dock, browser, editor, preferences);
         dock.setOnTabMenu(tabMenu::open);
 
         var allSites = button("squares-2x2", "All sites");
@@ -120,6 +122,10 @@ public class TopBarArea extends HBox {
         hide.setOnAction(e -> onHide.run());
         getChildren().addAll(mascot, dock, allSites, drag, size, more, hide);
         setAlignment(Pos.CENTER_LEFT);
+    }
+
+    private AiConfig siteOnScreen() {
+        return dock.getSelectedSite();
     }
 
     private double reservedWidth() {

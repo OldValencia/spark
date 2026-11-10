@@ -10,6 +10,7 @@ import javafx.stage.WindowEvent;
 import lombok.Getter;
 import lombok.Setter;
 import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.config.WindowSizePreset.Slot;
 
 /**
  * Coordinates placement, pointer interaction and quick access for the main stage.
@@ -21,6 +22,7 @@ public final class WindowController {
 
     private final Stage stage;
     private final WindowGeometry geometry;
+    private final SiteWindowSizes siteSizes;
     private final WindowPointerInteraction pointer;
     private final QuickAccessPill pill;
     private final WindowMotion motion;
@@ -33,6 +35,7 @@ public final class WindowController {
     public WindowController(Stage stage, AppPreferences preferences) {
         this.stage = stage;
         geometry = new WindowGeometry(stage, preferences);
+        siteSizes = new SiteWindowSizes(stage, preferences, geometry);
         motion = new WindowMotion(stage, preferences, this::isDocked, () -> geometry.monitor.getMinY(),
                 state -> visibility = state);
         pointer = new WindowPointerInteraction(stage, geometry, this::settleReveal);
@@ -134,8 +137,31 @@ public final class WindowController {
         geometry.preset(width, height);
     }
 
+    public void preset(Slot slot) {
+        settleReveal();
+        geometry.preset(slot);
+    }
+
+    /** Gives the window the size of the site that is now on screen. */
+    public void showSite(String siteId) {
+        settleReveal();
+        siteSizes.show(siteId);
+    }
+
+    public boolean hasOwnSize(String siteId) {
+        return siteSizes.hasOwnSize(siteId);
+    }
+
+    /** Lets a site keep the window's current size as its own, or makes it use the shared size again. */
+    public void setOwnSize(String siteId, boolean own) {
+        settleReveal();
+        siteSizes.setOwnSize(siteId, own);
+        persist();
+    }
+
     public void fill() {
         settleReveal();
+        siteSizes.beforeFill();
         geometry.fill();
     }
 

@@ -89,6 +89,11 @@ public class AiDock extends StackPane {
         return selectedNode == null ? null : selectedNode.getConfig().id();
     }
 
+    /** The site on screen, or {@code null} before one is chosen. */
+    public AiConfig getSelectedSite() {
+        return selectedNode == null ? null : selectedNode.getConfig();
+    }
+
     public void selectSite(String id) {
         dockItems.stream().filter(item -> item.getConfig().id().equals(id)).findFirst().ifPresent(this::selectItem);
     }

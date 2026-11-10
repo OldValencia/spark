@@ -97,11 +97,12 @@ class ShellPopover extends Popup {
         return button;
     }
 
-    Button setting(String icon, String title, ObservableBooleanValue enabled, Runnable change) {
+    ShellSettingRow setting(String icon, String title, ObservableBooleanValue enabled, Runnable change) {
         return setting(icon, title, enabled, change, false);
     }
 
-    Button setting(String icon, String title, ObservableBooleanValue enabled, Runnable change, boolean refreshPeer) {
+    ShellSettingRow setting(String icon, String title, ObservableBooleanValue enabled, Runnable change,
+                            boolean refreshPeer) {
         var row = new ShellSettingRow(icon, title, enabled, () -> changeSetting(change, refreshPeer));
         add(row);
 

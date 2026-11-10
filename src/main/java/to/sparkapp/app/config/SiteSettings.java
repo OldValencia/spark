@@ -8,13 +8,18 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
  * @param zoomLevel       zoom step, where the page scale is 1.2 to the power of this level
  * @param muted           whether the site is always muted
  * @param mutedWhenHidden whether the site is muted while Spark is hidden
+ * @param windowSize      the site's own window size, or {@code null} when it uses the size shared by all sites
  */
-record SiteSettings(Double zoomLevel, Boolean muted, Boolean mutedWhenHidden) {
+record SiteSettings(Double zoomLevel, Boolean muted, Boolean mutedWhenHidden, SiteWindowSize windowSize) {
 
-    static final SiteSettings DEFAULTS = new SiteSettings(null, null, null);
+    static final SiteSettings DEFAULTS = new SiteSettings(null, null, null, null);
 
     SiteSettings withZoomLevel(Double level) {
-        return new SiteSettings(level, muted, mutedWhenHidden);
+        return new SiteSettings(level, muted, mutedWhenHidden, windowSize);
+    }
+
+    SiteSettings withWindowSize(SiteWindowSize size) {
+        return new SiteSettings(zoomLevel, muted, mutedWhenHidden, size);
     }
 
     Boolean mute(MuteRule rule) {
@@ -26,13 +31,13 @@ record SiteSettings(Double zoomLevel, Boolean muted, Boolean mutedWhenHidden) {
 
     SiteSettings withMute(MuteRule rule, Boolean value) {
         return switch (rule) {
-            case ALWAYS -> new SiteSettings(zoomLevel, value, mutedWhenHidden);
-            case WHILE_HIDDEN -> new SiteSettings(zoomLevel, muted, value);
+            case ALWAYS -> new SiteSettings(zoomLevel, value, mutedWhenHidden, windowSize);
+            case WHILE_HIDDEN -> new SiteSettings(zoomLevel, muted, value, windowSize);
         };
     }
 
     @JsonIgnore
     boolean isEmpty() {
-        return zoomLevel == null && muted == null && mutedWhenHidden == null;
+        return zoomLevel == null && muted == null && mutedWhenHidden == null && windowSize == null;
     }
 }

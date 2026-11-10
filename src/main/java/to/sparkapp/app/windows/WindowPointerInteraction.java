@@ -71,7 +71,7 @@ final class WindowPointerInteraction {
             geometry.docked.set(false);
             stage.setX(origin.x() + dx);
             stage.setY(origin.y() + dy);
-            geometry.monitor = WindowGeometry.screenAt(e.getScreenX(), e.getScreenY());
+            geometry.monitor = WindowScreens.screenAt(e.getScreenX(), e.getScreenY());
 
             if (nearTop(e)) {
                 if (!snapHint.isShowing()) {
