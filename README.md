@@ -18,7 +18,7 @@ Keep **ChatGPT, Claude, Gemini, Mistral, Perplexity, Copilot**, or your own regu
 ## Watch Spark
 
 <p align="center">
-  <img src="docs/readme/guide-watch.svg" alt="The mascot invites you to watch a short, silent tour" width="600">
+  <img src="docs/readme/guide-watch.svg" alt="Sparky invites you to watch a short, silent tour" width="600">
 </p>
 
 Open it, switch sites, find one by name, open a tab's menu, wander off to another website and come back, try a smaller window, open an extension, glance at the settings, and put it away.
@@ -34,14 +34,14 @@ Open it, switch sites, find one by name, open a tab's menu, wander off to anothe
   <a href="docs/readme/tour.svg"><img src="docs/readme/tour.svg" alt="Illustrated guide: site tabs on the left, All sites in the grid, a central drag handle, then window size, options and hide" width="1200"></a>
 </p>
 
-The mascot follows your pointer, peeks at the site list, and briefly gets gear eyes when you open settings. It turns its gears while a page loads, looks sad when a page can't load, and dozes off when Spark sits untouched for a while. Click it for a hello. **General → Reduce motion** keeps it still; **Show mascot** lets it sit this one out.
+Meet **Sparky**, Spark's mascot. Sparky follows your pointer, peeks at the site list, and briefly gets gear eyes when you open settings. It turns its gears while a page loads, looks sad when a page can't load, and dozes off when Spark sits untouched for a while. Click Sparky for a hello. **General → Reduce motion** keeps Sparky still; **Show Sparky** lets it sit this one out.
 
-<sub>The tour and mascot cards are illustrations; the screenshots show the Windows app in 0.3.6. Click one for a closer look.</sub>
+<sub>The tour and Sparky's cards are illustrations; the screenshots show the Windows app in 0.3.6. Click one for a closer look.</sub>
 
 ## Your sites
 
 <p align="center">
-  <img src="docs/readme/guide-sites.svg" alt="The mascot points you to the grid for adding and organizing sites" width="600">
+  <img src="docs/readme/guide-sites.svg" alt="Sparky points you to the grid for adding and organizing sites" width="600">
 </p>
 
 <p align="center">
@@ -55,7 +55,7 @@ The mascot follows your pointer, peeks at the site list, and briefly gets gear e
 ## A menu on every tab
 
 <p align="center">
-  <img src="docs/readme/guide-tab-menu.svg" alt="The mascot shows that every site tab has its own menu" width="600">
+  <img src="docs/readme/guide-tab-menu.svg" alt="Sparky shows that every site tab has its own menu" width="600">
 </p>
 
 <p align="center">
@@ -74,7 +74,7 @@ Right-click a tab, or press the keyboard's menu key. It works on any tab, not on
 ## Room for the page
 
 <p align="center">
-  <img src="docs/readme/guide-window.svg" alt="The mascot introduces floating, docking and window sizing" width="600">
+  <img src="docs/readme/guide-window.svg" alt="Sparky introduces floating, docking and window sizing" width="600">
 </p>
 
 <p align="center">
@@ -90,7 +90,7 @@ Pin Spark above other apps when you want it handy; hiding on an outside click is
 ## When a site sends you elsewhere
 
 <p align="center">
-  <img src="docs/readme/guide-off-site.svg" alt="The mascot promises to bring you back when a site takes you to another website" width="600">
+  <img src="docs/readme/guide-off-site.svg" alt="Sparky promises to bring you back when a site takes you to another website" width="600">
 </p>
 
 <p align="center">
@@ -115,7 +115,7 @@ Links and sign-in windows follow the website's normal browser behavior. Login wi
 ## The small stuff
 
 <p align="center">
-  <img src="docs/readme/guide-small-things.svg" alt="The mascot points out the speaker on tabs, dropped files and the tray dot" width="600">
+  <img src="docs/readme/guide-small-things.svg" alt="Sparky points out the speaker on tabs, dropped files and the tray dot" width="600">
 </p>
 
 - **Which site makes noise?** A tab that plays sound shows a speaker, crossed out when the site is muted. **Settings → Browser** mutes all sites at once, or only while Spark is hidden.
@@ -125,7 +125,7 @@ Links and sign-in windows follow the website's normal browser behavior. Login wi
 ## Make it yours
 
 <p align="center">
-  <img src="docs/readme/guide-settings.svg" alt="The mascot's gear eyes point you to settings under the three-dot menu" width="600">
+  <img src="docs/readme/guide-settings.svg" alt="Sparky's gear eyes point you to settings under the three-dot menu" width="600">
 </p>
 
 <p align="center">
@@ -137,7 +137,7 @@ Links and sign-in windows follow the website's normal browser behavior. Login wi
 ## Extensions
 
 <p align="center">
-  <img src="docs/readme/guide-extensions.svg" alt="The mascot introduces Chrome extensions installed from a store link" width="600">
+  <img src="docs/readme/guide-extensions.svg" alt="Sparky introduces Chrome extensions installed from a store link" width="600">
 </p>
 
 <table>
@@ -161,14 +161,14 @@ Extensions are experimental and need Windows x64. They are installed unpacked in
 ## Start here
 
 <p align="center">
-  <img src="docs/readme/guide-start.svg" alt="The mascot walks you through installing Spark and recording a shortcut" width="600">
+  <img src="docs/readme/guide-start.svg" alt="Sparky walks you through installing Spark and recording a shortcut" width="600">
 </p>
 
 1. Grab the Windows `.exe` from [Releases](https://github.com/OldValencia/spark/releases) and install it. Java is included.
 2. Choose a site and sign in as you normally would.
 3. Open **Three dots → Settings → Global Hotkey** and record your **Toggle window shortcut**.
 
-On first launch, the mascot gives a three-step tour of the bar. You can skip it, and replay it later from **Settings → Help → Show tutorial**. Something not working as expected? Check [troubleshooting and tips](docs/troubleshooting.md).
+On first launch, Sparky gives a three-step tour of the bar. You can skip it, and replay it later from **Settings → Help → Show tutorial**. Something not working as expected? Check [troubleshooting and tips](docs/troubleshooting.md).
 
 **Windows x64** is the supported and tested target. Spark needs the [Evergreen WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/); install it if it's missing. The websites use your own accounts and subscriptions.
 
@@ -201,7 +201,7 @@ With auto-hide enabled, **Quick upward gesture** can open Spark directly on a fa
 ## When you come back
 
 <p align="center">
-  <img src="docs/readme/guide-return.svg" alt="The dozing mascot keeps your place while Spark is hidden" width="600">
+  <img src="docs/readme/guide-return.svg" alt="A dozing Sparky keeps your place while Spark is hidden" width="600">
 </p>
 
 Visited pages stay loaded until you remove the site or quit Spark. Switching sites or hiding the window keeps the live page: drafts, scrolling and ongoing requests. After a restart, **Remember last site** brings you back to the site and page you left.
@@ -241,7 +241,7 @@ Settings on Windows live here:
 ## Build it
 
 <p align="center">
-  <img src="docs/readme/guide-build.svg" alt="The mascot with gear eyes invites you to build Spark from source" width="600">
+  <img src="docs/readme/guide-build.svg" alt="Sparky, with gear eyes, invites you to build Spark from source" width="600">
 </p>
 
 Use **JDK 25**, with `JAVA_HOME` pointing to it. The Gradle wrapper is included.
@@ -272,7 +272,7 @@ More detail: [browser validation](docs/p1-validation.md), [P3 interactions](docs
 ## Say hello
 
 <p align="center">
-  <img src="docs/readme/guide-hello.svg" alt="The mascot asks you to report anything that seems off" width="600">
+  <img src="docs/readme/guide-hello.svg" alt="Sparky asks you to report anything that seems off" width="600">
 </p>
 
 Found a bug, or have a small thing that would make Spark nicer to use? [Open an issue](https://github.com/OldValencia/spark/issues). A screenshot and the steps that got you there help a lot.

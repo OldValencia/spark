@@ -21,13 +21,13 @@ public final class GeneralSettingsCard extends SettingsCard {
             updatesChanged.accept(enabled);
         }));
 
-        addRow(new SettingsToggleRow("Show mascot", "A small companion with gentle, local reactions",
+        addRow(new SettingsToggleRow("Show Sparky", "Spark's small companion, with gentle, local reactions",
                 preferences.isMascotEnabled(), enabled -> {
             preferences.setMascotEnabled(enabled);
             appearanceChanged.run();
         }));
 
-        addRow(new SettingsToggleRow("Reduce motion", "Keep the mascot still and reduce interface animations",
+        addRow(new SettingsToggleRow("Reduce motion", "Keep Sparky still and reduce interface animations",
                 preferences.isReducedMotion(), enabled -> {
             preferences.setReducedMotion(enabled);
             appearanceChanged.run();

@@ -39,7 +39,7 @@ public final class SparkMascot extends Button {
         setPrefSize(40, 44);
         setMaxSize(40, 44);
         getStyleClass().add("spark-mascot");
-        setAccessibleText("Spark mascot. Say hello");
+        setAccessibleText("Sparky. Say hello");
         setTooltip(ShellTooltip.create("A little spark. Say hello"));
         setOnMouseEntered(event -> react(MascotReaction.HOVER));
         setOnMouseExited(event -> face.look(0, 0));

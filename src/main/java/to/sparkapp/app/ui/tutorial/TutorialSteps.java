@@ -18,8 +18,8 @@ final class TutorialSteps {
     static List<TutorialStep> create(TopBarArea bar, AppPreferences preferences) {
         return List.of(
                 new TutorialStep(bar.getSitesButton(), "Your sites",
-                        "All your sites live here. Add a new one, search, or drag a site to reorder.", NEXT, SKIP,
-                        false),
+                        "Hi, I'm Sparky. All your sites live here: add a new one, search, or drag a site to reorder.",
+                        NEXT, SKIP, false),
                 new TutorialStep(bar.getSizeButton(), "Window",
                         "Pick a size, keep Spark above other apps, or dock it at the top of the screen.", NEXT,
                         SKIP, false),

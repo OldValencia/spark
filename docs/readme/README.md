@@ -1,15 +1,15 @@
 # README illustrations
 
 These self-contained SVGs are editorial illustrations, not application screenshots.
-The mascot geometry follows MascotFace and MascotGears in the JavaFX shell. The
+Sparky's geometry follows MascotFace and MascotGears in the JavaFX shell. The
 tour labels the shell's controls; it does not replace the website's own UI.
 
-- `hero.svg`: project banner with the mascot.
+- `hero.svg`: project banner with Sparky, Spark's mascot.
 - `tour.svg`: annotated header guide.
-- `guide-*.svg`: one card at the top of each README section, with the mascot's pose, a line of
+- `guide-*.svg`: one card at the top of each README section, with Sparky's pose, a line of
   its own, and a badge for the topic. The cards are listed in `generate-assets.mjs`.
 
-The mascot's poses follow the app: `normal`, `curious` (looking at something), `gears`
+Sparky's poses follow the app: `normal`, `curious` (looking at something), `gears`
 (settings and loading), `sad` (MascotFace's frown) and `sleepy` (its doze).
 
 Regenerate after changing their source:
