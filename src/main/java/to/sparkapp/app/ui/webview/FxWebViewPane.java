@@ -402,6 +402,13 @@ public class FxWebViewPane extends StackPane {
         sessions.reconcileSites(configurations);
     }
 
+    /** Signs out of one site after asking, leaving the other sites signed in. */
+    public void clearSiteData(AiConfig site) {
+        if (!dataClearing.isClearing() && bridgeStarted && !disposed) {
+            dataClearing.clearSite(site, bridge);
+        }
+    }
+
     public void clearCookies() {
         if (!dataClearing.isClearing() && bridgeStarted && !disposed) {
             dataClearing.clear(bridge);

@@ -98,6 +98,7 @@ Something not working as expected? Check [troubleshooting and tips](docs/trouble
 | Open a particular site | Right-click the tray icon → **Open site** |
 | Switch sites | **Ctrl + 1…8** by position, **Ctrl + 9** for the last, **Ctrl + Tab** / **Ctrl + Shift + Tab** |
 | Find a site by name | **Ctrl + Shift + L** opens All sites with its search ready |
+| Sign out of one site | Right-click its tab → **Clear site data…** |
 | Move the window | Drag the central handle |
 | Dock at the top | Double-click the handle, or **Window size → Dock at the top** |
 | Resize, pin, or fill the screen | **Window size** menu |

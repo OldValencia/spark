@@ -2,6 +2,7 @@ package to.sparkapp.app.browser;
 
 import java.nio.file.Path;
 import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -28,6 +29,7 @@ public class WebviewManager {
     private static final int EXTENSION_TIMEOUT_SECONDS = 30;
     private static final int CONTEXT_WINDOW_TIMEOUT_SECONDS = 5;
     private static final int PAGE_NAMES_TIMEOUT_SECONDS = 2;
+    private static final int SITE_DATA_TIMEOUT_SECONDS = 15;
     /** Sites often set their title just after the first load; that is not an update yet. */
     private static final long TITLE_QUIET_NANOS = 2_000_000_000L;
 
@@ -703,6 +705,16 @@ public class WebviewManager {
 
             return PageNames.NONE;
         });
+    }
+
+    /**
+     * Clears one site's cookies and stored data. The profile is shared, so this browser can clear any site.
+     *
+     * @param host    the site's host without {@code www.}; its subdomains are cleared too
+     * @param origins origins whose storage is cleared, besides those of the site's cookies
+     */
+    public CompletableFuture<Void> clearSiteData(String host, Collection<String> origins) {
+        return extensionOperation(core -> SiteDataCleaner.clear(core, host, origins), SITE_DATA_TIMEOUT_SECONDS);
     }
 
     /** Leaves a page that is not on the site: closes a page the site opened, or opens the last page on the site. */

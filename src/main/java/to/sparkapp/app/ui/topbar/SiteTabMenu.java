@@ -60,6 +60,7 @@ final class SiteTabMenu extends ShellPopover {
         moveRight = action("arrow-right", "Move right", () -> dock.move(site().id(), 1));
         separator();
 
+        action("trash", "Clear site data…", () -> browser.clearSiteData(site()));
         action("pencil-square", "Edit site…", () -> editor.edit(site()));
     }
 
