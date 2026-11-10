@@ -84,6 +84,7 @@ public class DockItemNode extends HBox {
             dock.openTabMenu(this);
             e.consume();
         });
+        TabDragHover.install(this, () -> dock.selectItem(this));
         setOnMousePressed(e -> {
             if (e.getButton() != MouseButton.PRIMARY) {
                 return;

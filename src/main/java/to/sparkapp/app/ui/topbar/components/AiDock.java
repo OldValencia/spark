@@ -192,6 +192,7 @@ public class AiDock extends StackPane {
         this.fxWebViewPane = fxWebViewPane;
         this.appPreferences = appPreferences;
         this.dragManager = new AiDockDragManager(this, appPreferences);
+        DockDragScroll.install(this);
 
         var userIconsDir = new File(AppPaths.DATA_DIR, "icons");
 

@@ -23,6 +23,7 @@ public final class WindowController {
     private final Stage stage;
     private final WindowGeometry geometry;
     private final SiteWindowSizes siteSizes;
+    private final ButtonReleaseWait buttonRelease = new ButtonReleaseWait();
     private final WindowPointerInteraction pointer;
     private final QuickAccessPill pill;
     private final WindowMotion motion;
@@ -142,10 +143,12 @@ public final class WindowController {
         geometry.preset(slot);
     }
 
-    /** Gives the window the size of the site that is now on screen. */
+    /** Gives the window the size of the site that is now on screen, once no mouse button is held. */
     public void showSite(String siteId) {
-        settleReveal();
-        siteSizes.show(siteId);
+        buttonRelease.run(() -> {
+            settleReveal();
+            siteSizes.show(siteId);
+        });
     }
 
     public boolean hasOwnSize(String siteId) {
