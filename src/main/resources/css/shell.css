@@ -5,6 +5,9 @@
 .shell-button:focused, .shell-size:focused { -fx-border-color: #92929f; -fx-border-radius: 7; }
 .shell-button:selected { -fx-background-color: #ffffff15; }
 .shell-size { -fx-border-color: #ffffff20; -fx-border-radius: 7; -fx-font-size: 11.5px; -fx-padding: 5 7; }
+.off-site-bar { -fx-background-color: #2d2e33; -fx-background-radius: 8 8 0 0; -fx-padding: 0 6 0 2; -fx-spacing: 6; -fx-alignment: center-left; }
+.off-site-address { -fx-text-fill: #e2e2ea; -fx-font-size: 12.5px; }
+.off-site-open { -fx-font-size: 12px; -fx-padding: 4 8; }
 .shell-drag-mark { -fx-background-color: #77778355; -fx-background-radius: 3; }
 .spark-mascot { -fx-background-color: transparent; -fx-border-width: 0; -fx-padding: 0; -fx-cursor: hand; }
 .spark-mascot:hover { -fx-background-color: #ffffff09; -fx-background-radius: 12; }

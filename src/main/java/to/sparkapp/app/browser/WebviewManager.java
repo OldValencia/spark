@@ -27,6 +27,7 @@ import to.sparkapp.app.utils.SystemUtils;
 public class WebviewManager {
     private static final int EXTENSION_TIMEOUT_SECONDS = 30;
     private static final int CONTEXT_WINDOW_TIMEOUT_SECONDS = 5;
+    private static final int PAGE_NAMES_TIMEOUT_SECONDS = 2;
     /** Sites often set their title just after the first load; that is not an update yet. */
     private static final long TITLE_QUIET_NANOS = 2_000_000_000L;
 
@@ -168,10 +169,18 @@ public class WebviewManager {
         browser.observeSource(url -> Platform.runLater(() -> navigator.handleUrlChange(url)));
         browser.setExtraPageChanged(extra -> {
             extraPageOpen = extra;
-            if (onExtraPageChanged != null) {
-                Platform.runLater(() -> onExtraPageChanged.accept(extra));
-            }
+            Platform.runLater(() -> extraPageChanged(extra));
         });
+    }
+
+    private void extraPageChanged(boolean extra) {
+        if (extra) {
+            navigator.forgetPageUrl();
+        }
+
+        if (onExtraPageChanged != null) {
+            onExtraPageChanged.accept(extra);
+        }
     }
 
     /** Titles set while the site first loads, or right after, are not news. */
@@ -642,6 +651,34 @@ public class WebviewManager {
 
     public boolean isExternalPage() {
         return navigator.isExternalPage();
+    }
+
+    /** Whether the page on screen was opened by the site or belongs to another site. */
+    public boolean isOffSite() {
+        return extraPageOpen || navigator.isExternalPage();
+    }
+
+    /** The address of the page on screen, or null while a page the site opened has not reported one. */
+    public String getPageUrl() {
+        return navigator.getPageUrl();
+    }
+
+    /** The title and site name of the page on screen; empty when they cannot be read in time. */
+    public CompletableFuture<PageNames> pageNames() {
+        return extensionOperation(PageNames::read, PAGE_NAMES_TIMEOUT_SECONDS).exceptionally(error -> {
+            log.warn("Could not read the page's names: {}", error.getMessage());
+
+            return PageNames.NONE;
+        });
+    }
+
+    /** Leaves a page that is not on the site: closes a page the site opened, or opens the last page on the site. */
+    public void returnToSite() {
+        if (extraPageOpen) {
+            closeExtraPage();
+        } else if (navigator.isExternalPage()) {
+            navigator.returnToSitePage();
+        }
     }
 
     public void setCurrentConfig(AiConfig config, String targetUrl) {

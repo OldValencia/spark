@@ -59,9 +59,10 @@ final class WindowsBrowser implements AutoCloseable {
         return pages.getActive() != root;
     }
 
+    /** Reports the change of page before the new page's address, so the address is not taken for the old page. */
     private void contextChanged(BrowserContext context) {
-        observer.activate(context);
         extraPageChanged.accept(context != root);
+        observer.activate(context);
     }
 
     void observe(Consumer<Long> starting, BiConsumer<Long, Boolean> completed) {

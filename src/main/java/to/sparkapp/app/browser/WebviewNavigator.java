@@ -27,6 +27,9 @@ public class WebviewNavigator {
     private volatile String configBaseUrl;
     @Getter
     private volatile boolean externalPage;
+    /** The address of the page on screen, which may belong to another site, or null while it is unknown. */
+    @Getter
+    private volatile String pageUrl;
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         var t = new Thread(r, "spark-nav-scheduler");
@@ -50,6 +53,7 @@ public class WebviewNavigator {
         }
 
         externalPage = isExternalPage(url);
+        pageUrl = url;
 
         if (UrlUtils.isRestorablePage(url, configBaseUrl)) {
             currentUrl = url;
@@ -71,7 +75,18 @@ public class WebviewNavigator {
         this.configBaseUrl = config.url();
         this.currentUrl = url;
         externalPage = isExternalPage(url);
+        pageUrl = url;
         navigate(url);
+    }
+
+    /** A page the site opened has no address until it reports one. */
+    void forgetPageUrl() {
+        pageUrl = null;
+    }
+
+    /** Opens the last page on the site, after the site navigated to another one. */
+    void returnToSitePage() {
+        navigate(getCurrentUrl());
     }
 
     void navigate(String url) {

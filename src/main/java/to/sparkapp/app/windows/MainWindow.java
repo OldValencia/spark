@@ -9,6 +9,8 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -21,6 +23,8 @@ import to.sparkapp.app.browser.SiteShortcut;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.extensions.ExtensionsPanel;
 import to.sparkapp.app.ui.settings.SettingsPanel;
+import to.sparkapp.app.ui.topbar.OffSiteBar;
+import to.sparkapp.app.ui.topbar.PageSiteAdder;
 import to.sparkapp.app.ui.topbar.TopBarArea;
 import to.sparkapp.app.ui.topbar.SitesEditor;
 import to.sparkapp.app.ui.topbar.components.AiDock;
@@ -59,6 +63,8 @@ public class MainWindow extends Stage {
     private WindowAutoHide autoHide;
 
     private boolean externalPage = false;
+    /** A site added from a page, opened once the tabs are reloaded. */
+    private String siteToOpen;
 
     public static final int HEIGHT = 700;
     private static final int WIDTH = 860;
@@ -242,6 +248,7 @@ public class MainWindow extends Stage {
 
             rootPane.setTop(null);
             installTopBar();
+            openAddedSite();
             log.info("TopBar reloaded with {} providers", aiConfiguration.getConfigurations().size());
         });
     }
@@ -383,7 +390,7 @@ public class MainWindow extends Stage {
             frame.setDocked(windowController.isDocked());
 
             fxWebViewPane = getFxWebViewPane();
-            rootPane.setCenter(fxWebViewPane);
+            rootPane.setCenter(pageArea(fxWebViewPane));
             loadingBar = new PageLoadingBar(appPreferences::isReducedMotion);
             fxWebViewPane.pageLoadingProperty().addListener((o, wasLoading, loading) -> loadingBar.setLoading(loading));
 
@@ -433,6 +440,15 @@ public class MainWindow extends Stage {
             log.error("Failed to initialize application", e);
             System.exit(1);
         }
+    }
+
+    /** The page, with the bar that leads back to the site above it while the page is not on its site. */
+    private VBox pageArea(FxWebViewPane page) {
+        var editor = new SitesEditor(this, aiConfiguration, this::handleProvidersChanged);
+        var adder = new PageSiteAdder(page, editor, siteId -> siteToOpen = siteId);
+        VBox.setVgrow(page, Priority.ALWAYS);
+
+        return new VBox(new OffSiteBar(page.offSitePageProperty(), page::returnToSite, adder::add), page);
     }
 
     private BorderPane createRootPane() {
@@ -515,6 +531,14 @@ public class MainWindow extends Stage {
 
     private void refreshTraySites() {
         tray.showSites(AiDockOrderUtils.applyCustomOrder(aiConfiguration.getConfigurations(), appPreferences));
+    }
+
+    /** Opens a site added from a page, once the reloaded tabs include it. */
+    private void openAddedSite() {
+        if (siteToOpen != null) {
+            topBar.getDock().selectSite(siteToOpen);
+            siteToOpen = null;
+        }
     }
 
     /** Opens a site from the tray: switch first, so the previous site never flashes. */

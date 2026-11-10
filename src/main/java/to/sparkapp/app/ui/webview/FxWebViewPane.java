@@ -1,11 +1,14 @@
 package to.sparkapp.app.ui.webview;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import javafx.animation.PauseTransition;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanWrapper;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.layout.Region;
@@ -15,6 +18,7 @@ import javafx.util.Duration;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import to.sparkapp.app.browser.PageNames;
 import to.sparkapp.app.browser.SiteShortcut;
 import to.sparkapp.app.browser.WebviewManager;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
@@ -52,6 +56,7 @@ public class FxWebViewPane extends StackPane {
 
     private final BrowserViewport viewport;
     private final ReadOnlyBooleanWrapper extraPageOpen = new ReadOnlyBooleanWrapper();
+    private final ReadOnlyObjectWrapper<OffSitePage> offSitePage = new ReadOnlyObjectWrapper<>();
 
     private Consumer<Double> zoomCallback;
     @Setter
@@ -133,6 +138,10 @@ public class FxWebViewPane extends StackPane {
                 onExternalPage.accept(external);
             }
 
+            if (bridge == source) {
+                refreshOffSitePage();
+            }
+
             var site = sessions.findSite(source);
 
             if (site != null) {
@@ -141,14 +150,15 @@ public class FxWebViewPane extends StackPane {
         });
         // Any Spark page can report a shortcut: focus may still sit in the page that was just hidden.
         source.setOnPageUpdated(() -> siteUpdated(source));
-        source.setOnSiteShortcut(shortcut -> {
-            if (!disposed && onSiteShortcut != null) {
-                onSiteShortcut.accept(shortcut);
-            }
-        });
         source.setOnExtraPageChanged(extra -> {
             if (!disposed && bridge == source) {
                 extraPageOpen.set(extra);
+                refreshOffSitePage();
+            }
+        });
+        source.setOnSiteShortcut(shortcut -> {
+            if (!disposed && onSiteShortcut != null) {
+                onSiteShortcut.accept(shortcut);
             }
         });
     }
@@ -360,6 +370,7 @@ public class FxWebViewPane extends StackPane {
 
         bridge = sessions.getActive();
         sound.refresh();
+        refreshOffSitePage();
         extraPageOpen.set(bridge.isExtraPageOpen());
 
         if (onExternalPage != null) {
@@ -430,6 +441,28 @@ public class FxWebViewPane extends StackPane {
         bridge.goBack();
     }
 
+    private void refreshOffSitePage() {
+        var site = sessions.findSite(bridge);
+        var offSite = site != null && bridge.isOffSite();
+
+        offSitePage.set(offSite ? new OffSitePage(site.name(), bridge.getPageUrl()) : null);
+    }
+
+    /** The page on screen when it is not on its site, or null. */
+    public ReadOnlyObjectProperty<OffSitePage> offSitePageProperty() {
+        return offSitePage.getReadOnlyProperty();
+    }
+
+    /** What the page on screen calls itself, for example to name a site made from it. */
+    public CompletableFuture<PageNames> pageNames() {
+        return bridge.pageNames();
+    }
+
+    /** Leaves the page on screen that is not on its site and shows the site again. */
+    public void returnToSite() {
+        bridge.returnToSite();
+    }
+
     public WebviewManager extensionBrowser() {
         return bridge;
     }
@@ -452,7 +485,7 @@ public class FxWebViewPane extends StackPane {
         bridge.closeExtraPage();
     }
 
-    public void returnToSite() {
+    public void openStartPage() {
         var site = sessions.findSite(bridge);
 
         if (site != null) {

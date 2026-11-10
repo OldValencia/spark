@@ -28,7 +28,7 @@ final class WindowOptionsMenu extends ShellPopover {
         var closePage = action("x-mark", "Close page", browser::closeExtraPage);
         closePage.visibleProperty().bind(browser.extraPageOpenProperty());
         closePage.managedProperty().bind(closePage.visibleProperty());
-        action("bookmark", "Open start page", browser::returnToSite);
+        action("bookmark", "Open start page", browser::openStartPage);
 
         var zoomOut = zoomButton("−", "Zoom out\nOn the page: Ctrl + -", browser::zoomOut);
         var reset = zoomButton("100%", "Reset zoom\nOn the page: Ctrl + 0", browser::resetZoom);

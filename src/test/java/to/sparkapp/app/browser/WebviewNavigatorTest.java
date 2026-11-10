@@ -41,4 +41,30 @@ class WebviewNavigatorTest {
             navigator.shutdown();
         }
     }
+
+    @Test
+    void returningFromAnotherSiteOpensTheLastPageOnTheSite() {
+        var loaded = new ArrayList<String>();
+        var navigator = new WebviewNavigator(Runnable::run, loaded::add, () -> {
+        });
+
+        try {
+            navigator.setCurrentConfig(new AiConfig("site", "Site", "https://example.com", null, null), null);
+            navigator.handleUrlChange("https://example.com/conversation/123");
+            navigator.handleUrlChange("https://docs.other.test/guide?section=2");
+
+            assertTrue(navigator.isExternalPage());
+            assertEquals("https://docs.other.test/guide?section=2", navigator.getPageUrl());
+
+            navigator.returnToSitePage();
+
+            assertEquals("https://example.com/conversation/123", loaded.getLast());
+
+            navigator.forgetPageUrl();
+
+            assertNull(navigator.getPageUrl(), "A page the site opened reports its own address later");
+        } finally {
+            navigator.shutdown();
+        }
+    }
 }

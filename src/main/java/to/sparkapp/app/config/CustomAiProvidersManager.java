@@ -48,7 +48,8 @@ public class CustomAiProvidersManager {
         store.saveProviders(providers);
     }
 
-    public synchronized void addCustomProvider(String name, String url, String manualColor) {
+    /** Adds a site and returns its id. */
+    public synchronized String addCustomProvider(String name, String url, String manualColor) {
         List<AiConfig> current = loadProviders();
 
         String id = "custom_" + UUID.randomUUID().toString().substring(0, 8);
@@ -59,6 +60,8 @@ public class CustomAiProvidersManager {
         current.add(new AiConfig(id, name, url, accent, iconFilename,
                 manualColor != null ? "manual" : extracted != null ? "icon" : "random"));
         saveProviders(current);
+
+        return id;
     }
 
     private static String randomAccent() {
