@@ -21,6 +21,7 @@ final class BrowserContext implements AutoCloseable {
     private final BrowserContext parent;
     private final BrowserComEvents events = new BrowserComEvents();
     private final BrowserMemoryPolicy memoryPolicy;
+    private final BrowserAudio audio;
     private Pointer documentEvents;
     private boolean closed;
     long navigationId;
@@ -46,6 +47,13 @@ final class BrowserContext implements AutoCloseable {
         check(call(controller, 25, out));
         core = out.getValue();
         memoryPolicy = new BrowserMemoryPolicy(core);
+        audio = new BrowserAudio(core);
+    }
+
+    void setMuted(boolean muted) {
+        if (!closed) {
+            audio.setMuted(muted);
+        }
     }
 
     Pointer documentEvents() {
@@ -135,6 +143,7 @@ final class BrowserContext implements AutoCloseable {
         } finally {
             release(documentEvents);
             memoryPolicy.close();
+            audio.close();
             release(core);
 
             if (child) {

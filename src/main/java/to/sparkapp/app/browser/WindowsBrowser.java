@@ -112,6 +112,14 @@ final class WindowsBrowser implements AutoCloseable {
         }
     }
 
+    void setMuted(boolean muted) {
+        requireOwner();
+
+        if (!closed && !browserProcessExited) {
+            pages.setMuted(muted);
+        }
+    }
+
     void setBackgroundMemoryReduction(boolean enabled) {
         requireOwner();
         pages.setReduceInactive(enabled);

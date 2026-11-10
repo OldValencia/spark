@@ -38,6 +38,8 @@ final class AppConfig {
     List<Integer> hotkeyToStartApplication;
     Boolean darkModeEnabled;
     Boolean reduceBackgroundMemory;
+    Boolean muteSites;
+    Boolean muteSitesWhileHidden;
     Boolean tutorialDone;
 
     boolean initializeDefaults() {

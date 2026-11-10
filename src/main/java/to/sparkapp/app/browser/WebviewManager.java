@@ -54,6 +54,7 @@ public class WebviewManager {
     private volatile boolean processFailed;
     private volatile boolean recreateOnRetry;
     private volatile boolean restartRequested;
+    private volatile boolean muted;
     @Getter
     private volatile boolean extraPageOpen;
     private long navigationId;
@@ -157,6 +158,7 @@ public class WebviewManager {
         var browser = webview.windows();
         // Set before the first navigation, so the page never appears at the wrong size.
         browser.setZoomFactor(zoomManager.currentFactor());
+        browser.setMuted(muted);
         browser.setPresentation(false, presentation.wantsLowMemory());
         browser.observeProcessFailures(this::handleProcessFailure);
         browser.observeShortcuts(this::siteShortcutPressed);
@@ -273,6 +275,7 @@ public class WebviewManager {
         zoomManager.apply();
         presentation.attach(false);
         applyPresentation();
+        applyMuted();
 
         if (onReadyCallback != null) {
             onReadyCallback.run();
@@ -591,6 +594,26 @@ public class WebviewManager {
 
     public void refreshZoom() {
         zoomManager.refresh();
+    }
+
+    /** Mutes or unmutes the site, now and after the browser restarts. */
+    public void setMuted(boolean value) {
+        if (muted == value) {
+            return;
+        }
+
+        muted = value;
+
+        // Startup applies the latest value once the browser is ready.
+        if (ready.get()) {
+            dispatch(this::applyMuted);
+        }
+    }
+
+    private void applyMuted() {
+        if (SystemUtils.isWindows() && webview != null) {
+            webview.windows().setMuted(muted);
+        }
     }
 
     public void setZoomCallback(Consumer<Double> callback) {

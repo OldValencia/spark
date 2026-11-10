@@ -402,6 +402,7 @@ public class MainWindow extends Stage {
             settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
             settingsPanel.setOnClearCookies(fxWebViewPane::clearCookies);
             settingsPanel.setOnBackgroundMemoryChanged(fxWebViewPane::refreshResourcePolicy);
+            settingsPanel.setOnSoundChanged(fxWebViewPane::refreshSound);
             settingsPanel.setOnPillSettingsChanged(windowController::refreshPill);
             settingsPanel.setOnAppearanceChanged(() -> {
                 windowController.refreshMotion();

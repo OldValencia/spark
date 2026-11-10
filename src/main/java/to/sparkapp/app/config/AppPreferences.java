@@ -249,6 +249,36 @@ public class AppPreferences {
         return Boolean.TRUE.equals(config.darkModeEnabled);
     }
 
+    /** The default for all sites, set in Settings. */
+    public synchronized boolean isMuteAll(MuteRule rule) {
+        var value = rule == MuteRule.ALWAYS ? config.muteSites : config.muteSitesWhileHidden;
+
+        return Boolean.TRUE.equals(value);
+    }
+
+    /** Sets the default for all sites and drops the values chosen for single sites. */
+    public synchronized void setMuteAll(MuteRule rule, boolean muted) {
+        if (rule == MuteRule.ALWAYS) {
+            config.muteSites = muted;
+        } else {
+            config.muteSitesWhileHidden = muted;
+        }
+
+        siteSettings.clearMute(rule);
+        save();
+    }
+
+    public synchronized boolean isSiteMuted(String siteId, MuteRule rule) {
+        var own = siteSettings.getMute(siteId, rule);
+
+        return own != null ? own : isMuteAll(rule);
+    }
+
+    /** A value equal to the default for all sites is not stored, so the site keeps following it. */
+    public synchronized void setSiteMuted(String siteId, MuteRule rule, boolean muted) {
+        siteSettings.setMute(siteId, rule, muted == isMuteAll(rule) ? null : muted);
+    }
+
     /**
      * Drops the remembered URL only when it no longer belongs to any configured provider. A deep
      * link such as {@code gemini.google.com/app/<id>} is kept, so the app reopens on the exact

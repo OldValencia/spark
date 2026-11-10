@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import javafx.application.Platform;
@@ -103,6 +104,10 @@ final class BrowserSessions {
 
     void forEach(Consumer<WebviewManager> action) {
         sessions.values().forEach(action);
+    }
+
+    void forEachSite(BiConsumer<String, WebviewManager> action) {
+        sessions.forEach(action);
     }
 
     void shutdown(Runnable onComplete) {

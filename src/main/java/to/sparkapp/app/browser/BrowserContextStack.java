@@ -27,6 +27,7 @@ final class BrowserContextStack {
     private Consumer<BrowserContext> prepare;
     private boolean visible;
     private boolean lowMemory;
+    private boolean muted;
     private boolean closed;
     @Setter
     private boolean reduceInactive = true;
@@ -60,6 +61,7 @@ final class BrowserContextStack {
         try {
             request.create(script, context -> {
                 zoom.prepare(context);
+                context.setMuted(muted);
                 prepare.accept(context);
                 installPopupEvents(context);
             }, context -> {
@@ -92,6 +94,12 @@ final class BrowserContextStack {
 
     void setZoomFactor(double factor) {
         zoom.setFactor(factor, contexts);
+    }
+
+    /** Mutes the site's main page and every page it opened, including pages it opens later. */
+    void setMuted(boolean muted) {
+        this.muted = muted;
+        contexts.forEach(context -> context.setMuted(muted));
     }
 
     void back() {

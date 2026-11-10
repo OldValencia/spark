@@ -35,6 +35,7 @@ public class FxWebViewPane extends StackPane {
     private WebviewManager bridge;
     private final BrowserSessions sessions;
     private final SiteDataClearing dataClearing;
+    private final SiteSound sound;
     private boolean disposed;
     private long restoreStarted;
     private final PauseTransition wakeupRetry = new PauseTransition(Duration.millis(30));
@@ -67,6 +68,7 @@ public class FxWebViewPane extends StackPane {
         this.appPreferences = appPreferences;
         this.sessions = new BrowserSessions(appPreferences);
         this.bridge = sessions.getActive();
+        this.sound = new SiteSound(sessions, appPreferences);
 
         setPadding(Insets.EMPTY);
         setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
@@ -236,6 +238,7 @@ public class FxWebViewPane extends StackPane {
     }
 
     public void onWindowRestored(long requestedAt) {
+        sound.setAppHidden(false);
         restoreStarted = requestedAt;
         wakeupAttempts = 0;
         wakeupRetry.stop();
@@ -243,6 +246,7 @@ public class FxWebViewPane extends StackPane {
     }
 
     public void onWindowHidden() {
+        sound.setAppHidden(true);
         loadingView.pause();
         wakeupRetry.stop();
         viewport.stop();
@@ -354,6 +358,7 @@ public class FxWebViewPane extends StackPane {
         }
 
         bridge = sessions.getActive();
+        sound.refresh();
         extraPageOpen.set(bridge.isExtraPageOpen());
 
         if (onExternalPage != null) {
@@ -408,6 +413,11 @@ public class FxWebViewPane extends StackPane {
 
     public void resetZoom() {
         bridge.resetZoom();
+    }
+
+    /** Applies the sound choices of every open site after they changed. */
+    public void refreshSound() {
+        sound.refresh();
     }
 
     /** Reapplies the stored zoom of every open site, for example after zoom was switched off. */
