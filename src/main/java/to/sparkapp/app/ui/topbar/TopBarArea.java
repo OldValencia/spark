@@ -31,6 +31,7 @@ public class TopBarArea extends HBox {
     private final SitesPopup sites;
     private final ShellPopover sizes;
     private final ShellPopover options;
+    private final SiteTabMenu tabMenu;
     @Getter
     private final SparkMascot mascot;
     @Getter
@@ -48,7 +49,7 @@ public class TopBarArea extends HBox {
         mascot = new SparkMascot(frame, preferences);
         mascot.observePage(browser.pageLoadingProperty(), browser.pageFailedProperty());
         sizes = new WindowSizeMenu(frame, preferences, controller);
-        options = new WindowOptionsMenu(preferences, browser, () -> {
+        options = new WindowOptionsMenu(preferences, () -> {
             mascot.react(MascotReaction.SETTINGS);
             onSettings.run();
         }, onExtensions);
@@ -72,6 +73,8 @@ public class TopBarArea extends HBox {
                 mascot.react(MascotReaction.SITES);
             }
         });
+        tabMenu = new SiteTabMenu(dock, browser, new SitesEditor(frame, configuration, onSitesChanged), preferences);
+        dock.setOnTabMenu(tabMenu::open);
 
         var allSites = button("squares-2x2", "All sites");
         sitesButton = allSites;
@@ -127,6 +130,7 @@ public class TopBarArea extends HBox {
         sites.hide();
         sizes.dismiss();
         options.dismiss();
+        tabMenu.dismiss();
         dock.cancelInteraction();
     }
 

@@ -61,6 +61,9 @@ public class AiDock extends StackPane {
     private Consumer<Color> onAccentChanged;
     @Setter
     private Runnable onSiteSelected;
+    /** Opens the menu of a tab after a right-click or the keyboard's menu key. */
+    @Setter
+    private Consumer<DockItemNode> onTabMenu;
     private final List<Runnable> orderListeners = new ArrayList<>();
 
     public void setOnAccentChanged(Consumer<Color> callback) {
@@ -127,6 +130,34 @@ public class AiDock extends StackPane {
         refreshShortcutHints();
         AiDockOrderUtils.saveCurrentOrder(dockItems, appPreferences);
         orderChanged();
+    }
+
+    /** Moves a site one place to the left (-1) or to the right (+1). */
+    public void move(String id, int offset) {
+        var index = indexOf(id);
+        var target = index + offset;
+
+        if (index < 0 || target < 0 || target >= dockItems.size()) {
+            return;
+        }
+
+        reorder(id, dockItems.get(target).getConfig().id(), offset > 0);
+    }
+
+    public int indexOf(String id) {
+        for (var index = 0; index < dockItems.size(); index++) {
+            if (dockItems.get(index).getConfig().id().equals(id)) {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    void openTabMenu(DockItemNode tab) {
+        if (onTabMenu != null && !tab.isDragging()) {
+            onTabMenu.accept(tab);
+        }
     }
 
     public void dispose() {

@@ -29,6 +29,7 @@
 .shell-site-domain { -fx-font-size: 12.5px; -fx-text-fill: #b0b0bd !important; }
 .shell-popup .shell-row { -fx-background-color: transparent; -fx-background-radius: 6; -fx-padding: 7; -fx-text-fill: #d0d0da; -fx-alignment: center-left; -fx-cursor: hand; }
 .shell-popup .shell-row:hover { -fx-background-color: #ffffff0c; }
+.shell-popup .shell-separator { -fx-background-color: #ffffff14; -fx-min-height: 1; -fx-pref-height: 1; -fx-max-height: 1; }
 .shell-popup .shell-hint { -fx-font-size: 12.5px; -fx-text-fill: #b9b9c6; }
 .shell-popup .check-box { -fx-text-fill: #e2e2ea; -fx-font-size: 13px; }
 .context-menu { -fx-font-size: 13px; -fx-background-color: #2d2e33; -fx-background-radius: 9; -fx-border-color: #53535e; -fx-border-radius: 9; -fx-padding: 6; }

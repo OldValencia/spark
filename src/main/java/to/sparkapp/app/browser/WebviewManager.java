@@ -490,14 +490,6 @@ public class WebviewManager {
         });
     }
 
-    public void returnToRoot() {
-        dispatch(() -> {
-            if (SystemUtils.isWindows()) {
-                webview.windows().returnToRoot();
-            }
-        });
-    }
-
     public void hibernate() {
         presentation.hibernate();
         refreshResourcePolicy();
@@ -679,6 +671,11 @@ public class WebviewManager {
         } else if (navigator.isExternalPage()) {
             navigator.returnToSitePage();
         }
+    }
+
+    /** The address of the page this browser shows, or {@code about:blank} before the first page. */
+    public String getCurrentUrl() {
+        return navigator.getCurrentUrl();
     }
 
     public void setCurrentConfig(AiConfig config, String targetUrl) {

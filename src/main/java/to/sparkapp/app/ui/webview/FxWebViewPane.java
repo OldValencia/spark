@@ -6,7 +6,6 @@ import java.util.function.Consumer;
 
 import javafx.animation.PauseTransition;
 import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.application.Platform;
@@ -55,10 +54,8 @@ public class FxWebViewPane extends StackPane {
     private boolean windowListenersAttached = false;
 
     private final BrowserViewport viewport;
-    private final ReadOnlyBooleanWrapper extraPageOpen = new ReadOnlyBooleanWrapper();
     private final ReadOnlyObjectWrapper<OffSitePage> offSitePage = new ReadOnlyObjectWrapper<>();
 
-    private Consumer<Double> zoomCallback;
     @Setter
     private Consumer<Boolean> onExternalPage;
     @Setter
@@ -122,11 +119,6 @@ public class FxWebViewPane extends StackPane {
                 loadingView.refresh();
             }
         });
-        source.setZoomCallback(pct -> {
-            if (bridge == source && zoomCallback != null) {
-                zoomCallback.accept(pct);
-            }
-        });
         source.setOnUrlChanged(url -> {
             if (disposed) {
                 return;
@@ -152,7 +144,6 @@ public class FxWebViewPane extends StackPane {
         source.setOnPageUpdated(() -> siteUpdated(source));
         source.setOnExtraPageChanged(extra -> {
             if (!disposed && bridge == source) {
-                extraPageOpen.set(extra);
                 refreshOffSitePage();
             }
         });
@@ -371,14 +362,9 @@ public class FxWebViewPane extends StackPane {
         bridge = sessions.getActive();
         sound.refresh();
         refreshOffSitePage();
-        extraPageOpen.set(bridge.isExtraPageOpen());
 
         if (onExternalPage != null) {
             onExternalPage.accept(bridge.isExternalPage());
-        }
-
-        if (zoomCallback != null) {
-            zoomCallback.accept(bridge.getZoomPercent());
         }
 
         bridgeStarted = sessions.isStarted(bridge);
@@ -401,14 +387,6 @@ public class FxWebViewPane extends StackPane {
         sessions.reconcileSites(configurations);
     }
 
-    public void setZoomCallback(Consumer<Double> callback) {
-        zoomCallback = callback;
-
-        if (callback != null) {
-            callback.accept(bridge.getZoomPercent());
-        }
-    }
-
     public void clearCookies() {
         if (!dataClearing.isClearing() && bridgeStarted && !disposed) {
             dataClearing.clear(bridge);
@@ -423,10 +401,6 @@ public class FxWebViewPane extends StackPane {
         loadingView.refresh();
     }
 
-    public void resetZoom() {
-        bridge.resetZoom();
-    }
-
     /** Applies the sound choices of every open site after they changed. */
     public void refreshSound() {
         sound.refresh();
@@ -437,8 +411,18 @@ public class FxWebViewPane extends StackPane {
         sessions.forEach(WebviewManager::refreshZoom);
     }
 
-    public void goBack() {
-        bridge.goBack();
+    /** The page of a site, for actions on it even while another site is on screen. */
+    public SitePage page(AiConfig site) {
+        var browser = sessions.find(site.id());
+        var opened = !disposed && browser != null && sessions.isStarted(browser);
+
+        return new SitePage(opened ? currentConfig(browser, site) : site, opened ? browser : null, appPreferences);
+    }
+
+    private AiConfig currentConfig(WebviewManager browser, AiConfig fallback) {
+        var site = sessions.findSite(browser);
+
+        return site != null ? site : fallback;
     }
 
     private void refreshOffSitePage() {
@@ -475,31 +459,6 @@ public class FxWebViewPane extends StackPane {
     /** Whether the site on screen shows a load error. */
     public ReadOnlyBooleanProperty pageFailedProperty() {
         return loadingView.pageFailedProperty();
-    }
-
-    public ReadOnlyBooleanProperty extraPageOpenProperty() {
-        return extraPageOpen.getReadOnlyProperty();
-    }
-
-    public void closeExtraPage() {
-        bridge.closeExtraPage();
-    }
-
-    public void openStartPage() {
-        var site = sessions.findSite(bridge);
-
-        if (site != null) {
-            bridge.returnToRoot();
-            bridge.setCurrentConfig(site, site.url());
-        }
-    }
-
-    public void zoomIn() {
-        bridge.zoomIn();
-    }
-
-    public void zoomOut() {
-        bridge.zoomOut();
     }
 
     public void shutdown(Runnable onComplete) {

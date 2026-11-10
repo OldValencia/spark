@@ -80,6 +80,10 @@ public class DockItemNode extends HBox {
                 e.consume();
             }
         });
+        setOnContextMenuRequested(e -> {
+            dock.openTabMenu(this);
+            e.consume();
+        });
         setOnMousePressed(e -> {
             if (e.getButton() != MouseButton.PRIMARY) {
                 return;

@@ -191,9 +191,9 @@ public class SettingsPanel extends VBox {
         this.getChildren().add(card);
     }
 
-    /** Sets every site at once. */
+    /** Sets every site at once; a single site is changed from its tab's menu. */
     private SettingsRow muteRow(String title, MuteRule rule) {
-        return toggleRow(title, "Applies to every site",
+        return toggleRow(title, "Applies to every site. Right-click a tab to change one site",
                 appPreferences.isMuteAll(rule), muted -> {
                     appPreferences.setMuteAll(rule, muted);
 

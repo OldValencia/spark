@@ -90,6 +90,11 @@ final class BrowserSessions {
         });
     }
 
+    /** The browser of a site that has been opened, or {@code null}. */
+    WebviewManager find(String siteId) {
+        return sessions.get(siteId);
+    }
+
     AiConfig findSite(WebviewManager browser) {
         return sites.get(browser);
     }

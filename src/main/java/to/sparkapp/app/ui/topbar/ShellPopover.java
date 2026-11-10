@@ -10,6 +10,7 @@ import javafx.geometry.Bounds;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Popup;
 import javafx.stage.Window;
@@ -22,6 +23,7 @@ import to.sparkapp.app.ui.topbar.components.ShellIcon;
 class ShellPopover extends Popup {
     private static final double OWNER_MARGIN = 8;
     private final VBox body = new VBox(5);
+    private final Label title = new Label();
     private final InvalidationListener reposition = observable -> position();
     private Node anchor;
     private Window owner;
@@ -40,7 +42,7 @@ class ShellPopover extends Popup {
         body.setPrefWidth(width);
         body.getStylesheets().add(getClass().getResource("/css/shell.css").toExternalForm());
 
-        var title = new Label(heading);
+        title.setText(heading);
         title.getStyleClass().add("popover-heading");
         body.getChildren().add(title);
         getContent().add(body);
@@ -68,6 +70,17 @@ class ShellPopover extends Popup {
 
     void add(Node node) {
         body.getChildren().add(node);
+    }
+
+    void setHeading(String heading) {
+        title.setText(heading);
+    }
+
+    /** A thin line between groups of actions. */
+    void separator() {
+        var line = new Region();
+        line.getStyleClass().add("shell-separator");
+        add(line);
     }
 
     Button action(String icon, String title, Runnable command) {
