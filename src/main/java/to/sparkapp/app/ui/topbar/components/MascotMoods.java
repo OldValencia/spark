@@ -7,8 +7,8 @@ import lombok.Getter;
 import to.sparkapp.app.utils.FxTimer;
 
 /**
- * Decides the mascot's mood: thinking while a page takes a moment to load, sad when it fails, and
- * asleep after a long time without activity in Spark.
+ * Decides the mascot's mood: thinking while a page takes a moment to load, sad when it fails, swaying while a site
+ * plays sound, and asleep after a long time without activity in Spark.
  */
 final class MascotMoods {
     static final Duration THINKING_DELAY = Duration.millis(300);
@@ -21,6 +21,7 @@ final class MascotMoods {
     private boolean loading;
     private boolean failed;
     private boolean thinking;
+    private boolean listening;
     @Getter
     private boolean asleep;
     @Getter
@@ -78,6 +79,17 @@ final class MascotMoods {
         update();
     }
 
+    /** Sound that lasts, such as music or a video, rather than a short notification. */
+    void setListening(boolean listening) {
+        this.listening = listening;
+
+        if (listening) {
+            wake();
+        }
+
+        update();
+    }
+
     void setFailed(boolean failed) {
         this.failed = failed;
         update();
@@ -125,6 +137,10 @@ final class MascotMoods {
 
         if (thinking) {
             return MascotMood.THINKING;
+        }
+
+        if (listening) {
+            return MascotMood.LISTENING;
         }
 
         return asleep ? MascotMood.ASLEEP : MascotMood.CALM;

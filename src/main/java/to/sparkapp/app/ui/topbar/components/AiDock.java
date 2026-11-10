@@ -65,6 +65,10 @@ public class AiDock extends StackPane {
     /** Opens the menu of a tab after a right-click or the keyboard's menu key. */
     @Setter
     private Consumer<DockItemNode> onTabMenu;
+    /** Receives whether any site plays sound that can be heard. */
+    @Setter
+    private Consumer<Boolean> onSoundChanged = playing -> {
+    };
     private final List<Runnable> orderListeners = new ArrayList<>();
 
     public void setOnAccentChanged(Consumer<Color> callback) {
@@ -245,10 +249,17 @@ public class AiDock extends StackPane {
     /** Puts a dot on the tab of a site that changed while another site was open. */
     /** Shows a speaker on each site that plays sound, crossed out on those that are muted. */
     public void refreshSound() {
-        dockItems.forEach(item -> {
+        var audible = false;
+
+        for (var item : dockItems) {
             var id = item.getConfig().id();
-            item.showSound(fxWebViewPane.isPlayingAudio(id), appPreferences.isSiteMuted(id, MuteRule.ALWAYS));
-        });
+            var playing = fxWebViewPane.isPlayingAudio(id);
+            var muted = appPreferences.isSiteMuted(id, MuteRule.ALWAYS);
+            item.showSound(playing, muted);
+            audible |= playing && !muted;
+        }
+
+        onSoundChanged.accept(audible);
     }
 
     public void markUpdated(String siteId) {

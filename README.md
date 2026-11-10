@@ -34,7 +34,9 @@ Open it, switch sites, find one by name, open a tab's menu, wander off to anothe
   <a href="docs/readme/tour.svg"><img src="docs/readme/tour.svg" alt="Illustrated guide: site tabs on the left, All sites in the grid, a central drag handle, then window size, options and hide" width="1200"></a>
 </p>
 
-Meet **Sparky**, Spark's mascot. Sparky follows your pointer, peeks at the site list, and briefly gets gear eyes when you open settings. It turns its gears while a page loads, looks sad when a page can't load, and dozes off when Spark sits untouched for a while. Click Sparky for a hello. **General → Reduce motion** keeps Sparky still; **Show Sparky** lets it sit this one out.
+Meet **Sparky**, Spark's mascot. Sparky blinks, follows your pointer, and glances around when you leave it be. It turns its gears while a page loads, looks sad when a page can't load, and beams when a slow or broken page finally arrives. It cheers a new site and waves goodbye to a removed one, gasps when a site whisks you off to another website or a file is carried in, sways along while a site plays sound, and goes "shh" when you mute one. After a while untouched, it dozes off.
+
+Click Sparky for a hello, but not too many times in a row. **General → Reduce motion** keeps Sparky still; **Show Sparky** lets it sit this one out. Sparky reacts only to what happens in Spark; it never reads the pages.
 
 <sub>The tour and Sparky's cards are illustrations; the screenshots show the Windows app in 0.3.6. Click one for a closer look.</sub>
 

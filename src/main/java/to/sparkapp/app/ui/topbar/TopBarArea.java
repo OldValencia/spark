@@ -75,8 +75,12 @@ public class TopBarArea extends HBox {
             }
         });
         var editor = new SitesEditor(frame, configuration, onSitesChanged);
-        tabMenu = new SiteTabMenu(dock, browser, editor, preferences);
-        dock.setOnTabMenu(tabMenu::open);
+        tabMenu = new SiteTabMenu(dock, browser, editor, preferences, () -> mascot.react(MascotReaction.SHUSH));
+        dock.setOnTabMenu(tab -> {
+            mascot.react(MascotReaction.SITES);
+            tabMenu.open(tab);
+        });
+        dock.setOnSoundChanged(mascot::setListening);
 
         var allSites = button("squares-2x2", "All sites");
         sitesButton = allSites;

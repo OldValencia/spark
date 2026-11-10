@@ -7,13 +7,16 @@ import javafx.beans.value.ObservableBooleanValue;
 
 /**
  * Plays the mascot's short reactions and keeps its mood between them. A reaction briefly replaces
- * the mood, which returns once the reaction ends.
+ * the mood, which returns once the reaction ends; between them the mascot blinks and looks around.
  */
 final class MascotExpressions {
     private final BooleanSupplier animated;
     private final MascotMotion motion;
     private final MascotMoodMotion moodMotion;
     private final MascotMoods moods = new MascotMoods(this::moodChanged);
+    private final MascotRelief relief = new MascotRelief();
+    private final MascotHearing hearing = new MascotHearing(moods::setListening);
+    private final MascotIdle idle;
     private final ChangeListener<Boolean> loading = (observable, before, value) -> moods.setLoading(value);
     private final ChangeListener<Boolean> failed = (observable, before, value) -> moods.setFailed(value);
     private ObservableBooleanValue pageLoading;
@@ -26,6 +29,7 @@ final class MascotExpressions {
         this.animated = animated;
         motion = new MascotMotion(face, this::settled);
         moodMotion = new MascotMoodMotion(face);
+        idle = new MascotIdle(face, this::idleFree);
     }
 
     void observePage(ObservableBooleanValue loading, ObservableBooleanValue failed) {
@@ -48,9 +52,16 @@ final class MascotExpressions {
 
     /** Any sign of the user wakes a sleeping mascot. */
     void activity() {
+        idle.activity();
+
         if (animated.getAsBoolean() && moods.wake()) {
             play(MascotReaction.WAKE);
         }
+    }
+
+    /** Whether a site plays sound now; lasting sound makes the mascot sway. */
+    void setSound(boolean playing) {
+        hearing.setSound(playing);
     }
 
     boolean isAsleep() {
@@ -59,15 +70,19 @@ final class MascotExpressions {
 
     void setActive(boolean active) {
         moods.setActive(active);
+        idle.setActive(active);
     }
 
     void reset() {
+        idle.interrupt();
         motion.reset();
         moodMotion.clear();
     }
 
     void dispose() {
         reset();
+        idle.setActive(false);
+        hearing.dispose();
         moods.dispose();
 
         if (pageLoading != null) {
@@ -77,6 +92,7 @@ final class MascotExpressions {
     }
 
     private void play(MascotReaction expression) {
+        idle.interrupt();
         moodMotion.clear();
         motion.play(expression);
     }
@@ -88,8 +104,23 @@ final class MascotExpressions {
     }
 
     private void moodChanged(MascotMood mood) {
-        if (animated.getAsBoolean() && !motion.isPlaying()) {
+        var relieved = relief.changed(mood);
+
+        if (!animated.getAsBoolean()) {
+            return;
+        }
+
+        if (relieved) {
+            play(MascotReaction.HAPPY);
+        } else if (!motion.isPlaying()) {
             moodMotion.show(mood);
         }
+    }
+
+    private boolean idleFree() {
+        var mood = moods.getMood();
+
+        return animated.getAsBoolean() && !motion.isPlaying() && mood != MascotMood.THINKING
+                && mood != MascotMood.ASLEEP;
     }
 }

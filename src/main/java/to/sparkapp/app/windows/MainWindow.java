@@ -29,10 +29,12 @@ import to.sparkapp.app.ui.topbar.PageSiteAdder;
 import to.sparkapp.app.ui.topbar.TopBarArea;
 import to.sparkapp.app.ui.topbar.SitesEditor;
 import to.sparkapp.app.ui.topbar.components.AiDock;
+import to.sparkapp.app.ui.topbar.components.MascotReaction;
 import to.sparkapp.app.ui.topbar.components.PageLoadingBar;
 import to.sparkapp.app.ui.topbar.utils.AiDockOrderUtils;
 import to.sparkapp.app.ui.tutorial.SparkTutorial;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
+import to.sparkapp.app.ui.webview.OffSitePage;
 import to.sparkapp.app.utils.GlobalHotkeyManager;
 import to.sparkapp.app.utils.NativeWindowUtils;
 import to.sparkapp.app.utils.SystemUtils;
@@ -242,6 +244,7 @@ public class MainWindow extends Stage {
 
     public void reloadTopBar() {
         Platform.runLater(() -> {
+            var sitesBefore = aiConfiguration.getConfigurations().size();
             aiConfiguration.reload();
             fxWebViewPane.reconcileSites(aiConfiguration.getConfigurations());
 
@@ -254,6 +257,7 @@ public class MainWindow extends Stage {
             rootPane.setTop(null);
             installTopBar();
             openAddedSite();
+            reactToSiteCount(sitesBefore);
             log.info("TopBar reloaded with {} providers", aiConfiguration.getConfigurations().size());
         });
     }
@@ -459,6 +463,7 @@ public class MainWindow extends Stage {
         var editor = new SitesEditor(this, aiConfiguration, this::handleProvidersChanged);
         var adder = new PageSiteAdder(page, editor, siteId -> siteToOpen = siteId);
         VBox.setVgrow(page, Priority.ALWAYS);
+        page.offSitePageProperty().addListener((observable, before, shown) -> offSitePageChanged(before, shown));
 
         return new VBox(new OffSiteBar(page.offSitePageProperty(), page::returnToSite, adder::add), page);
     }
@@ -525,6 +530,13 @@ public class MainWindow extends Stage {
         topArea.getChildren().setAll(topBar, loadingBar);
         StackPane.setAlignment(loadingBar, Pos.BOTTOM_LEFT);
         rootPane.setTop(topArea);
+    }
+
+    /** Sparky is surprised when a site sends the page to another website or opens a page of its own. */
+    private void offSitePageChanged(OffSitePage before, OffSitePage shown) {
+        if (before == null && shown != null && topBar != null) {
+            topBar.getMascot().react(MascotReaction.SURPRISED);
+        }
     }
 
     /** A click in the site's page closes Spark's menus, as a click anywhere else in Spark does. */
@@ -594,6 +606,18 @@ public class MainWindow extends Stage {
     }
 
     /** Opens a site added from a page, once the reloaded tabs include it. */
+    /** Sparky cheers a new site and waves a removed one goodbye, after the bar has settled on the open site. */
+    private void reactToSiteCount(int before) {
+        var after = aiConfiguration.getConfigurations().size();
+
+        if (after == before) {
+            return;
+        }
+
+        var reaction = after > before ? MascotReaction.HAPPY : MascotReaction.FAREWELL;
+        Platform.runLater(() -> topBar.getMascot().react(reaction));
+    }
+
     private void openAddedSite() {
         if (siteToOpen != null) {
             topBar.getDock().selectSite(siteToOpen);

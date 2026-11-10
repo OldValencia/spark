@@ -129,7 +129,8 @@ class SiteTabMenuTest {
 
             var editor = new SitesEditor(stage, new AiConfiguration(preferences), () -> {
             });
-            menu = new SiteTabMenu(dock, browser, editor, preferences);
+            menu = new SiteTabMenu(dock, browser, editor, preferences, () -> {
+            });
             dock.setOnTabMenu(menu::open);
         }
 

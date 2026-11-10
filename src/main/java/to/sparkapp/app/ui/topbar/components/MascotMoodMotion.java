@@ -10,12 +10,14 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.util.Duration;
 
 /**
- * Shows a mood on the face. Gears turn only while the mascot is thinking; every other change is a
- * short transition.
+ * Shows a mood on the face. Gears turn only while the mascot is thinking, and it sways only while a site plays
+ * sound; every other change is a short transition.
  */
 final class MascotMoodMotion {
     private static final Duration CHANGE = Duration.millis(220);
     private static final Duration GEAR_TURN = Duration.millis(1600);
+    private static final Duration BEAT = Duration.millis(450);
+    private static final double SWAY_DEGREES = 6;
 
     private final MascotFace face;
     private final DoubleProperty gears = new SimpleDoubleProperty();
@@ -24,6 +26,7 @@ final class MascotMoodMotion {
     private final DoubleProperty spin = new SimpleDoubleProperty();
     private final Timeline change = new Timeline();
     private final Timeline spinning;
+    private final Timeline swaying;
 
     MascotMoodMotion(MascotFace face) {
         this.face = face;
@@ -34,6 +37,14 @@ final class MascotMoodMotion {
         spinning = new Timeline(new KeyFrame(Duration.ZERO, new KeyValue(spin, 0)),
                 new KeyFrame(GEAR_TURN, new KeyValue(spin, 360, Interpolator.LINEAR)));
         spinning.setCycleCount(Animation.INDEFINITE);
+        swaying = new Timeline(
+                new KeyFrame(Duration.ZERO, new KeyValue(face.rotateProperty(), -SWAY_DEGREES, Interpolator.EASE_BOTH),
+                        new KeyValue(face.translateYProperty(), 0, Interpolator.EASE_BOTH)),
+                new KeyFrame(BEAT.divide(2), new KeyValue(face.translateYProperty(), -1.5, Interpolator.EASE_BOTH)),
+                new KeyFrame(BEAT, new KeyValue(face.rotateProperty(), SWAY_DEGREES, Interpolator.EASE_BOTH),
+                        new KeyValue(face.translateYProperty(), 0, Interpolator.EASE_BOTH)));
+        swaying.setAutoReverse(true);
+        swaying.setCycleCount(Animation.INDEFINITE);
     }
 
     void show(MascotMood mood) {
@@ -49,12 +60,19 @@ final class MascotMoodMotion {
         } else {
             spinning.stop();
         }
+
+        if (mood == MascotMood.LISTENING) {
+            swaying.play();
+        } else {
+            stopSwaying();
+        }
     }
 
     /** Returns the face to neutral at once, for example before a reaction. */
     void clear() {
         change.stop();
         spinning.stop();
+        stopSwaying();
         gears.set(0);
         sadness.set(0);
         sleepiness.set(0);
@@ -63,6 +81,14 @@ final class MascotMoodMotion {
         face.frown(0);
         face.doze(0);
         face.turnGears(0);
+    }
+
+    private void stopSwaying() {
+        if (swaying.getStatus() != Animation.Status.STOPPED) {
+            swaying.stop();
+            face.setRotate(0);
+            face.setTranslateY(0);
+        }
     }
 
     boolean isSpinning() {

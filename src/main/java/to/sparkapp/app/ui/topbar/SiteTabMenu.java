@@ -24,6 +24,7 @@ final class SiteTabMenu extends ShellPopover {
     private final AiDock dock;
     private final FxWebViewPane browser;
     private final AppPreferences preferences;
+    private final Runnable onMuted;
     private final BooleanProperty muted = new SimpleBooleanProperty();
     private final BooleanProperty mutedWhileHidden = new SimpleBooleanProperty();
     private final BooleanProperty mobile = new SimpleBooleanProperty();
@@ -34,11 +35,15 @@ final class SiteTabMenu extends ShellPopover {
     private DockItemNode tab;
     private SitePage page;
 
-    SiteTabMenu(AiDock dock, FxWebViewPane browser, SitesEditor editor, AppPreferences preferences) {
+    /**
+     * @param onMuted runs when the menu mutes a site
+     */
+    SiteTabMenu(AiDock dock, FxWebViewPane browser, SitesEditor editor, AppPreferences preferences, Runnable onMuted) {
         super("SITE", 300, preferences::isReducedMotion);
         this.dock = dock;
         this.browser = browser;
         this.preferences = preferences;
+        this.onMuted = onMuted;
 
         var back = action("arrow-uturn-left", "Back", () -> page.goBack());
         var reload = action("arrow-path", "Reload", () -> page.reload());
@@ -108,6 +113,10 @@ final class SiteTabMenu extends ShellPopover {
         preferences.setSiteMuted(site().id(), rule, state.get());
         browser.refreshSound();
         dock.refreshSound();
+
+        if (state.get()) {
+            onMuted.run();
+        }
     }
 
     private AiConfig site() {
