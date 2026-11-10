@@ -61,6 +61,7 @@ public class MainWindow extends Stage {
     // Сохраняем иконку трея, чтобы можно было удалить её при выходе
     private final SparkTray tray = new SparkTray(this::showMainWindow, this::openSite, this::performShutdown);
     private WindowAutoHide autoHide;
+    private PagePressWatch pagePresses;
 
     private boolean externalPage = false;
     /** A site added from a page, opened once the tabs are reloaded. */
@@ -310,6 +311,10 @@ public class MainWindow extends Stage {
         shutdownWatchdog.setDaemon(true);
         shutdownWatchdog.start();
 
+        if (pagePresses != null) {
+            pagePresses.close();
+        }
+
         if (globalHotkeyManager != null) {
             try {
                 globalHotkeyManager.stop();
@@ -392,6 +397,7 @@ public class MainWindow extends Stage {
             fxWebViewPane = getFxWebViewPane();
             fxWebViewPane.setOnSiteShown(windowController::showSite);
             fxWebViewPane.setOnSiteAudioChanged(this::siteAudioChanged);
+            pagePresses = new PagePressWatch(fxWebViewPane, this::pagePressed);
             rootPane.setCenter(pageArea(fxWebViewPane));
             loadingBar = new PageLoadingBar(appPreferences::isReducedMotion);
             fxWebViewPane.pageLoadingProperty().addListener((o, wasLoading, loading) -> loadingBar.setLoading(loading));
@@ -485,6 +491,13 @@ public class MainWindow extends Stage {
         topArea.getChildren().setAll(topBar, loadingBar);
         StackPane.setAlignment(loadingBar, Pos.BOTTOM_LEFT);
         rootPane.setTop(topArea);
+    }
+
+    /** A click in the site's page closes Spark's menus, as a click anywhere else in Spark does. */
+    private void pagePressed() {
+        if (topBar != null) {
+            topBar.closeMenus();
+        }
     }
 
     private void siteAudioChanged() {
