@@ -1,27 +1,5 @@
-<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-        <linearGradient id="fold_bright" x1="0" y1="0" x2="1" y2="1">
-            <stop stop-color="#FBBF24"/>
-            <stop offset="1" stop-color="#F87171"/>
-        </linearGradient>
-
-        <linearGradient id="fold_mid" x1="0.5" y1="0" x2="0.5" y2="1">
-            <stop stop-color="#F43F5E"/>
-            <stop offset="1" stop-color="#A855F7"/>
-        </linearGradient>
-
-        <linearGradient id="fold_shadow" x1="1" y1="0" x2="0" y2="1">
-            <stop stop-color="#8B5CF6"/>
-            <stop offset="1" stop-color="#4F46E5"/>
-        </linearGradient>
-    </defs>
-
-    <g>
-        <path d="M256 256L190 190L256 40L322 190L256 256Z" fill="url(#fold_bright)"/>
-        <path d="M256 256L256 40L190 190Z" fill="#FFFFFF" opacity="0.15"/>
-        <path d="M256 256L322 190L472 256L322 322L256 256Z" fill="url(#fold_mid)"/>
-        <path d="M256 256L190 322L40 256L190 190L256 256Z" fill="url(#fold_mid)"/>
-        <path d="M256 256L322 322L256 472L190 322L256 256Z" fill="url(#fold_shadow)"/>
-        <path d="M256 256L256 472L322 322Z" fill="#000000" opacity="0.1"/>
-    </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 16 16" role="img" aria-labelledby="title desc">
+  <title id="title">Spark / Sparky</title>
+  <desc id="desc">Sparky, a graphite face with a swept amber flame and a curious, warm-eyed gaze.</desc>
+  <path d="M5.8 5.2C5.5 3.7 6.7 1.4 10.5 .6C9.1 2.5 10.6 3.3 10.2 5.2Z" fill="#dfb584"/><path d="M5.2 4.8L10.7 4.5C13.3 4.4 15 6.3 15 8.9V10.9C15 13.5 13.4 15 10.7 15H5.2C2.5 15 1 13.5 1 10.9V9.2C1 6.5 2.6 5 5.2 4.8Z" fill="#45434a" stroke="#dfb584" stroke-width=".8"/><g fill="#f7e7ca"><ellipse cx="5.8" cy="9.7" rx="1.3" ry="2.2"/><ellipse cx="10.8" cy="9.4" rx="1.4" ry="2.7"/></g>
 </svg>

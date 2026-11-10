@@ -58,6 +58,22 @@ class MascotMoodsTest {
     }
 
     @Test
+    void listensToSoundEvenWhenItWouldSleepButStaysSadOnFailure() throws Exception {
+        var moods = create(Duration.millis(300));
+
+        fx(() -> moods.setListening(true));
+        Thread.sleep(600);
+        assertEquals(MascotMood.LISTENING, mood(moods), "Sound keeps the mascot awake");
+
+        fx(() -> moods.setFailed(true));
+        assertEquals(MascotMood.SAD, mood(moods));
+
+        fx(() -> moods.setFailed(false));
+        fx(() -> moods.setListening(false));
+        assertEquals(MascotMood.ASLEEP, mood(moods));
+    }
+
+    @Test
     void hiddenMascotKeepsCalmAndDoesNotCountDown() throws Exception {
         var moods = create(Duration.millis(300));
 

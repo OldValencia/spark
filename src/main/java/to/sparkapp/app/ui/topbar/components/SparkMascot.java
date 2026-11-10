@@ -2,12 +2,9 @@ package to.sparkapp.app.ui.topbar.components;
 
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableBooleanValue;
-import javafx.event.EventHandler;
 import javafx.geometry.Point2D;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
 import to.sparkapp.app.config.AppPreferences;
 
@@ -21,14 +18,15 @@ public final class SparkMascot extends Button {
     private final AppPreferences preferences;
     private final Stage owner;
     private final MascotFace face = new MascotFace();
-    private final MascotExpressions expressions = new MascotExpressions(face, this::animated);
+    private final MascotExpressions expressions = new MascotExpressions(face, this::animated, this::lookAtPointer);
     private final MascotPointer pointer = new MascotPointer(this::lookAtScreen);
-    private final EventHandler<MouseEvent> gaze = this::look;
-    private final EventHandler<KeyEvent> typing = event -> expressions.activity();
+    private final MascotClicks clicks = new MascotClicks();
+    private final MascotSceneWatch watch = new MascotSceneWatch(this::lookAtScene, expressions::activity,
+            this::lookAtScene, () -> react(MascotReaction.SURPRISED));
     private final ChangeListener<Boolean> showing = (observable, before, visible) -> windowChanged(visible);
     private final ChangeListener<Boolean> iconified = (observable, before, minimized) -> refresh();
     private final ChangeListener<Number> resized = (observable, before, size) -> react(MascotReaction.RESIZE);
-    private final ChangeListener<Scene> sceneChanged = (observable, before, scene) -> attach(before, scene);
+    private final ChangeListener<Scene> sceneChanged = (observable, before, scene) -> watch.move(before, scene);
     private long hiddenAt;
 
     public SparkMascot(Stage owner, AppPreferences preferences) {
@@ -39,11 +37,11 @@ public final class SparkMascot extends Button {
         setPrefSize(40, 44);
         setMaxSize(40, 44);
         getStyleClass().add("spark-mascot");
-        setAccessibleText("Spark mascot. Say hello");
+        setAccessibleText("Sparky. Say hello");
         setTooltip(ShellTooltip.create("A little spark. Say hello"));
         setOnMouseEntered(event -> react(MascotReaction.HOVER));
         setOnMouseExited(event -> face.look(0, 0));
-        setOnAction(event -> react(MascotReaction.GREETING));
+        setOnAction(event -> react(clicks.click()));
         owner.showingProperty().addListener(showing);
         owner.iconifiedProperty().addListener(iconified);
         owner.widthProperty().addListener(resized);
@@ -62,18 +60,38 @@ public final class SparkMascot extends Button {
         expressions.observePage(loading, failed);
     }
 
-    private void look(MouseEvent event) {
+    /** Whether a site plays sound now; when it lasts, the mascot sways along. */
+    public void setListening(boolean playing) {
+        expressions.setSound(playing);
+    }
+
+    private void lookAtScene(Point2D position) {
         if (!animated()) {
             return;
         }
 
         expressions.activity();
-        lookAtLocal(sceneToLocal(event.getSceneX(), event.getSceneY()));
+        lookAtLocal(sceneToLocal(position));
     }
 
+    /** The pointer moved: the mascot follows it, and the movement counts as activity. */
     private void lookAtScreen(Point2D position) {
+        if (aimAt(position)) {
+            expressions.activity();
+        }
+    }
+
+    /** Looks back at the pointer after a glance or a reaction; the pointer has not moved, so it is not activity. */
+    private void lookAtPointer() {
+        if (animated()) {
+            aimAt(pointer.position());
+        }
+    }
+
+    /** @return whether the pointer is over Spark's window, where the mascot can look at it */
+    private boolean aimAt(Point2D position) {
         if (!animated() || getScene() == null) {
-            return;
+            return false;
         }
 
         var root = getScene().getRoot();
@@ -82,11 +100,12 @@ public final class SparkMascot extends Button {
         if (inside == null || !root.getLayoutBounds().contains(inside)) {
             face.look(0, 0);
 
-            return;
+            return false;
         }
 
-        expressions.activity();
         lookAtLocal(screenToLocal(position));
+
+        return true;
     }
 
     private void lookAtLocal(Point2D position) {
@@ -115,18 +134,6 @@ public final class SparkMascot extends Button {
         expressions.reset();
         setOpacity(away ? 0 : 1);
         setMouseTransparent(away || !isVisible());
-    }
-
-    private void attach(Scene before, Scene scene) {
-        if (before != null) {
-            before.removeEventFilter(MouseEvent.MOUSE_MOVED, gaze);
-            before.removeEventFilter(KeyEvent.KEY_PRESSED, typing);
-        }
-
-        if (scene != null) {
-            scene.addEventFilter(MouseEvent.MOUSE_MOVED, gaze);
-            scene.addEventFilter(KeyEvent.KEY_PRESSED, typing);
-        }
     }
 
     /** Opening Spark after a while, or while the mascot sleeps, wakes it instead of a greeting. */
@@ -159,7 +166,7 @@ public final class SparkMascot extends Button {
     public void dispose() {
         expressions.dispose();
         pointer.dispose();
-        attach(getScene(), null);
+        watch.move(getScene(), null);
         sceneProperty().removeListener(sceneChanged);
         owner.showingProperty().removeListener(showing);
         owner.iconifiedProperty().removeListener(iconified);

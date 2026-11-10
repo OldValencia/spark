@@ -56,6 +56,33 @@ class MascotMoodFaceTest {
     }
 
     @Test
+    void mascotBeamsWhenHappyAndSeesSpiralsWhenDizzy() throws Exception {
+        open(false);
+
+        try {
+            await(() -> !reactionRunning());
+            call(() -> {
+                mascot.react(MascotReaction.HAPPY);
+
+                return null;
+            });
+            await(() -> call(() -> eyes().getOpacity()) < 0.05 && call(() -> features().getChildren().getFirst()
+                    .getOpacity()) > 0.95);
+            await(() -> call(() -> eyes().getOpacity()) > 0.99);
+
+            call(() -> {
+                mascot.react(MascotReaction.DIZZY);
+
+                return null;
+            });
+            await(() -> call(() -> features().getChildren().getLast().getOpacity()) > 0.95);
+            await(() -> call(() -> eyes().getOpacity()) > 0.99 && call(() -> face().getRotate()) == 0);
+        } finally {
+            close();
+        }
+    }
+
+    @Test
     void reducedMotionKeepsTheMascotStill() throws Exception {
         open(true);
 
@@ -112,6 +139,10 @@ class MascotMoodFaceTest {
 
     private Node mouth() {
         return face().getChildren().get(4);
+    }
+
+    private Group features() {
+        return (Group) face().getChildren().get(face().getChildren().size() - 2);
     }
 
     private Node eyes() {

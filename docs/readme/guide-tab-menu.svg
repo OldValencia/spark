@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="160" viewBox="0 0 600 160" role="img" aria-labelledby="title desc">
+  <title id="title">Every tab has a menu.</title><desc id="desc">Right-click a tab, or press the menu key. Even for a site that is not on screen.</desc>
+  <g font-family="Segoe UI, system-ui, sans-serif">
+    <rect width="600" height="160" rx="18" fill="#191a1e"/>
+    <g transform="translate(22 23) scale(2.5)">
+    <path d="M16 12C16 9 18 8 20 5C22 8 24 9 24 12Z" fill="#dfb584"/>
+    <rect x="4" y="11" width="32" height="28" rx="10" fill="#45434a" stroke="#b19470" stroke-opacity=".8"/>
+    <g fill="#f7e7ca" transform="translate(1 0)">
+      <ellipse cx="14" cy="25" rx="2.6" ry="5"/>
+      <ellipse cx="26" cy="25" rx="2.6" ry="5"/></g></g>
+    <circle cx="116" cy="122" r="17" fill="#25262a" stroke="#b19470" stroke-opacity=".8"/>
+    <g transform="translate(105.2 111.2) scale(.9)" fill="none" stroke="#dfb584" stroke-width="1.9"
+      stroke-linecap="round" stroke-linejoin="round"><path d="M6 7H18M6 12H18M6 17H13"/></g>
+    <text x="150" y="58" font-size="24" fill="#f2eadc" font-weight="600">Every tab has a menu.</text>
+    <text x="150" y="91" font-size="16" fill="#b3b1b9" >Right-click a tab, or press the menu key.</text>
+    <text x="150" y="116" font-size="16" fill="#b3b1b9" >Even for a site that is not on screen.</text>
+  </g>
+</svg>

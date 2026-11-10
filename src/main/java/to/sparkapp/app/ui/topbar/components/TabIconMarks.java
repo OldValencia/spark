@@ -12,17 +12,19 @@ import javafx.scene.shape.Circle;
 import javafx.util.Duration;
 
 /**
- * A tab's icon with a small dot that says the site changed while another site was open.
+ * A tab's icon with its marks: a small dot when the site changed while another site was open, and a speaker while the
+ * site plays sound. Both sit on the icon, so they never change the tab's width.
  */
-final class TabUpdateMark extends StackPane {
+final class TabIconMarks extends StackPane {
     private static final Duration POP = Duration.millis(180);
 
     private final BooleanSupplier reducedMotion;
     private final Node icon;
     private final Circle dot = new Circle(3.2, Color.web("#dfb584"));
     private final ScaleTransition pop = new ScaleTransition(POP, dot);
+    private final TabSoundBadge sound = new TabSoundBadge();
 
-    TabUpdateMark(Node icon, BooleanSupplier reducedMotion) {
+    TabIconMarks(Node icon, BooleanSupplier reducedMotion) {
         this.reducedMotion = reducedMotion;
         this.icon = icon;
         dot.setStroke(Color.web("#25262a"));
@@ -36,7 +38,11 @@ final class TabUpdateMark extends StackPane {
         pop.setToY(1);
         pop.setInterpolator(Interpolator.EASE_OUT);
         setAlignment(Pos.CENTER);
-        getChildren().addAll(icon, dot);
+        getChildren().addAll(icon, dot, sound);
+    }
+
+    TabSoundBadge sound() {
+        return sound;
     }
 
     void show() {
@@ -63,7 +69,7 @@ final class TabUpdateMark extends StackPane {
         return dot.isVisible();
     }
 
-    /** The dot sits on the icon's top-right corner. */
+    /** The dot sits on the icon's top-right corner, the speaker on its bottom-right corner. */
     @Override
     protected void layoutChildren() {
         super.layoutChildren();
@@ -71,5 +77,6 @@ final class TabUpdateMark extends StackPane {
         var bounds = icon.getBoundsInParent();
         dot.setLayoutX(bounds.getMaxX() - 1);
         dot.setLayoutY(bounds.getMinY() + 1);
+        sound.relocate(bounds.getMaxX() - 1 - sound.getWidth() / 2, bounds.getMaxY() - 1 - sound.getHeight() / 2);
     }
 }

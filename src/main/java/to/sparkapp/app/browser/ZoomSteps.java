@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
  * from about 58 % to 207 %.
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-final class ZoomSteps {
+public final class ZoomSteps {
     static final double DEFAULT_LEVEL = 0.0;
     private static final double STEP = 0.5;
     private static final double MIN_LEVEL = -3.0;
@@ -34,5 +34,10 @@ final class ZoomSteps {
 
     static double percent(double level) {
         return Math.round(factor(level) * 100.0);
+    }
+
+    /** The zoom a stored level gives, for a site whose page has not been opened yet. */
+    public static double storedPercent(double level) {
+        return percent(clamp(level));
     }
 }

@@ -21,7 +21,15 @@ import lombok.NoArgsConstructor;
 public final class ShellIcon {
     private static final Pattern PATH = Pattern.compile("\\sd=\"([^\"]+)\"");
 
+    private static final Color STROKE = Color.web("#bdbdc7");
+    private static final double STROKE_WIDTH = 1.5;
+
     public static StackPane create(String name) {
+        return create(name, STROKE, STROKE_WIDTH);
+    }
+
+    /** An icon in another color or line width, for example to stay legible when it is shown smaller. */
+    public static StackPane create(String name, Color stroke, double strokeWidth) {
         var group = new Group();
 
         try (var in = ShellIcon.class.getResourceAsStream("/ui-icons/" + name + ".svg")) {
@@ -34,8 +42,8 @@ public final class ShellIcon {
                 var path = new SVGPath();
                 path.setContent(paths.group(1));
                 path.setFill(null);
-                path.setStroke(Color.web("#bdbdc7"));
-                path.setStrokeWidth(1.5);
+                path.setStroke(stroke);
+                path.setStrokeWidth(strokeWidth);
                 path.setStrokeLineCap(StrokeLineCap.ROUND);
                 path.setStrokeLineJoin(StrokeLineJoin.ROUND);
                 group.getChildren().add(path);

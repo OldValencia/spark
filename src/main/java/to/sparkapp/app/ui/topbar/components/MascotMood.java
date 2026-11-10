@@ -5,5 +5,7 @@ public enum MascotMood {
     CALM,
     THINKING,
     SAD,
+    /** A site plays sound, and the mascot sways along. */
+    LISTENING,
     ASLEEP
 }

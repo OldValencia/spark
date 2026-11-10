@@ -1,11 +1,15 @@
 package to.sparkapp.app.windows;
 
+import java.util.function.Consumer;
+
 import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.geometry.Rectangle2D;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.config.AppPreferences.WindowPlacement;
+import to.sparkapp.app.config.SiteWindowSize;
+import to.sparkapp.app.config.WindowSizePreset.Slot;
 
 final class WindowGeometry {
     private final Stage stage;
@@ -13,6 +17,11 @@ final class WindowGeometry {
     final ReadOnlyBooleanWrapper docked = new ReadOnlyBooleanWrapper(false);
     private double manualWidth = 860;
     private double manualHeight = 700;
+    /** The size of sites without one of their own; the window may show another site's size meanwhile. */
+    private double sharedWidth;
+    private double sharedHeight;
+    private Consumer<SiteWindowSize> userResized = size -> {
+    };
     Rectangle2D monitor;
 
     WindowGeometry(Stage stage, AppPreferences preferences) {
@@ -36,6 +45,26 @@ final class WindowGeometry {
             apply(monitor.getMinX() + (monitor.getWidth() - manualWidth) / 2,
                     monitor.getMinY() + (monitor.getHeight() - manualHeight) / 2, manualWidth, manualHeight, monitor);
         }
+
+        rememberSharedSize();
+    }
+
+    /** Reports each size the user chooses: a preset, the whole screen, or a size set by hand. */
+    void setOnUserResized(Consumer<SiteWindowSize> listener) {
+        userResized = listener;
+    }
+
+    void rememberSharedSize() {
+        sharedWidth = stage.getWidth();
+        sharedHeight = stage.getHeight();
+    }
+
+    double sharedWidth() {
+        return sharedWidth;
+    }
+
+    double sharedHeight() {
+        return sharedHeight;
     }
 
     boolean isDocked() {
@@ -45,6 +74,7 @@ final class WindowGeometry {
     void rememberManualSize() {
         manualWidth = stage.getWidth();
         manualHeight = stage.getHeight();
+        userResized.accept(SiteWindowSize.custom(manualWidth, manualHeight));
     }
 
     public void dock() {
@@ -71,15 +101,42 @@ final class WindowGeometry {
     }
 
     public void preset(double width, double height) {
-        monitor = screenForWindow();
-        apply(stage.getX() + (stage.getWidth() - width) / 2, stage.getY(), width, height, monitor);
+        resizeAroundCenter(width, height);
+        userResized.accept(SiteWindowSize.custom(width, height));
         persist();
     }
 
+    public void preset(Slot slot) {
+        var preset = preferences.getWindowSizePreset(slot);
+        resizeAroundCenter(preset.width(), preset.height());
+        userResized.accept(SiteWindowSize.ofPreset(slot));
+        persist();
+    }
+
+    private void resizeAroundCenter(double width, double height) {
+        monitor = screenForWindow();
+        apply(stage.getX() + (stage.getWidth() - width) / 2, stage.getY(), width, height, monitor);
+    }
+
     public void fill() {
+        fillScreen();
+        userResized.accept(SiteWindowSize.filling());
+        persist();
+    }
+
+    void fillScreen() {
         monitor = screenForWindow();
         apply(monitor.getMinX(), monitor.getMinY(), monitor.getWidth(), monitor.getHeight(), monitor);
-        persist();
+    }
+
+    boolean fillsScreen() {
+        return stage.getWidth() == monitor.getWidth() && stage.getHeight() == monitor.getHeight();
+    }
+
+    /** Changes the size while the top left corner stays in place, so the tabs stay under the pointer. */
+    void resizeFromCorner(double x, double y, double width, double height) {
+        monitor = screenForWindow();
+        apply(x, y, width, height, monitor);
     }
 
     public void restoreManualSize() {
@@ -102,22 +159,7 @@ final class WindowGeometry {
     }
 
     Rectangle2D screenForWindow() {
-        return Screen.getScreensForRectangle(stage.getX(), stage.getY(), Math.max(1, stage.getWidth()),
-                        Math.max(1, stage.getHeight())).stream()
-                .max((a, b) -> Double.compare(overlap(a.getVisualBounds()), overlap(b.getVisualBounds())))
-                .orElse(Screen.getPrimary()).getVisualBounds();
-    }
-
-    private double overlap(Rectangle2D b) {
-        return Math.max(0,
-                Math.min(stage.getX() + stage.getWidth(), b.getMaxX()) - Math.max(stage.getX(), b.getMinX())) *
-                Math.max(0,
-                        Math.min(stage.getY() + stage.getHeight(), b.getMaxY()) - Math.max(stage.getY(), b.getMinY()));
-    }
-
-    static Rectangle2D screenAt(double x, double y) {
-        return Screen.getScreensForRectangle(x, y, 1, 1).stream().findFirst().orElse(Screen.getPrimary())
-                .getVisualBounds();
+        return WindowScreens.screenFor(stage);
     }
 
     public void persist() {
@@ -126,8 +168,8 @@ final class WindowGeometry {
 
     void persist(double restingY) {
         preferences.setWindowPlacement(
-                new WindowPlacement(isDocked(), stage.getX(), restingY, stage.getWidth(), stage.getHeight(),
-                        manualWidth, manualHeight, monitor.getMinX(), monitor.getMinY()));
+                new WindowPlacement(isDocked(), stage.getX(), restingY, sharedWidth, sharedHeight, manualWidth,
+                        manualHeight, monitor.getMinX(), monitor.getMinY()));
     }
 
     private static boolean finite(double... values) {

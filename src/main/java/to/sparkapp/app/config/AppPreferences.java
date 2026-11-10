@@ -249,6 +249,36 @@ public class AppPreferences {
         return Boolean.TRUE.equals(config.darkModeEnabled);
     }
 
+    /** The default for all sites, set in Settings. */
+    public synchronized boolean isMuteAll(MuteRule rule) {
+        var value = rule == MuteRule.ALWAYS ? config.muteSites : config.muteSitesWhileHidden;
+
+        return Boolean.TRUE.equals(value);
+    }
+
+    /** Sets the default for all sites and drops the values chosen for single sites. */
+    public synchronized void setMuteAll(MuteRule rule, boolean muted) {
+        if (rule == MuteRule.ALWAYS) {
+            config.muteSites = muted;
+        } else {
+            config.muteSitesWhileHidden = muted;
+        }
+
+        siteSettings.clearMute(rule);
+        save();
+    }
+
+    public synchronized boolean isSiteMuted(String siteId, MuteRule rule) {
+        var own = siteSettings.getMute(siteId, rule);
+
+        return own != null ? own : isMuteAll(rule);
+    }
+
+    /** A value equal to the default for all sites is not stored, so the site keeps following it. */
+    public synchronized void setSiteMuted(String siteId, MuteRule rule, boolean muted) {
+        siteSettings.setMute(siteId, rule, muted == isMuteAll(rule) ? null : muted);
+    }
+
     /**
      * Drops the remembered URL only when it no longer belongs to any configured provider. A deep
      * link such as {@code gemini.google.com/app/<id>} is kept, so the app reopens on the exact
@@ -266,6 +296,25 @@ public class AppPreferences {
         log.info("Removing lastUrl of an unknown provider: {}", UrlUtils.forLog(config.lastUrl));
         config.lastUrl = null;
         save();
+    }
+
+    /** The site's own window size, or {@code null} when it uses the size shared by all sites. */
+    public synchronized SiteWindowSize getSiteWindowSize(String siteId) {
+        return siteSettings.getWindowSize(siteId);
+    }
+
+    /** Gives the site its own window size, or makes it use the shared size again with {@code null}. */
+    public synchronized void setSiteWindowSize(String siteId, SiteWindowSize size) {
+        siteSettings.setWindowSize(siteId, size);
+    }
+
+    /** Whether the site shows its mobile version, as on a phone. */
+    public synchronized boolean isSiteMobile(String siteId) {
+        return siteSettings.isMobile(siteId);
+    }
+
+    public synchronized void setSiteMobile(String siteId, boolean mobile) {
+        siteSettings.setMobile(siteId, mobile);
     }
 
     public record WindowPlacement(boolean docked, double x, double y, double width, double height, double manualWidth,

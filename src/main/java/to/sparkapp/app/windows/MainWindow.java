@@ -7,8 +7,11 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -21,13 +24,17 @@ import to.sparkapp.app.browser.SiteShortcut;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.extensions.ExtensionsPanel;
 import to.sparkapp.app.ui.settings.SettingsPanel;
+import to.sparkapp.app.ui.topbar.OffSiteBar;
+import to.sparkapp.app.ui.topbar.PageSiteAdder;
 import to.sparkapp.app.ui.topbar.TopBarArea;
 import to.sparkapp.app.ui.topbar.SitesEditor;
 import to.sparkapp.app.ui.topbar.components.AiDock;
+import to.sparkapp.app.ui.topbar.components.MascotReaction;
 import to.sparkapp.app.ui.topbar.components.PageLoadingBar;
 import to.sparkapp.app.ui.topbar.utils.AiDockOrderUtils;
 import to.sparkapp.app.ui.tutorial.SparkTutorial;
 import to.sparkapp.app.ui.webview.FxWebViewPane;
+import to.sparkapp.app.ui.webview.OffSitePage;
 import to.sparkapp.app.utils.GlobalHotkeyManager;
 import to.sparkapp.app.utils.NativeWindowUtils;
 import to.sparkapp.app.utils.SystemUtils;
@@ -57,8 +64,13 @@ public class MainWindow extends Stage {
     // Сохраняем иконку трея, чтобы можно было удалить её при выходе
     private final SparkTray tray = new SparkTray(this::showMainWindow, this::openSite, this::performShutdown);
     private WindowAutoHide autoHide;
+    private PagePressWatch pagePresses;
 
     private boolean externalPage = false;
+    private static final long SITE_LIST_REPEAT_NANOS = 400_000_000L;
+    private long siteListToggledAt;
+    /** A site added from a page, opened once the tabs are reloaded. */
+    private String siteToOpen;
 
     public static final int HEIGHT = 700;
     private static final int WIDTH = 860;
@@ -68,6 +80,7 @@ public class MainWindow extends Stage {
         this.appPreferences = appPreferences;
 
         this.setTitle("Spark");
+        this.getIcons().add(new Image(MainWindow.class.getResource("/app-icons/icon.png").toExternalForm()));
         this.initStyle(StageStyle.TRANSPARENT);
         this.setAlwaysOnTop(appPreferences.isAlwaysOnTop());
         this.setWidth(WIDTH);
@@ -151,6 +164,7 @@ public class MainWindow extends Stage {
         }
 
         setAlwaysOnTop(appPreferences.isAlwaysOnTop());
+        tray.clearUpdates();
         this.show();
         this.setIconified(false);
         this.toFront();
@@ -230,6 +244,7 @@ public class MainWindow extends Stage {
 
     public void reloadTopBar() {
         Platform.runLater(() -> {
+            var sitesBefore = aiConfiguration.getConfigurations().size();
             aiConfiguration.reload();
             fxWebViewPane.reconcileSites(aiConfiguration.getConfigurations());
 
@@ -241,6 +256,8 @@ public class MainWindow extends Stage {
 
             rootPane.setTop(null);
             installTopBar();
+            openAddedSite();
+            reactToSiteCount(sitesBefore);
             log.info("TopBar reloaded with {} providers", aiConfiguration.getConfigurations().size());
         });
     }
@@ -301,6 +318,10 @@ public class MainWindow extends Stage {
         // The fallback must not keep a cleanly stopped application alive.
         shutdownWatchdog.setDaemon(true);
         shutdownWatchdog.start();
+
+        if (pagePresses != null) {
+            pagePresses.close();
+        }
 
         if (globalHotkeyManager != null) {
             try {
@@ -382,7 +403,10 @@ public class MainWindow extends Stage {
             frame.setDocked(windowController.isDocked());
 
             fxWebViewPane = getFxWebViewPane();
-            rootPane.setCenter(fxWebViewPane);
+            fxWebViewPane.setOnSiteShown(windowController::showSite);
+            fxWebViewPane.setOnSiteAudioChanged(this::siteAudioChanged);
+            pagePresses = new PagePressWatch(fxWebViewPane, this::pagePressed);
+            rootPane.setCenter(pageArea(fxWebViewPane));
             loadingBar = new PageLoadingBar(appPreferences::isReducedMotion);
             fxWebViewPane.pageLoadingProperty().addListener((o, wasLoading, loading) -> loadingBar.setLoading(loading));
 
@@ -402,6 +426,7 @@ public class MainWindow extends Stage {
             settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
             settingsPanel.setOnClearCookies(fxWebViewPane::clearCookies);
             settingsPanel.setOnBackgroundMemoryChanged(fxWebViewPane::refreshResourcePolicy);
+            settingsPanel.setOnSoundChanged(this::soundChanged);
             settingsPanel.setOnPillSettingsChanged(windowController::refreshPill);
             settingsPanel.setOnAppearanceChanged(() -> {
                 windowController.refreshMotion();
@@ -433,6 +458,16 @@ public class MainWindow extends Stage {
         }
     }
 
+    /** The page, with the bar that leads back to the site above it while the page is not on its site. */
+    private VBox pageArea(FxWebViewPane page) {
+        var editor = new SitesEditor(this, aiConfiguration, this::handleProvidersChanged);
+        var adder = new PageSiteAdder(page, editor, siteId -> siteToOpen = siteId);
+        VBox.setVgrow(page, Priority.ALWAYS);
+        page.offSitePageProperty().addListener((observable, before, shown) -> offSitePageChanged(before, shown));
+
+        return new VBox(new OffSiteBar(page.offSitePageProperty(), page::returnToSite, adder::add), page);
+    }
+
     private BorderPane createRootPane() {
         var pane = new BorderPane();
         pane.setPadding(new Insets(0, 5, 0, 5));
@@ -449,9 +484,39 @@ public class MainWindow extends Stage {
         var shortcut = SiteShortcut.fromKey(event.getCode().getCode(), event.isShiftDown());
 
         if (shortcut != null) {
-            topBar.getDock().select(shortcut);
+            siteShortcut(shortcut);
             event.consume();
         }
+    }
+
+    private void siteShortcut(SiteShortcut shortcut) {
+        if (shortcut.kind() == SiteShortcut.Kind.LIST) {
+            toggleSiteList();
+        } else {
+            topBar.getDock().select(shortcut);
+        }
+    }
+
+    /**
+     * Opens the list of sites from the keyboard. The page may hold the keyboard, so Spark takes it first and opens the
+     * list a moment later, letting its search field receive the typing.
+     */
+    private void toggleSiteList() {
+        var now = System.nanoTime();
+
+        // Holding the keys repeats them; a list opened a moment ago is not closed again by a repeat.
+        if (now - siteListToggledAt < SITE_LIST_REPEAT_NANOS) {
+            return;
+        }
+
+        siteListToggledAt = now;
+        log.info("Site list toggled from the keyboard");
+        NativeWindowUtils.focusWindow(this);
+        Platform.runLater(() -> {
+            if (topBar != null) {
+                topBar.openSiteList();
+            }
+        });
     }
 
     private void installTopBar() {
@@ -460,11 +525,47 @@ public class MainWindow extends Stage {
         topBar.getDock().setOnAccentChanged(this::showSiteAccent);
         topBar.getDock().addOrderListener(this::refreshTraySites);
         refreshTraySites();
-        fxWebViewPane.setOnSiteShortcut(topBar.getDock()::select);
-        fxWebViewPane.setOnSiteUpdated(topBar.getDock()::markUpdated);
+        fxWebViewPane.setOnSiteShortcut(this::siteShortcut);
+        fxWebViewPane.setOnSiteUpdated(this::siteUpdated);
         topArea.getChildren().setAll(topBar, loadingBar);
         StackPane.setAlignment(loadingBar, Pos.BOTTOM_LEFT);
         rootPane.setTop(topArea);
+    }
+
+    /** Sparky is surprised when a site sends the page to another website or opens a page of its own. */
+    private void offSitePageChanged(OffSitePage before, OffSitePage shown) {
+        if (before == null && shown != null && topBar != null) {
+            topBar.getMascot().react(MascotReaction.SURPRISED);
+        }
+    }
+
+    /** A click in the site's page closes Spark's menus, as a click anywhere else in Spark does. */
+    private void pagePressed() {
+        if (topBar != null) {
+            topBar.closeMenus();
+        }
+    }
+
+    private void siteAudioChanged() {
+        if (topBar != null) {
+            topBar.getDock().refreshSound();
+        }
+    }
+
+    private void soundChanged() {
+        fxWebViewPane.refreshSound();
+        topBar.getDock().refreshSound();
+    }
+
+    private void siteUpdated(String siteId) {
+        topBar.getDock().markUpdated(siteId);
+
+        if (!isShowing() || isHiding()) {
+            aiConfiguration.getConfigurations().stream()
+                    .filter(site -> site.id().equals(siteId))
+                    .findFirst()
+                    .ifPresent(site -> tray.markUpdated(site.name()));
+        }
     }
 
     private void scheduleTutorial() {
@@ -502,6 +603,26 @@ public class MainWindow extends Stage {
 
     private void refreshTraySites() {
         tray.showSites(AiDockOrderUtils.applyCustomOrder(aiConfiguration.getConfigurations(), appPreferences));
+    }
+
+    /** Opens a site added from a page, once the reloaded tabs include it. */
+    /** Sparky cheers a new site and waves a removed one goodbye, after the bar has settled on the open site. */
+    private void reactToSiteCount(int before) {
+        var after = aiConfiguration.getConfigurations().size();
+
+        if (after == before) {
+            return;
+        }
+
+        var reaction = after > before ? MascotReaction.HAPPY : MascotReaction.FAREWELL;
+        Platform.runLater(() -> topBar.getMascot().react(reaction));
+    }
+
+    private void openAddedSite() {
+        if (siteToOpen != null) {
+            topBar.getDock().selectSite(siteToOpen);
+            siteToOpen = null;
+        }
     }
 
     /** Opens a site from the tray: switch first, so the previous site never flashes. */

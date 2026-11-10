@@ -8,8 +8,11 @@
     <g transform="translate(14 25)"><polygon points="4.200,0.000 5.409,1.449 4.850,2.800 2.970,2.970 2.100,3.637 1.449,5.409 0.000,5.600 -1.087,4.057 -2.100,3.637 -3.960,3.960 -4.850,2.800 -4.057,1.087 -4.200,0.000 -5.409,-1.449 -4.850,-2.800 -2.970,-2.970 -2.100,-3.637 -1.449,-5.409 -0.000,-5.600 1.087,-4.057 2.100,-3.637 3.960,-3.960 4.850,-2.800 4.057,-1.087" fill="#f7e7ca"/>
     <circle r="1.9" fill="#45434a"/></g><g transform="translate(26 25)"><polygon points="4.200,0.000 5.409,1.449 4.850,2.800 2.970,2.970 2.100,3.637 1.449,5.409 0.000,5.600 -1.087,4.057 -2.100,3.637 -3.960,3.960 -4.850,2.800 -4.057,1.087 -4.200,0.000 -5.409,-1.449 -4.850,-2.800 -2.970,-2.970 -2.100,-3.637 -1.449,-5.409 -0.000,-5.600 1.087,-4.057 2.100,-3.637 3.960,-3.960 4.850,-2.800 4.057,-1.087" fill="#f7e7ca"/>
     <circle r="1.9" fill="#45434a"/></g></g>
-    <text x="146" y="58" font-size="24" fill="#f2eadc" font-weight="600">A few small preferences.</text>
-    <text x="146" y="91" font-size="16" fill="#b3b1b9" >My gears mean settings.</text>
-    <text x="146" y="116" font-size="16" fill="#b3b1b9" >Yours are under the three dots.</text>
+    <circle cx="116" cy="122" r="17" fill="#25262a" stroke="#b19470" stroke-opacity=".8"/>
+    <g transform="translate(105.2 111.2) scale(.9)" fill="none" stroke="#dfb584" stroke-width="1.9"
+      stroke-linecap="round" stroke-linejoin="round"><path d="M5 8H13M17 8H19M5 16H7M11 16H19"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></g>
+    <text x="150" y="58" font-size="24" fill="#f2eadc" font-weight="600">A few small preferences.</text>
+    <text x="150" y="91" font-size="16" fill="#b3b1b9" >My gears mean settings.</text>
+    <text x="150" y="116" font-size="16" fill="#b3b1b9" >Yours are under the three dots.</text>
   </g>
 </svg>

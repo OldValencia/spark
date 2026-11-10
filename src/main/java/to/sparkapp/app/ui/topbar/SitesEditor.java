@@ -1,5 +1,7 @@
 package to.sparkapp.app.ui.topbar;
 
+import java.util.function.Consumer;
+
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
@@ -29,7 +31,24 @@ public final class SitesEditor {
             return;
         }
 
-        Thread.ofPlatform().daemon().name("site-save").start(() -> save(request));
+        Thread.ofPlatform().daemon().name("site-save").start(() -> save(request, id -> {
+        }));
+    }
+
+    /**
+     * Opens the dialog for a new site with its name and address filled in.
+     *
+     * @param added receives the new site's id on the JavaFX thread, before the sites are reloaded
+     */
+    public void add(String name, String url, Consumer<String> added) {
+        var dialog = new ProviderEditDialog(owner, null);
+        dialog.prefill(name, url);
+        dialog.showAndWait();
+
+        if (dialog.isConfirmed()) {
+            var request = SiteEditRequest.from(null, dialog);
+            Thread.ofPlatform().daemon().name("site-save").start(() -> save(request, added));
+        }
     }
 
     private boolean needsAddressConfirmation(SiteEditRequest request) {
@@ -46,7 +65,7 @@ public final class SitesEditor {
         return warning.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
     }
 
-    private void save(SiteEditRequest request) {
+    private void save(SiteEditRequest request, Consumer<String> added) {
         try {
             var manager = configuration.getCustomProvidersManager();
             var original = request.original();
@@ -54,7 +73,8 @@ public final class SitesEditor {
             if (request.deleted() && original != null) {
                 manager.deleteProvider(original.id());
             } else if (original == null) {
-                manager.addCustomProvider(request.name(), request.url(), request.color());
+                var id = manager.addCustomProvider(request.name(), request.url(), request.color());
+                Platform.runLater(() -> added.accept(id));
             } else {
                 manager.updateProvider(original.id(), request.name(), request.url(), request.color(),
                         request.useIconColor(), request.manualColor());

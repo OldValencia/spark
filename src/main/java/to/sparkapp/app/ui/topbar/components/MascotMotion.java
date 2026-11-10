@@ -16,6 +16,7 @@ final class MascotMotion {
     private final SimpleDoubleProperty openness = new SimpleDoubleProperty(1);
     private final SimpleDoubleProperty gearBlend = new SimpleDoubleProperty();
     private final SimpleDoubleProperty gearAngle = new SimpleDoubleProperty();
+    private final MascotTricks tricks;
     private MascotReaction active;
     private long lastResize;
 
@@ -24,6 +25,7 @@ final class MascotMotion {
      */
     MascotMotion(MascotFace face, Runnable settled) {
         this.face = face;
+        tricks = new MascotTricks(face, openness);
         reaction.setOnFinished(event -> settled.run());
         openness.addListener((observable, before, value) -> face.blink(value.doubleValue()));
         gearBlend.addListener((observable, before, value) -> face.blendGears(value.doubleValue()));
@@ -48,6 +50,13 @@ final class MascotMotion {
         reset();
         active = expression;
 
+        if (MascotTricks.plays(expression)) {
+            reaction.getKeyFrames().setAll(tricks.frames(expression));
+            reaction.playFromStart();
+
+            return;
+        }
+
         if (expression == MascotReaction.SETTINGS) {
             settings();
 
@@ -64,7 +73,8 @@ final class MascotMotion {
             case HOVER -> new Pose(4, -1, 0, 1, 1, 1.08);
             case GREETING -> new Pose(-7, -3, 0, 1, 1, 0.15);
             case SITES -> new Pose(7, -1, 1, 1, 1, 1.18);
-            case SETTINGS, WAKE -> throw new IllegalStateException(expression + " has its own animation");
+            case SETTINGS, WAKE, HAPPY, SURPRISED, SHUSH, DIZZY, FAREWELL ->
+                    throw new IllegalStateException(expression + " has its own animation");
             case RESIZE -> new Pose(0, 0, 0, 1.08, 0.93, 1);
             case SITE_SWITCH -> new Pose(0, 2, 0, 1, 1, 0.12);
         };
@@ -130,6 +140,7 @@ final class MascotMotion {
         gearAngle.set(0);
         face.blendGears(0);
         face.turnGears(0);
+        tricks.reset();
     }
 
     private record Pose(double tilt, double y, double x, double scaleX, double scaleY, double eyes) {

@@ -10,6 +10,7 @@ import javafx.scene.layout.VBox;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.config.MuteRule;
 import to.sparkapp.app.ui.Theme;
 import to.sparkapp.app.ui.settings.components.AnimatedSettingsButton;
 import to.sparkapp.app.ui.settings.components.BackupSettingsCard;
@@ -41,6 +42,8 @@ public class SettingsPanel extends VBox {
 
     @Setter
     private Runnable onBackgroundMemoryChanged;
+    @Setter
+    private Runnable onSoundChanged;
     @Setter
     private Runnable onPillSettingsChanged;
     @Setter
@@ -148,6 +151,9 @@ public class SettingsPanel extends VBox {
         card.addRow(toggleRow("Request dark mode from websites", "Takes effect after a restart",
                 appPreferences.isDarkModeEnabled(), appPreferences::setDarkModeEnabled));
 
+        card.addRow(muteRow("Mute all sites", MuteRule.ALWAYS));
+        card.addRow(muteRow("Mute sites while Spark is hidden", MuteRule.WHILE_HIDDEN));
+
         card.addRow(
                 toggleRow("Reduce background memory", "Keep hidden pages alive while allowing Windows to reclaim RAM",
                         appPreferences.isBackgroundMemoryReductionEnabled(), enabled -> {
@@ -183,6 +189,18 @@ public class SettingsPanel extends VBox {
         this.getChildren().add(new SettingsSection(title));
         addStrut(HEADER_GAP);
         this.getChildren().add(card);
+    }
+
+    /** Sets every site at once; a single site is changed from its tab's menu. */
+    private SettingsRow muteRow(String title, MuteRule rule) {
+        return toggleRow(title, "Applies to every site. Right-click a tab to change one site",
+                appPreferences.isMuteAll(rule), muted -> {
+                    appPreferences.setMuteAll(rule, muted);
+
+                    if (onSoundChanged != null) {
+                        onSoundChanged.run();
+                    }
+                });
     }
 
     private SettingsRow toggleRow(String title, String description, boolean initialValue, Consumer<Boolean> onChange) {

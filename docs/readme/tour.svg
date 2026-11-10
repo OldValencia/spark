@@ -12,7 +12,7 @@
   <text x="174" y="70" font-size="30" fill="#f2eadc" font-weight="600">I'll show you around.</text>
   <text x="174" y="100" font-size="17" fill="#b3b1b9" >The website gets the big space. This little strip is Spark.</text>
   <text x="468" y="153" font-size="19" fill="#f2eadc" >Your sites</text>
-  <text x="468" y="176" font-size="14" fill="#b3b1b9" >Find, add, edit, reorder.</text>
+  <text x="468" y="176" font-size="14" fill="#b3b1b9" >Find, add, reorder. Ctrl + Shift + L.</text>
   <path d="M546 184V211" fill="none" stroke="#b19470" stroke-width="1.5" stroke-linecap="round" marker-end="url(#arrow)"/>
   <text x="944" y="153" font-size="19" fill="#f2eadc" >Back to your work</text>
   <text x="944" y="176" font-size="14" fill="#b3b1b9" >Hide the window. Keep the page.</text>
@@ -43,7 +43,7 @@
   <g fill="#c3c3cc"><circle cx="1049" cy="252" r="1.6"/><circle cx="1057" cy="252" r="1.6"/><circle cx="1065" cy="252" r="1.6"/></g>
   <path d="M226 332V294" fill="none" stroke="#b19470" stroke-width="1.5" stroke-linecap="round" marker-end="url(#arrow)"/>
   <text x="88" y="363" font-size="20" fill="#f2eadc" >Switch sites</text>
-  <text x="88" y="387" font-size="14" fill="#b3b1b9" >Your draft stays on its page.</text>
+  <text x="88" y="387" font-size="14" fill="#b3b1b9" >Your draft stays. Right-click for its menu.</text>
   <path d="M782 332V294" fill="none" stroke="#b19470" stroke-width="1.5" stroke-linecap="round" marker-end="url(#arrow)"/>
   <text x="647" y="363" font-size="20" fill="#f2eadc" >Move or dock</text>
   <text x="647" y="387" font-size="14" fill="#b3b1b9" >Drag here. Double-click to dock.</text>

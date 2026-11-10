@@ -5,6 +5,9 @@
 .shell-button:focused, .shell-size:focused { -fx-border-color: #92929f; -fx-border-radius: 7; }
 .shell-button:selected { -fx-background-color: #ffffff15; }
 .shell-size { -fx-border-color: #ffffff20; -fx-border-radius: 7; -fx-font-size: 11.5px; -fx-padding: 5 7; }
+.off-site-bar { -fx-background-color: #2d2e33; -fx-background-radius: 8 8 0 0; -fx-padding: 0 6 0 2; -fx-spacing: 6; -fx-alignment: center-left; }
+.off-site-address { -fx-text-fill: #e2e2ea; -fx-font-size: 12.5px; }
+.off-site-open { -fx-font-size: 12px; -fx-padding: 4 8; }
 .shell-drag-mark { -fx-background-color: #77778355; -fx-background-radius: 3; }
 .spark-mascot { -fx-background-color: transparent; -fx-border-width: 0; -fx-padding: 0; -fx-cursor: hand; }
 .spark-mascot:hover { -fx-background-color: #ffffff09; -fx-background-radius: 12; }
@@ -26,6 +29,7 @@
 .shell-site-domain { -fx-font-size: 12.5px; -fx-text-fill: #b0b0bd !important; }
 .shell-popup .shell-row { -fx-background-color: transparent; -fx-background-radius: 6; -fx-padding: 7; -fx-text-fill: #d0d0da; -fx-alignment: center-left; -fx-cursor: hand; }
 .shell-popup .shell-row:hover { -fx-background-color: #ffffff0c; }
+.shell-popup .shell-separator { -fx-background-color: #ffffff14; -fx-min-height: 1; -fx-pref-height: 1; -fx-max-height: 1; }
 .shell-popup .shell-hint { -fx-font-size: 12.5px; -fx-text-fill: #b9b9c6; }
 .shell-popup .check-box { -fx-text-fill: #e2e2ea; -fx-font-size: 13px; }
 .context-menu { -fx-font-size: 13px; -fx-background-color: #2d2e33; -fx-background-radius: 9; -fx-border-color: #53535e; -fx-border-radius: 9; -fx-padding: 6; }

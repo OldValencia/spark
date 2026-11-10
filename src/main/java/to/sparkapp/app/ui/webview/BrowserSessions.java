@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import javafx.application.Platform;
@@ -62,6 +63,7 @@ final class BrowserSessions {
             onCreated.accept(active);
 
             var remembered = targetUrl != null ? targetUrl : appPreferences.getSiteUrl(config);
+            active.setMobile(appPreferences.isSiteMobile(config.id()));
             active.setCurrentConfig(config, remembered);
         } else {
             active = existing;
@@ -89,6 +91,11 @@ final class BrowserSessions {
         });
     }
 
+    /** The browser of a site that has been opened, or {@code null}. */
+    WebviewManager find(String siteId) {
+        return sessions.get(siteId);
+    }
+
     AiConfig findSite(WebviewManager browser) {
         return sites.get(browser);
     }
@@ -103,6 +110,10 @@ final class BrowserSessions {
 
     void forEach(Consumer<WebviewManager> action) {
         sessions.values().forEach(action);
+    }
+
+    void forEachSite(BiConsumer<String, WebviewManager> action) {
+        sessions.forEach(action);
     }
 
     void shutdown(Runnable onComplete) {

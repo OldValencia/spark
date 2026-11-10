@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 16 16" role="img" aria-labelledby="title desc">
+  <title id="title">Sparky / 02 / Curious</title>
+  <desc id="desc">A swept flame and a gently curious gaze. Character comes from the silhouette and the eyes. Transparent vector icon designed on a 16-pixel grid; the same artwork is used at every size.</desc>
+  <path d="M5.8 5.2C5.5 3.7 6.7 1.4 10.5 .6C9.1 2.5 10.6 3.3 10.2 5.2Z" fill="#dfb584"/><path d="M5.2 4.8L10.7 4.5C13.3 4.4 15 6.3 15 8.9V10.9C15 13.5 13.4 15 10.7 15H5.2C2.5 15 1 13.5 1 10.9V9.2C1 6.5 2.6 5 5.2 4.8Z" fill="#45434a" stroke="#dfb584" stroke-width=".8"/><g fill="#f7e7ca"><ellipse cx="5.8" cy="9.7" rx="1.3" ry="2.2"/><ellipse cx="10.8" cy="9.4" rx="1.4" ry="2.7"/></g>
+</svg>

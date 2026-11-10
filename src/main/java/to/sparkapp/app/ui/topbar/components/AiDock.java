@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
 import to.sparkapp.app.config.AppPaths;
 import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.config.MuteRule;
 import to.sparkapp.app.browser.SiteShortcut;
 import to.sparkapp.app.ui.SiteAccent;
 import to.sparkapp.app.ui.topbar.utils.AiDockDragManager;
@@ -61,6 +62,13 @@ public class AiDock extends StackPane {
     private Consumer<Color> onAccentChanged;
     @Setter
     private Runnable onSiteSelected;
+    /** Opens the menu of a tab after a right-click or the keyboard's menu key. */
+    @Setter
+    private Consumer<DockItemNode> onTabMenu;
+    /** Receives whether any site plays sound that can be heard. */
+    @Setter
+    private Consumer<Boolean> onSoundChanged = playing -> {
+    };
     private final List<Runnable> orderListeners = new ArrayList<>();
 
     public void setOnAccentChanged(Consumer<Color> callback) {
@@ -84,6 +92,11 @@ public class AiDock extends StackPane {
 
     public String getSelectedId() {
         return selectedNode == null ? null : selectedNode.getConfig().id();
+    }
+
+    /** The site on screen, or {@code null} before one is chosen. */
+    public AiConfig getSelectedSite() {
+        return selectedNode == null ? null : selectedNode.getConfig();
     }
 
     public void selectSite(String id) {
@@ -129,6 +142,34 @@ public class AiDock extends StackPane {
         orderChanged();
     }
 
+    /** Moves a site one place to the left (-1) or to the right (+1). */
+    public void move(String id, int offset) {
+        var index = indexOf(id);
+        var target = index + offset;
+
+        if (index < 0 || target < 0 || target >= dockItems.size()) {
+            return;
+        }
+
+        reorder(id, dockItems.get(target).getConfig().id(), offset > 0);
+    }
+
+    public int indexOf(String id) {
+        for (var index = 0; index < dockItems.size(); index++) {
+            if (dockItems.get(index).getConfig().id().equals(id)) {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    void openTabMenu(DockItemNode tab) {
+        if (onTabMenu != null && !tab.isDragging()) {
+            onTabMenu.accept(tab);
+        }
+    }
+
     public void dispose() {
         viewport.getIndicator().dispose();
         cancelInteraction();
@@ -155,6 +196,7 @@ public class AiDock extends StackPane {
         this.fxWebViewPane = fxWebViewPane;
         this.appPreferences = appPreferences;
         this.dragManager = new AiDockDragManager(this, appPreferences);
+        DockDragScroll.install(this);
 
         var userIconsDir = new File(AppPaths.DATA_DIR, "icons");
 
@@ -183,6 +225,7 @@ public class AiDock extends StackPane {
         }
 
         refreshShortcutHints();
+        refreshSound();
 
         if (!dockItems.isEmpty()) {
             selectItem(dockItems.get(initial.index()), initial.url());
@@ -204,6 +247,21 @@ public class AiDock extends StackPane {
     }
 
     /** Puts a dot on the tab of a site that changed while another site was open. */
+    /** Shows a speaker on each site that plays sound, crossed out on those that are muted. */
+    public void refreshSound() {
+        var audible = false;
+
+        for (var item : dockItems) {
+            var id = item.getConfig().id();
+            var playing = fxWebViewPane.isPlayingAudio(id);
+            var muted = appPreferences.isSiteMuted(id, MuteRule.ALWAYS);
+            item.showSound(playing, muted);
+            audible |= playing && !muted;
+        }
+
+        onSoundChanged.accept(audible);
+    }
+
     public void markUpdated(String siteId) {
         dockItems.stream()
                 .filter(item -> item != selectedNode && item.getConfig().id().equals(siteId))

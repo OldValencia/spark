@@ -37,6 +37,46 @@ final class SiteSettingsStore {
         removeEmptySettings();
     }
 
+    /** The site's own value, or {@code null} when it follows the default for all sites. */
+    Boolean getMute(String siteId, MuteRule rule) {
+        return find(siteId).mute(rule);
+    }
+
+    void setMute(String siteId, MuteRule rule, Boolean muted) {
+        put(siteId, find(siteId).withMute(rule, muted));
+        changed.run();
+    }
+
+    /** Makes every site follow the default for all sites again. */
+    void clearMute(MuteRule rule) {
+        if (config.siteSettings == null) {
+            return;
+        }
+
+        config.siteSettings.replaceAll((siteId, settings) -> settings.withMute(rule, null));
+        removeEmptySettings();
+    }
+
+    /** The site's own window size, or {@code null} when it uses the size shared by all sites. */
+    SiteWindowSize getWindowSize(String siteId) {
+        return find(siteId).windowSize();
+    }
+
+    void setWindowSize(String siteId, SiteWindowSize size) {
+        put(siteId, find(siteId).withWindowSize(size));
+        changed.run();
+    }
+
+    boolean isMobile(String siteId) {
+        return Boolean.TRUE.equals(find(siteId).mobile());
+    }
+
+    /** The desktop version is the default, so it is not stored. */
+    void setMobile(String siteId, boolean mobile) {
+        put(siteId, find(siteId).withMobile(mobile ? true : null));
+        changed.run();
+    }
+
     void prune(List<AiConfig> sites) {
         if (config.siteSettings == null) {
             return;

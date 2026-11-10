@@ -19,6 +19,7 @@ final class BrowserContextStack {
     private final Consumer<Runnable> defer;
     private final Consumer<BrowserContext> changed;
     private final List<BrowserContext> contexts = new ArrayList<>();
+    private final SiteAudioWatch audio = new SiteAudioWatch();
     private final Set<BrowserPopupRequest> pending = new HashSet<>();
     private final BrowserPageZoom zoom = new BrowserPageZoom();
     @Getter
@@ -27,6 +28,8 @@ final class BrowserContextStack {
     private Consumer<BrowserContext> prepare;
     private boolean visible;
     private boolean lowMemory;
+    private boolean muted;
+    private boolean mobile;
     private boolean closed;
     @Setter
     private boolean reduceInactive = true;
@@ -60,6 +63,9 @@ final class BrowserContextStack {
         try {
             request.create(script, context -> {
                 zoom.prepare(context);
+                context.setMuted(muted);
+                context.setMobile(mobile);
+                audio.watch(context, contexts);
                 prepare.accept(context);
                 installPopupEvents(context);
             }, context -> {
@@ -94,6 +100,23 @@ final class BrowserContextStack {
         zoom.setFactor(factor, contexts);
     }
 
+    /** Mutes the site's main page and every page it opened, including pages it opens later. */
+    void setMuted(boolean muted) {
+        this.muted = muted;
+        contexts.forEach(context -> context.setMuted(muted));
+    }
+
+    /** Shows the site's main page and every page it opened as on a phone, including pages it opens later. */
+    void setMobile(boolean mobile) {
+        this.mobile = mobile;
+        contexts.forEach(context -> context.setMobile(mobile));
+    }
+
+    /** Reports whether the site plays sound on any of its pages, now and whenever that changes. */
+    void observeAudio(Consumer<Boolean> playing) {
+        audio.observe(contexts, playing);
+    }
+
     void back() {
         var canGoBack = new IntByReference();
         check(call(active.getCore(), 38, canGoBack));
@@ -112,6 +135,7 @@ final class BrowserContextStack {
 
         contexts.remove(context);
         context.close();
+        audio.refresh(contexts);
 
         if (context == active) {
             var parent = context.getParent();

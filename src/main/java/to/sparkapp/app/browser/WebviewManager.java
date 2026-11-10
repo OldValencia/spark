@@ -2,6 +2,7 @@ package to.sparkapp.app.browser;
 
 import java.nio.file.Path;
 import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -27,6 +28,8 @@ import to.sparkapp.app.utils.SystemUtils;
 public class WebviewManager {
     private static final int EXTENSION_TIMEOUT_SECONDS = 30;
     private static final int CONTEXT_WINDOW_TIMEOUT_SECONDS = 5;
+    private static final int PAGE_NAMES_TIMEOUT_SECONDS = 2;
+    private static final int SITE_DATA_TIMEOUT_SECONDS = 15;
     /** Sites often set their title just after the first load; that is not an update yet. */
     private static final long TITLE_QUIET_NANOS = 2_000_000_000L;
 
@@ -54,6 +57,13 @@ public class WebviewManager {
     private volatile boolean processFailed;
     private volatile boolean recreateOnRetry;
     private volatile boolean restartRequested;
+    private volatile boolean muted;
+    private volatile boolean mobile;
+    /** Whether the site plays sound, muted or not, on its main page or a page it opened. */
+    @Getter
+    private volatile boolean playingAudio;
+    @Setter
+    private Runnable onPlayingAudioChanged;
     @Getter
     private volatile boolean extraPageOpen;
     private long navigationId;
@@ -157,6 +167,9 @@ public class WebviewManager {
         var browser = webview.windows();
         // Set before the first navigation, so the page never appears at the wrong size.
         browser.setZoomFactor(zoomManager.currentFactor());
+        browser.setMuted(muted);
+        browser.setMobile(mobile);
+        browser.observeAudio(playing -> Platform.runLater(() -> playingAudioChanged(playing)));
         browser.setPresentation(false, presentation.wantsLowMemory());
         browser.observeProcessFailures(this::handleProcessFailure);
         browser.observeShortcuts(this::siteShortcutPressed);
@@ -166,10 +179,30 @@ public class WebviewManager {
         browser.observeSource(url -> Platform.runLater(() -> navigator.handleUrlChange(url)));
         browser.setExtraPageChanged(extra -> {
             extraPageOpen = extra;
-            if (onExtraPageChanged != null) {
-                Platform.runLater(() -> onExtraPageChanged.accept(extra));
-            }
+            Platform.runLater(() -> extraPageChanged(extra));
         });
+    }
+
+    private void playingAudioChanged(boolean playing) {
+        if (playingAudio == playing) {
+            return;
+        }
+
+        playingAudio = playing;
+
+        if (onPlayingAudioChanged != null) {
+            onPlayingAudioChanged.run();
+        }
+    }
+
+    private void extraPageChanged(boolean extra) {
+        if (extra) {
+            navigator.forgetPageUrl();
+        }
+
+        if (onExtraPageChanged != null) {
+            onExtraPageChanged.accept(extra);
+        }
     }
 
     /** Titles set while the site first loads, or right after, are not news. */
@@ -273,6 +306,7 @@ public class WebviewManager {
         zoomManager.apply();
         presentation.attach(false);
         applyPresentation();
+        applyMuted();
 
         if (onReadyCallback != null) {
             onReadyCallback.run();
@@ -478,14 +512,6 @@ public class WebviewManager {
         });
     }
 
-    public void returnToRoot() {
-        dispatch(() -> {
-            if (SystemUtils.isWindows()) {
-                webview.windows().returnToRoot();
-            }
-        });
-    }
-
     public void hibernate() {
         presentation.hibernate();
         refreshResourcePolicy();
@@ -593,6 +619,47 @@ public class WebviewManager {
         zoomManager.refresh();
     }
 
+    /** Mutes or unmutes the site, now and after the browser restarts. */
+    public void setMuted(boolean value) {
+        if (muted == value) {
+            return;
+        }
+
+        muted = value;
+
+        // Startup applies the latest value once the browser is ready.
+        if (ready.get()) {
+            dispatch(this::applyMuted);
+        }
+    }
+
+    /** Shows the site's mobile or desktop version; a page already open is loaded again in that version. */
+    public void setMobile(boolean value) {
+        if (mobile == value) {
+            return;
+        }
+
+        mobile = value;
+
+        // Startup applies the latest value before the first page loads.
+        if (ready.get()) {
+            dispatch(this::applyMobile);
+        }
+    }
+
+    private void applyMobile() {
+        if (SystemUtils.isWindows() && webview != null) {
+            webview.windows().setMobile(mobile);
+            webview.windows().reloadPage();
+        }
+    }
+
+    private void applyMuted() {
+        if (SystemUtils.isWindows() && webview != null) {
+            webview.windows().setMuted(muted);
+        }
+    }
+
     public void setZoomCallback(Consumer<Double> callback) {
         zoomManager.setZoomCallback(callback);
     }
@@ -619,6 +686,49 @@ public class WebviewManager {
 
     public boolean isExternalPage() {
         return navigator.isExternalPage();
+    }
+
+    /** Whether the page on screen was opened by the site or belongs to another site. */
+    public boolean isOffSite() {
+        return extraPageOpen || navigator.isExternalPage();
+    }
+
+    /** The address of the page on screen, or null while a page the site opened has not reported one. */
+    public String getPageUrl() {
+        return navigator.getPageUrl();
+    }
+
+    /** The title and site name of the page on screen; empty when they cannot be read in time. */
+    public CompletableFuture<PageNames> pageNames() {
+        return extensionOperation(PageNames::read, PAGE_NAMES_TIMEOUT_SECONDS).exceptionally(error -> {
+            log.warn("Could not read the page's names: {}", error.getMessage());
+
+            return PageNames.NONE;
+        });
+    }
+
+    /**
+     * Clears one site's cookies and stored data. The profile is shared, so this browser can clear any site.
+     *
+     * @param host    the site's host without {@code www.}; its subdomains are cleared too
+     * @param origins origins whose storage is cleared, besides those of the site's cookies
+     */
+    public CompletableFuture<Void> clearSiteData(String host, Collection<String> origins) {
+        return extensionOperation(core -> SiteDataCleaner.clear(core, host, origins), SITE_DATA_TIMEOUT_SECONDS);
+    }
+
+    /** Leaves a page that is not on the site: closes a page the site opened, or opens the last page on the site. */
+    public void returnToSite() {
+        if (extraPageOpen) {
+            closeExtraPage();
+        } else if (navigator.isExternalPage()) {
+            navigator.returnToSitePage();
+        }
+    }
+
+    /** The address of the page this browser shows, or {@code about:blank} before the first page. */
+    public String getCurrentUrl() {
+        return navigator.getCurrentUrl();
     }
 
     public void setCurrentConfig(AiConfig config, String targetUrl) {

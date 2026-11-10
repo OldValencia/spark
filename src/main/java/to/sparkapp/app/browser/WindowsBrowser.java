@@ -59,9 +59,10 @@ final class WindowsBrowser implements AutoCloseable {
         return pages.getActive() != root;
     }
 
+    /** Reports the change of page before the new page's address, so the address is not taken for the old page. */
     private void contextChanged(BrowserContext context) {
-        observer.activate(context);
         extraPageChanged.accept(context != root);
+        observer.activate(context);
     }
 
     void observe(Consumer<Long> starting, BiConsumer<Long, Boolean> completed) {
@@ -110,6 +111,33 @@ final class WindowsBrowser implements AutoCloseable {
         if (!closed && !browserProcessExited) {
             pages.setZoomFactor(factor);
         }
+    }
+
+    void setMuted(boolean muted) {
+        requireOwner();
+
+        if (!closed && !browserProcessExited) {
+            pages.setMuted(muted);
+        }
+    }
+
+    void setMobile(boolean mobile) {
+        requireOwner();
+
+        if (!closed && !browserProcessExited) {
+            pages.setMobile(mobile);
+        }
+    }
+
+    void observeAudio(Consumer<Boolean> playing) {
+        requireOwner();
+        pages.observeAudio(playing);
+    }
+
+    /** Loads the page on screen again, for example so it is served in its mobile version. */
+    void reloadPage() {
+        requireOwner();
+        activeContext().reload();
     }
 
     void setBackgroundMemoryReduction(boolean enabled) {

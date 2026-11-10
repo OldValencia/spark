@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">02 / Amber Sparky</title>
+  <desc id="desc">One amber shape, with dark eyes for contrast. Transparent background. Icon proposal for Spark.</desc>
+  <path d="M26 18C26 14 29 13 32 8C35 13 38 14 38 18H41C49.284 18 56 24.716 56 33V45C56 53.284 49.284 60 41 60H23C14.716 60 8 53.284 8 45V33C8 24.716 14.716 18 23 18Z" fill="#dfb584"/><g fill="#302c30"><ellipse cx="23" cy="39" rx="4" ry="6.75"/><ellipse cx="41" cy="39" rx="4" ry="6.75"/></g>
+</svg>

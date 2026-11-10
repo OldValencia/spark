@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 16 16" role="img" aria-labelledby="title desc">
+  <title id="title">Sparky / 03 / Bright edge</title>
+  <desc id="desc">A light rim makes the dark face stand out. The strongest face contrast, especially on a dark taskbar. Transparent vector icon designed on a 16-pixel grid; the same artwork is used at every size.</desc>
+  <path d="M5.8 5.2C5.8 3.5 7.1 2.6 8 .7C8.9 2.6 10.2 3.5 10.2 5.2Z" fill="#dfb584"/><rect x="1" y="4.7" width="14" height="10.3" rx="3.9" fill="#39373e" stroke="#f7e7ca" stroke-width="1"/><g fill="#f7e7ca"><rect x="4" y="7.1" width="2.8" height="5.2" rx="1.4"/><rect x="9.2" y="7.1" width="2.8" height="5.2" rx="1.4"/></g>
+</svg>

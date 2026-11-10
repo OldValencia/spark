@@ -103,6 +103,24 @@ public final class ShellMessageDialog extends Stage {
         return this;
     }
 
+    /**
+     * Turns the message into a question: the main button runs the command, and the first button cancels. Cancel keeps
+     * the focus, so Enter does not run an action that cannot be undone.
+     */
+    public ShellMessageDialog confirm(String label, Runnable command) {
+        var confirm = new Button(label);
+        confirm.getStyleClass().add("primary-button");
+        confirm.setOnAction(event -> {
+            close();
+            command.run();
+        });
+        close.getStyleClass().setAll("button", "quiet-button");
+        close.setDefaultButton(false);
+        buttons.getChildren().add(confirm);
+
+        return this;
+    }
+
     private static Label wrapped(String text, String styleClass) {
         var label = new Label(text);
         label.getStyleClass().add(styleClass);

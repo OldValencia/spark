@@ -36,8 +36,7 @@ final class WindowSizePresetButton extends SplitMenuButton {
                 action("Reset to default", this::reset));
         setOnAction(event -> {
             dismiss.run();
-            var size = preset.get();
-            controller.preset(size.width(), size.height());
+            controller.preset(slot);
         });
         refresh();
 

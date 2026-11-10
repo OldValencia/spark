@@ -15,14 +15,18 @@ import static to.sparkapp.app.browser.ComCalls.*;
 final class BrowserContext implements AutoCloseable {
     public static class Bounds extends RECT implements ByValue {
     }
+    private static final int CORE_RELOAD = 31;
     private final Pointer controller;
     private final Pointer core;
     private final boolean child;
     private final BrowserContext parent;
     private final BrowserComEvents events = new BrowserComEvents();
     private final BrowserMemoryPolicy memoryPolicy;
+    private final BrowserAudio audio;
+    private final BrowserMobileView mobileView;
     private Pointer documentEvents;
     private boolean closed;
+    private boolean observingAudio;
     long navigationId;
     boolean loading;
     boolean presentable;
@@ -46,6 +50,36 @@ final class BrowserContext implements AutoCloseable {
         check(call(controller, 25, out));
         core = out.getValue();
         memoryPolicy = new BrowserMemoryPolicy(core);
+        audio = new BrowserAudio(core);
+        mobileView = new BrowserMobileView(core);
+    }
+
+    void setMuted(boolean muted) {
+        if (!closed) {
+            audio.setMuted(muted);
+        }
+    }
+
+    /** Reports when the page starts or stops playing sound; calling it again keeps a single report. */
+    void observePlaying(Runnable changed) {
+        if (!closed && !observingAudio) {
+            observingAudio = true;
+            audio.observePlaying(events, changed);
+        }
+    }
+
+    boolean isPlayingAudio() {
+        return !closed && audio.isPlaying();
+    }
+
+    void setMobile(boolean mobile) {
+        if (!closed) {
+            mobileView.setMobile(mobile);
+        }
+    }
+
+    void reload() {
+        check(call(core, CORE_RELOAD));
     }
 
     Pointer documentEvents() {
@@ -135,6 +169,7 @@ final class BrowserContext implements AutoCloseable {
         } finally {
             release(documentEvents);
             memoryPolicy.close();
+            audio.close();
             release(core);
 
             if (child) {

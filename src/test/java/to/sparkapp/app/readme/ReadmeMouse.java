@@ -16,6 +16,8 @@ final class ReadmeMouse {
     private static final int STEPS_PER_MOVE = 28;
     private static final int MOVE_MILLIS = 420;
     private static final int TYPING_PAUSE_MILLIS = 60;
+    private static final int KEY_GAP_MILLIS = 30;
+    private static final int KEY_HOLD_MILLIS = 90;
 
     private final Robot robot;
 
@@ -39,6 +41,14 @@ final class ReadmeMouse {
         moveTo(target);
         ReadmeFx.pause(120);
         press();
+    }
+
+    void rightClick(Point2D target) {
+        moveTo(target);
+        ReadmeFx.pause(120);
+        robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+        ReadmeFx.pause(60);
+        robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
     }
 
     void doubleClick(Point2D target) {
@@ -82,10 +92,16 @@ final class ReadmeMouse {
         }
     }
 
+    /**
+     * Presses keys together and holds them briefly, as a person does. A page's shortcuts are read while the keys
+     * are down: Spark checks Ctrl and Shift on the keyboard when the browser reports the key.
+     */
     void key(int... codes) {
         for (var code : codes) {
             robot.keyPress(code);
+            ReadmeFx.pause(KEY_GAP_MILLIS);
         }
+        ReadmeFx.pause(KEY_HOLD_MILLIS);
         for (var index = codes.length - 1; index >= 0; index--) {
             robot.keyRelease(codes[index]);
         }

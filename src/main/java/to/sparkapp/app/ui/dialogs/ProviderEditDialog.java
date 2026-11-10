@@ -122,6 +122,11 @@ public class ProviderEditDialog extends Stage {
         errorLabel.setText(message);
     }
 
+    /** Fills in the new site's name and address. */
+    public void prefill(String name, String url) {
+        providerFormPanel.prefill(name, url);
+    }
+
     public String getProviderName() {
         return providerFormPanel.getNameFieldValue();
     }

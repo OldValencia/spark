@@ -11,6 +11,7 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import lombok.Getter;
 import to.sparkapp.app.config.AiConfiguration;
+import to.sparkapp.app.config.AiConfiguration.AiConfig;
 import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.ui.topbar.components.AiDock;
 import to.sparkapp.app.ui.topbar.components.ShellIcon;
@@ -31,6 +32,7 @@ public class TopBarArea extends HBox {
     private final SitesPopup sites;
     private final ShellPopover sizes;
     private final ShellPopover options;
+    private final SiteTabMenu tabMenu;
     @Getter
     private final SparkMascot mascot;
     @Getter
@@ -47,8 +49,8 @@ public class TopBarArea extends HBox {
     public TopBarArea(AiConfiguration configuration, FxWebViewPane browser, Stage frame, AppPreferences preferences, Runnable onSettings, Runnable onHide, WindowController controller, Runnable onSitesChanged, Runnable onExtensions) {
         mascot = new SparkMascot(frame, preferences);
         mascot.observePage(browser.pageLoadingProperty(), browser.pageFailedProperty());
-        sizes = new WindowSizeMenu(frame, preferences, controller);
-        options = new WindowOptionsMenu(preferences, browser, () -> {
+        sizes = new WindowSizeMenu(frame, preferences, controller, this::siteOnScreen);
+        options = new WindowOptionsMenu(preferences, () -> {
             mascot.react(MascotReaction.SETTINGS);
             onSettings.run();
         }, onExtensions);
@@ -72,14 +74,18 @@ public class TopBarArea extends HBox {
                 mascot.react(MascotReaction.SITES);
             }
         });
+        var editor = new SitesEditor(frame, configuration, onSitesChanged);
+        tabMenu = new SiteTabMenu(dock, browser, editor, preferences, () -> mascot.react(MascotReaction.SHUSH));
+        dock.setOnTabMenu(tab -> {
+            mascot.react(MascotReaction.SITES);
+            tabMenu.open(tab);
+        });
+        dock.setOnSoundChanged(mascot::setListening);
 
         var allSites = button("squares-2x2", "All sites");
         sitesButton = allSites;
-        allSites.setOnAction(e -> {
-            sizes.dismiss();
-            options.dismiss();
-            sites.open(allSites);
-        });
+        allSites.setTooltip(ShellTooltip.create("All sites · Ctrl+Shift+L"));
+        allSites.setOnAction(e -> openSiteList());
 
         var mark = new Region();
         mark.setPrefSize(24, 3);
@@ -119,14 +125,27 @@ public class TopBarArea extends HBox {
         setAlignment(Pos.CENTER_LEFT);
     }
 
+    private AiConfig siteOnScreen() {
+        return dock.getSelectedSite();
+    }
+
     private double reservedWidth() {
         return mascot.isManaged() ? RESERVED_WIDTH : RESERVED_WIDTH - MASCOT_WIDTH;
+    }
+
+    /** Opens the list of all sites with its search field ready, or closes it when it is open. */
+    public void openSiteList() {
+        sizes.dismiss();
+        options.dismiss();
+        tabMenu.dismiss();
+        sites.open(sitesButton);
     }
 
     public void closeMenus() {
         sites.hide();
         sizes.dismiss();
         options.dismiss();
+        tabMenu.dismiss();
         dock.cancelInteraction();
     }
 

@@ -85,6 +85,12 @@ public class ProviderFormPanel extends VBox {
         return provider == null ? null : provider.color();
     }
 
+    /** Fills in a site that is about to be added, for example from a page that is open. */
+    public void prefill(String name, String url) {
+        nameField.setText(name);
+        urlField.setText(url);
+    }
+
     public String getNameFieldValue() {
         return nameField.getText().trim();
     }

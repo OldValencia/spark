@@ -8,8 +8,11 @@
     <g fill="#f7e7ca" transform="translate(1 0)">
       <ellipse cx="14" cy="25" rx="2.6" ry="5"/>
       <ellipse cx="26" cy="25" rx="2.6" ry="5"/></g></g>
-    <text x="146" y="58" font-size="24" fill="#f2eadc" font-weight="600">Bring your extensions.</text>
-    <text x="146" y="91" font-size="16" fill="#b3b1b9" >Paste a Chrome Web Store link.</text>
-    <text x="146" y="116" font-size="16" fill="#b3b1b9" >They can tell which site is open.</text>
+    <circle cx="116" cy="122" r="17" fill="#25262a" stroke="#b19470" stroke-opacity=".8"/>
+    <g transform="translate(105.2 111.2) scale(.9)" fill="none" stroke="#dfb584" stroke-width="1.9"
+      stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H9.5A2 2 0 1 1 13.5 9H17V12.5A2 2 0 1 1 17 16.5V19H6Z"/></g>
+    <text x="150" y="58" font-size="24" fill="#f2eadc" font-weight="600">Bring your extensions.</text>
+    <text x="150" y="91" font-size="16" fill="#b3b1b9" >Paste a Chrome Web Store link.</text>
+    <text x="150" y="116" font-size="16" fill="#b3b1b9" >They can tell which site is open.</text>
   </g>
 </svg>
