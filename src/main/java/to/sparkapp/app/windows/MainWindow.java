@@ -7,6 +7,7 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Priority;
@@ -77,6 +78,7 @@ public class MainWindow extends Stage {
         this.appPreferences = appPreferences;
 
         this.setTitle("Spark");
+        this.getIcons().add(new Image(MainWindow.class.getResource("/app-icons/icon.png").toExternalForm()));
         this.initStyle(StageStyle.TRANSPARENT);
         this.setAlwaysOnTop(appPreferences.isAlwaysOnTop());
         this.setWidth(WIDTH);

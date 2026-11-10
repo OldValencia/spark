@@ -10,6 +10,7 @@ import javafx.animation.Timeline;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -54,6 +55,8 @@ final class QuickAccessPillWindow {
     void show(boolean preview) {
         if (pill == null) {
             pill = new Stage(StageStyle.TRANSPARENT);
+            var icon = QuickAccessPillWindow.class.getResource("/app-icons/icon.png");
+            pill.getIcons().add(new Image(icon.toExternalForm()));
             pill.setAlwaysOnTop(true);
             pill.setTitle("Spark quick access " + UUID.randomUUID());
 

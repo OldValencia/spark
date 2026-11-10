@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" role="img" aria-labelledby="title desc">
+  <title id="title">02 / Amber Sparky / 16 px</title>
+  <desc id="desc">16 px: one solid silhouette; dark two-pixel eyes. Transparent background. Optically simplified tray icon proposal.</desc>
+  <path d="M6 5C6 3.5 7 3 8 1C9 3 10 3.5 10 5C12.5 5 14 6.5 14 9V11C14 13.5 12.5 15 10 15H6C3.5 15 2 13.5 2 11V9C2 6.5 3.5 5 6 5Z" fill="#dfb584"/><g fill="#302c30"><rect x="5" y="8" width="2" height="4" rx="1"/><rect x="9" y="8" width="2" height="4" rx="1"/></g>
+</svg>

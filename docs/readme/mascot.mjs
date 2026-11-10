@@ -1,4 +1,4 @@
-// The mascot drawn as SVG, shared by the README illustrations and the installer artwork.
+// The mascot drawn as SVG for the README illustrations. The installer uses the app icon.
 // Its geometry follows MascotFace and MascotGears in the JavaFX shell.
 
 export const colors = { background: '#191a1e', panel: '#25262a', ink: '#f2eadc', muted: '#b3b1b9', warm: '#dfb584' };

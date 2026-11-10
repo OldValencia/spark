@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">01 / Original Sparky</title>
+  <desc id="desc">Graphite body, amber flame, warm light eyes. Transparent background. Icon proposal for Spark.</desc>
+  <path d="M26 19C26 14.5 29 13 32 8C35 13 38 14.5 38 19Z" fill="#dfb584"/><rect x="8" y="18" width="48" height="42" rx="15" fill="#45434a" stroke="#b19470" stroke-width="1.5"/><g fill="#f7e7ca"><ellipse cx="23" cy="39" rx="4" ry="6.75"/><ellipse cx="41" cy="39" rx="4" ry="6.75"/></g>
+</svg>

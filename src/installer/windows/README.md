@@ -7,7 +7,8 @@ WiX draws its own black text over both bitmaps, so the areas behind the text sta
 `createInstaller` passes them to jpackage through a copy of the JDK's `main.wxs` with two
 `WixVariable` lines (see `prepareInstallerResources` in `build.gradle`).
 
-Regenerate after changing `generate-art.mjs` (requires ImageMagick):
+The mascot artwork uses the approved app icon from `src/main/resources/app-icons/icon.svg`.
+Regenerate after changing that SVG or `generate-art.mjs` (requires ImageMagick):
 
 ```sh
 node src/installer/windows/generate-art.mjs
