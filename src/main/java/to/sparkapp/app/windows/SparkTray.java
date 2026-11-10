@@ -1,15 +1,12 @@
 package to.sparkapp.app.windows;
 
 import java.awt.*;
-import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
 import javafx.application.Platform;
-
-import javax.imageio.ImageIO;
 
 import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
@@ -50,18 +47,10 @@ final class SparkTray implements AutoCloseable {
         }
 
         var tray = SystemTray.getSystemTray();
-        var iconUrl = getClass().getResource("/app-icons/icon.png");
+        var image = TrayIconImage.load();
 
-        if (iconUrl == null) {
-            iconUrl = getClass().getResource("/app-icons/icon.ico");
-        }
-
-        Image image;
-
-        try {
-            image = ImageIO.read(iconUrl);
-        } catch (IOException | IllegalArgumentException e) {
-            log.error("Failed to load tray icon", e);
+        if (image == null) {
+            log.error("Failed to load tray icon");
 
             return;
         }
@@ -82,7 +71,7 @@ final class SparkTray implements AutoCloseable {
         popup.add(exitItem);
 
         icon = image;
-        updatedIcon = TrayUpdateDot.onto(image);
+        updatedIcon = TrayIconImage.withDot(image);
         trayIcon = new TrayIcon(image, TOOLTIP, popup);
         trayIcon.setImageAutoSize(true);
         trayIcon.addActionListener(e -> Platform.runLater(showApplication));
