@@ -64,6 +64,8 @@ public class MainWindow extends Stage {
     private PagePressWatch pagePresses;
 
     private boolean externalPage = false;
+    private static final long SITE_LIST_REPEAT_NANOS = 400_000_000L;
+    private long siteListToggledAt;
     /** A site added from a page, opened once the tabs are reloaded. */
     private String siteToOpen;
 
@@ -475,9 +477,39 @@ public class MainWindow extends Stage {
         var shortcut = SiteShortcut.fromKey(event.getCode().getCode(), event.isShiftDown());
 
         if (shortcut != null) {
-            topBar.getDock().select(shortcut);
+            siteShortcut(shortcut);
             event.consume();
         }
+    }
+
+    private void siteShortcut(SiteShortcut shortcut) {
+        if (shortcut.kind() == SiteShortcut.Kind.LIST) {
+            toggleSiteList();
+        } else {
+            topBar.getDock().select(shortcut);
+        }
+    }
+
+    /**
+     * Opens the list of sites from the keyboard. The page may hold the keyboard, so Spark takes it first and opens the
+     * list a moment later, letting its search field receive the typing.
+     */
+    private void toggleSiteList() {
+        var now = System.nanoTime();
+
+        // Holding the keys repeats them; a list opened a moment ago is not closed again by a repeat.
+        if (now - siteListToggledAt < SITE_LIST_REPEAT_NANOS) {
+            return;
+        }
+
+        siteListToggledAt = now;
+        log.info("Site list toggled from the keyboard");
+        NativeWindowUtils.focusWindow(this);
+        Platform.runLater(() -> {
+            if (topBar != null) {
+                topBar.openSiteList();
+            }
+        });
     }
 
     private void installTopBar() {
@@ -486,7 +518,7 @@ public class MainWindow extends Stage {
         topBar.getDock().setOnAccentChanged(this::showSiteAccent);
         topBar.getDock().addOrderListener(this::refreshTraySites);
         refreshTraySites();
-        fxWebViewPane.setOnSiteShortcut(topBar.getDock()::select);
+        fxWebViewPane.setOnSiteShortcut(this::siteShortcut);
         fxWebViewPane.setOnSiteUpdated(this::siteUpdated);
         topArea.getChildren().setAll(topBar, loadingBar);
         StackPane.setAlignment(loadingBar, Pos.BOTTOM_LEFT);

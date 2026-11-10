@@ -40,6 +40,16 @@ class SiteShortcutTest {
     }
 
     @Test
+    void ctrlShiftLOpensTheListOfSitesAndCtrlLStaysWithThePage() {
+        var list = SiteShortcut.fromKey(KeyCode.L.getCode(), true);
+
+        assertEquals(SiteShortcut.Kind.LIST, list.kind());
+        assertEquals(-1, list.targetIndex(0, 5), "The list is not a site");
+        assertNull(SiteShortcut.fromKey(KeyCode.L.getCode(), false), "Ctrl + L belongs to the page");
+        assertNull(SiteShortcut.fromKey(KeyCode.K.getCode(), true), "Ctrl + Shift + K belongs to the page");
+    }
+
+    @Test
     void hintsMatchTheShortcuts() {
         assertEquals("Ctrl+1", SiteShortcut.hintFor(0, 3));
         assertEquals("Ctrl+3", SiteShortcut.hintFor(2, 3));

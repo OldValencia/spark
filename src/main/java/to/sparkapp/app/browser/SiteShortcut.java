@@ -3,6 +3,7 @@ package to.sparkapp.app.browser;
 /**
  * A keyboard shortcut that switches the open site, as in a tabbed browser: Ctrl + 1…8 opens a site
  * by position, Ctrl + 9 the last one, Ctrl + Tab and Ctrl + Shift + Tab the next and previous one.
+ * Ctrl + Shift + L opens the list of all sites, to find one by typing its name.
  *
  * <p>Keys are Windows virtual-key codes, which JavaFX key codes share for these keys.
  */
@@ -11,6 +12,7 @@ public record SiteShortcut(Kind kind, int position) {
     private static final int KEY_TAB = 0x09;
     private static final int KEY_1 = 0x31;
     private static final int KEY_9 = 0x39;
+    private static final int KEY_L = 0x4C;
     private static final int KEY_NUMPAD_1 = 0x61;
     private static final int KEY_NUMPAD_9 = 0x69;
 
@@ -18,7 +20,9 @@ public record SiteShortcut(Kind kind, int position) {
         POSITION,
         LAST,
         NEXT,
-        PREVIOUS
+        PREVIOUS,
+        /** Opens the list of all sites rather than a site. */
+        LIST
     }
 
     /**
@@ -30,6 +34,10 @@ public record SiteShortcut(Kind kind, int position) {
     public static SiteShortcut fromKey(int keyCode, boolean shift) {
         if (keyCode == KEY_TAB) {
             return new SiteShortcut(shift ? Kind.PREVIOUS : Kind.NEXT, 0);
+        }
+
+        if (shift && keyCode == KEY_L) {
+            return new SiteShortcut(Kind.LIST, 0);
         }
 
         // Sites use Ctrl + Shift + digit for their own commands.
@@ -59,6 +67,7 @@ public record SiteShortcut(Kind kind, int position) {
             case LAST -> siteCount - 1;
             case NEXT -> Math.floorMod(currentIndex + 1, siteCount);
             case PREVIOUS -> Math.floorMod(currentIndex - 1, siteCount);
+            case LIST -> -1;
         };
     }
 

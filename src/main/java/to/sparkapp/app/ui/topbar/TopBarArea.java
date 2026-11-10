@@ -80,11 +80,8 @@ public class TopBarArea extends HBox {
 
         var allSites = button("squares-2x2", "All sites");
         sitesButton = allSites;
-        allSites.setOnAction(e -> {
-            sizes.dismiss();
-            options.dismiss();
-            sites.open(allSites);
-        });
+        allSites.setTooltip(ShellTooltip.create("All sites · Ctrl+Shift+L"));
+        allSites.setOnAction(e -> openSiteList());
 
         var mark = new Region();
         mark.setPrefSize(24, 3);
@@ -130,6 +127,14 @@ public class TopBarArea extends HBox {
 
     private double reservedWidth() {
         return mascot.isManaged() ? RESERVED_WIDTH : RESERVED_WIDTH - MASCOT_WIDTH;
+    }
+
+    /** Opens the list of all sites with its search field ready, or closes it when it is open. */
+    public void openSiteList() {
+        sizes.dismiss();
+        options.dismiss();
+        tabMenu.dismiss();
+        sites.open(sitesButton);
     }
 
     public void closeMenus() {
