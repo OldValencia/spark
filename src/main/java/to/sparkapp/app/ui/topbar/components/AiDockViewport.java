@@ -80,6 +80,13 @@ final class AiDockViewport extends StackPane {
         dock.widthProperty().addListener((obs, old, value) -> refreshArrowOpacity());
         scrollPane.viewportBoundsProperty().addListener((obs, old, value) -> refreshArrowOpacity());
 
+        // The open site is chosen before the tabs are laid out, and a narrower window can push it out of view.
+        dockContainer.widthProperty().addListener((obs, old, value) -> revealSelection(dock.getSelectedNode()));
+        scrollPane.viewportBoundsProperty().addListener((obs, old, value) -> {
+            if (old.getWidth() != value.getWidth()) {
+                revealSelection(dock.getSelectedNode());
+            }
+        });
     }
 
     private boolean hasOverflow() {
@@ -111,9 +118,11 @@ final class AiDockViewport extends StackPane {
             dockContainer.applyCss();
             dockContainer.layout();
 
-            double overflow = dockContainer.getWidth() - scrollPane.getViewportBounds().getWidth();
+            var visibleWidth = scrollPane.getViewportBounds().getWidth();
+            double overflow = dockContainer.getWidth() - visibleWidth;
 
-            if (overflow <= 0) {
+            // Before the first layout nothing is visible yet; the width change that follows reveals the tab.
+            if (visibleWidth <= 0 || overflow <= 0) {
                 return;
             }
 
