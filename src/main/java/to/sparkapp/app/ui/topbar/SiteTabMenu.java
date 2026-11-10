@@ -106,6 +106,7 @@ final class SiteTabMenu extends ShellPopover {
         state.set(!state.get());
         preferences.setSiteMuted(site().id(), rule, state.get());
         browser.refreshSound();
+        dock.refreshSound();
     }
 
     private AiConfig site() {

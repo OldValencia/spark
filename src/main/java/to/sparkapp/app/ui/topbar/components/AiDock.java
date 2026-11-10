@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import to.sparkapp.app.config.AiConfiguration.AiConfig;
 import to.sparkapp.app.config.AppPaths;
 import to.sparkapp.app.config.AppPreferences;
+import to.sparkapp.app.config.MuteRule;
 import to.sparkapp.app.browser.SiteShortcut;
 import to.sparkapp.app.ui.SiteAccent;
 import to.sparkapp.app.ui.topbar.utils.AiDockDragManager;
@@ -219,6 +220,7 @@ public class AiDock extends StackPane {
         }
 
         refreshShortcutHints();
+        refreshSound();
 
         if (!dockItems.isEmpty()) {
             selectItem(dockItems.get(initial.index()), initial.url());
@@ -240,6 +242,14 @@ public class AiDock extends StackPane {
     }
 
     /** Puts a dot on the tab of a site that changed while another site was open. */
+    /** Shows a speaker on each site that plays sound, crossed out on those that are muted. */
+    public void refreshSound() {
+        dockItems.forEach(item -> {
+            var id = item.getConfig().id();
+            item.showSound(fxWebViewPane.isPlayingAudio(id), appPreferences.isSiteMuted(id, MuteRule.ALWAYS));
+        });
+    }
+
     public void markUpdated(String siteId) {
         dockItems.stream()
                 .filter(item -> item != selectedNode && item.getConfig().id().equals(siteId))

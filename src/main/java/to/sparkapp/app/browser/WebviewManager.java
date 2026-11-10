@@ -57,6 +57,11 @@ public class WebviewManager {
     private volatile boolean restartRequested;
     private volatile boolean muted;
     private volatile boolean mobile;
+    /** Whether the site plays sound, muted or not, on its main page or a page it opened. */
+    @Getter
+    private volatile boolean playingAudio;
+    @Setter
+    private Runnable onPlayingAudioChanged;
     @Getter
     private volatile boolean extraPageOpen;
     private long navigationId;
@@ -162,6 +167,7 @@ public class WebviewManager {
         browser.setZoomFactor(zoomManager.currentFactor());
         browser.setMuted(muted);
         browser.setMobile(mobile);
+        browser.observeAudio(playing -> Platform.runLater(() -> playingAudioChanged(playing)));
         browser.setPresentation(false, presentation.wantsLowMemory());
         browser.observeProcessFailures(this::handleProcessFailure);
         browser.observeShortcuts(this::siteShortcutPressed);
@@ -173,6 +179,18 @@ public class WebviewManager {
             extraPageOpen = extra;
             Platform.runLater(() -> extraPageChanged(extra));
         });
+    }
+
+    private void playingAudioChanged(boolean playing) {
+        if (playingAudio == playing) {
+            return;
+        }
+
+        playingAudio = playing;
+
+        if (onPlayingAudioChanged != null) {
+            onPlayingAudioChanged.run();
+        }
     }
 
     private void extraPageChanged(boolean extra) {

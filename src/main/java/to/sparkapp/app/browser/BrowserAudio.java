@@ -3,17 +3,25 @@ package to.sparkapp.app.browser;
 import static to.sparkapp.app.browser.ComCalls.*;
 
 import com.sun.jna.Pointer;
+import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
 import com.sun.jna.platform.win32.Guid.GUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** Mutes one browsing context through ICoreWebView2_8. Runs on the owning WebView2 thread. */
+/**
+ * Mutes one browsing context and tells whether it plays sound, through ICoreWebView2_8. Runs on the owning WebView2
+ * thread.
+ */
 @Slf4j
 @RequiredArgsConstructor
 final class BrowserAudio implements AutoCloseable {
     private static final String CORE_8 = "e9632730-6e1e-43ab-b7b8-7b2c9e62e094";
     private static final int PUT_IS_MUTED = 84;
+    private static final int ADD_PLAYING_AUDIO_CHANGED = 85;
+    private static final int REMOVE_PLAYING_AUDIO_CHANGED = 86;
+    private static final int GET_IS_DOCUMENT_PLAYING_AUDIO = 87;
+    private static final String PLAYING_AUDIO_CHANGED_HANDLER = "5def109a-2f4b-49fa-b7f6-11c39e513328";
     private static final int E_NOINTERFACE = 0x80004002;
 
     private final Pointer core;
@@ -23,16 +31,7 @@ final class BrowserAudio implements AutoCloseable {
     private boolean muted;
 
     void setMuted(boolean value) {
-        if (muted == value) {
-            return;
-        }
-
-        if (!checked) {
-            checked = true;
-            audio = queryAudio();
-        }
-
-        if (audio == null) {
+        if (muted == value || audio() == null) {
             return;
         }
 
@@ -44,6 +43,34 @@ final class BrowserAudio implements AutoCloseable {
         } else {
             log.warn("Could not change page sound: 0x{}", Integer.toHexString(result));
         }
+    }
+
+    /** Calls back whenever the page starts or stops playing sound, whether it is muted or not. */
+    void observePlaying(BrowserComEvents events, Runnable changed) {
+        if (audio() != null) {
+            events.listen(audio, ADD_PLAYING_AUDIO_CHANGED, REMOVE_PLAYING_AUDIO_CHANGED, PLAYING_AUDIO_CHANGED_HANDLER,
+                    args -> changed.run());
+        }
+    }
+
+    /** Whether the page plays sound; a muted page that plays still counts. */
+    boolean isPlaying() {
+        if (audio() == null) {
+            return false;
+        }
+
+        var playing = new IntByReference();
+
+        return call(audio, GET_IS_DOCUMENT_PLAYING_AUDIO, playing) >= 0 && playing.getValue() != 0;
+    }
+
+    private Pointer audio() {
+        if (!checked) {
+            checked = true;
+            audio = queryAudio();
+        }
+
+        return audio;
     }
 
     private Pointer queryAudio() {

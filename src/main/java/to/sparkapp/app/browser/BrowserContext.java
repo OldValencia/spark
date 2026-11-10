@@ -26,6 +26,7 @@ final class BrowserContext implements AutoCloseable {
     private final BrowserMobileView mobileView;
     private Pointer documentEvents;
     private boolean closed;
+    private boolean observingAudio;
     long navigationId;
     boolean loading;
     boolean presentable;
@@ -57,6 +58,18 @@ final class BrowserContext implements AutoCloseable {
         if (!closed) {
             audio.setMuted(muted);
         }
+    }
+
+    /** Reports when the page starts or stops playing sound; calling it again keeps a single report. */
+    void observePlaying(Runnable changed) {
+        if (!closed && !observingAudio) {
+            observingAudio = true;
+            audio.observePlaying(events, changed);
+        }
+    }
+
+    boolean isPlayingAudio() {
+        return !closed && audio.isPlaying();
     }
 
     void setMobile(boolean mobile) {

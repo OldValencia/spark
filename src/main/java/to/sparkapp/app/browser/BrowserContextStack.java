@@ -19,6 +19,7 @@ final class BrowserContextStack {
     private final Consumer<Runnable> defer;
     private final Consumer<BrowserContext> changed;
     private final List<BrowserContext> contexts = new ArrayList<>();
+    private final SiteAudioWatch audio = new SiteAudioWatch();
     private final Set<BrowserPopupRequest> pending = new HashSet<>();
     private final BrowserPageZoom zoom = new BrowserPageZoom();
     @Getter
@@ -64,6 +65,7 @@ final class BrowserContextStack {
                 zoom.prepare(context);
                 context.setMuted(muted);
                 context.setMobile(mobile);
+                audio.watch(context, contexts);
                 prepare.accept(context);
                 installPopupEvents(context);
             }, context -> {
@@ -110,6 +112,11 @@ final class BrowserContextStack {
         contexts.forEach(context -> context.setMobile(mobile));
     }
 
+    /** Reports whether the site plays sound on any of its pages, now and whenever that changes. */
+    void observeAudio(Consumer<Boolean> playing) {
+        audio.observe(contexts, playing);
+    }
+
     void back() {
         var canGoBack = new IntByReference();
         check(call(active.getCore(), 38, canGoBack));
@@ -128,6 +135,7 @@ final class BrowserContextStack {
 
         contexts.remove(context);
         context.close();
+        audio.refresh(contexts);
 
         if (context == active) {
             var parent = context.getParent();

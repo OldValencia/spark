@@ -35,7 +35,7 @@ public class DockItemNode extends HBox {
     private boolean isDragging;
     private final AiDock dock;
     private final Tooltip tooltip;
-    private final TabUpdateMark updateMark;
+    private final TabIconMarks iconMarks;
     private boolean selected;
     private boolean pressed;
 
@@ -56,8 +56,8 @@ public class DockItemNode extends HBox {
         tooltip = ShellTooltip.create(config.name());
         Tooltip.install(this, tooltip);
 
-        updateMark = new TabUpdateMark(createIcon(config), dock::isReducedMotion);
-        getChildren().add(updateMark);
+        iconMarks = new TabIconMarks(createIcon(config), dock::isReducedMotion);
+        getChildren().add(iconMarks);
 
         var name = new Label(config.name());
         name.setFont(Font.font(Theme.FONT_NAME, TAB_FONT_SIZE));
@@ -161,16 +161,46 @@ public class DockItemNode extends HBox {
     /** Marks a site that changed while another site was open. */
     public void setUpdated(boolean updated) {
         if (updated) {
-            updateMark.show();
+            iconMarks.show();
         } else {
-            updateMark.hide();
+            iconMarks.hide();
         }
 
-        setAccessibleText(updated ? config.name() + ", updated" : config.name());
+        refreshAccessibleText();
     }
 
     public boolean isUpdated() {
-        return updateMark.isShown();
+        return iconMarks.isShown();
+    }
+
+    /** Shows a speaker while the site plays sound, crossed out when the site is muted. */
+    public void showSound(boolean playing, boolean muted) {
+        iconMarks.sound().show(playing, muted);
+        refreshAccessibleText();
+    }
+
+    public boolean isShowingSound() {
+        return iconMarks.sound().isShowingSound();
+    }
+
+    public boolean isShowingMuted() {
+        return iconMarks.sound().isShowingMuted();
+    }
+
+    private void refreshAccessibleText() {
+        var text = config.name();
+
+        if (isShowingSound()) {
+            text += ", playing sound";
+        } else if (isShowingMuted()) {
+            text += ", muted";
+        }
+
+        if (isUpdated()) {
+            text += ", updated";
+        }
+
+        setAccessibleText(text);
     }
 
     public void updateDragPosition(double sceneX) {

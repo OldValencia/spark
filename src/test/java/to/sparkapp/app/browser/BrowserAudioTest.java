@@ -3,6 +3,7 @@ package to.sparkapp.app.browser;
 import static org.junit.jupiter.api.Assertions.*;
 import static to.sparkapp.app.browser.InlineBrowserPagesTest.call;
 
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import com.sun.jna.ptr.IntByReference;
@@ -37,6 +38,36 @@ class BrowserAudioTest {
 
             setMuted(browser, false);
             assertFalse(isMuted(browser), "Unmuting must reach pages opened by the site");
+        }
+    }
+
+    @Test
+    void aSiteReportsWhenItPlaysSoundEvenWhileMuted() throws Exception {
+        var reports = new LinkedBlockingQueue<Boolean>();
+
+        try (var server = new AuthenticationFixture(); var browser = new WindowsBrowserTest.Harness()) {
+            browser.load(server.site + "/start");
+            call(browser, view -> {
+                // Muted first, so the test stays silent; WebView2 still reports the sound.
+                view.windows().setMuted(true);
+                view.windows().observeAudio(reports::add);
+
+                return null;
+            });
+
+            assertEquals(Boolean.FALSE, reports.poll(5, TimeUnit.SECONDS), "A quiet page reports no sound");
+
+            var page = new NativeDevTools(browser);
+            page.request("Runtime.evaluate", """
+                    {"userGesture": true, "awaitPromise": true, "expression":
+                     "(async () => { window.tone = new AudioContext(); const o = tone.createOscillator(); o.connect(tone.destination); o.start(); await tone.resume(); return tone.state; })()"}
+                    """);
+
+            assertEquals(Boolean.TRUE, reports.poll(10, TimeUnit.SECONDS), "Sound from a muted page is reported");
+
+            page.evaluate("tone.close()");
+
+            assertEquals(Boolean.FALSE, reports.poll(15, TimeUnit.SECONDS), "The end of the sound is reported");
         }
     }
 

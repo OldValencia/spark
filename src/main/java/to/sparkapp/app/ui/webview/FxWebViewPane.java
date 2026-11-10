@@ -64,6 +64,9 @@ public class FxWebViewPane extends StackPane {
     private Consumer<SiteShortcut> onSiteShortcut;
     @Setter
     private Consumer<String> onSiteUpdated;
+    /** Called when a site starts or stops playing sound. */
+    @Setter
+    private Runnable onSiteAudioChanged;
     /** Receives the id of each site that comes on screen, before its page is shown. */
     @Setter
     private Consumer<String> onSiteShown;
@@ -145,6 +148,11 @@ public class FxWebViewPane extends StackPane {
         });
         // Any Spark page can report a shortcut: focus may still sit in the page that was just hidden.
         source.setOnPageUpdated(() -> siteUpdated(source));
+        source.setOnPlayingAudioChanged(() -> {
+            if (!disposed && onSiteAudioChanged != null) {
+                onSiteAudioChanged.run();
+            }
+        });
         source.setOnExtraPageChanged(extra -> {
             if (!disposed && bridge == source) {
                 refreshOffSitePage();
@@ -411,6 +419,13 @@ public class FxWebViewPane extends StackPane {
     /** Applies the sound choices of every open site after they changed. */
     public void refreshSound() {
         sound.refresh();
+    }
+
+    /** Whether a site plays sound, muted or not, even while another site is on screen. */
+    public boolean isPlayingAudio(String siteId) {
+        var browser = sessions.find(siteId);
+
+        return browser != null && browser.isPlayingAudio();
     }
 
     /** Shows a site's mobile or desktop version, reloading its page when it is open. */

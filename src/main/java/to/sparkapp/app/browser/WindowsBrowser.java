@@ -129,6 +129,11 @@ final class WindowsBrowser implements AutoCloseable {
         }
     }
 
+    void observeAudio(Consumer<Boolean> playing) {
+        requireOwner();
+        pages.observeAudio(playing);
+    }
+
     /** Loads the page on screen again, for example so it is served in its mobile version. */
     void reloadPage() {
         requireOwner();

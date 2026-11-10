@@ -391,6 +391,7 @@ public class MainWindow extends Stage {
 
             fxWebViewPane = getFxWebViewPane();
             fxWebViewPane.setOnSiteShown(windowController::showSite);
+            fxWebViewPane.setOnSiteAudioChanged(this::siteAudioChanged);
             rootPane.setCenter(pageArea(fxWebViewPane));
             loadingBar = new PageLoadingBar(appPreferences::isReducedMotion);
             fxWebViewPane.pageLoadingProperty().addListener((o, wasLoading, loading) -> loadingBar.setLoading(loading));
@@ -411,7 +412,7 @@ public class MainWindow extends Stage {
             settingsPanel.setOnRememberLastAiChanged(appPreferences::setRememberLastAi);
             settingsPanel.setOnClearCookies(fxWebViewPane::clearCookies);
             settingsPanel.setOnBackgroundMemoryChanged(fxWebViewPane::refreshResourcePolicy);
-            settingsPanel.setOnSoundChanged(fxWebViewPane::refreshSound);
+            settingsPanel.setOnSoundChanged(this::soundChanged);
             settingsPanel.setOnPillSettingsChanged(windowController::refreshPill);
             settingsPanel.setOnAppearanceChanged(() -> {
                 windowController.refreshMotion();
@@ -484,6 +485,17 @@ public class MainWindow extends Stage {
         topArea.getChildren().setAll(topBar, loadingBar);
         StackPane.setAlignment(loadingBar, Pos.BOTTOM_LEFT);
         rootPane.setTop(topArea);
+    }
+
+    private void siteAudioChanged() {
+        if (topBar != null) {
+            topBar.getDock().refreshSound();
+        }
+    }
+
+    private void soundChanged() {
+        fxWebViewPane.refreshSound();
+        topBar.getDock().refreshSound();
     }
 
     private void siteUpdated(String siteId) {
