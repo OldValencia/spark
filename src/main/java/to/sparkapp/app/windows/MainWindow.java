@@ -151,6 +151,7 @@ public class MainWindow extends Stage {
         }
 
         setAlwaysOnTop(appPreferences.isAlwaysOnTop());
+        tray.clearUpdates();
         this.show();
         this.setIconified(false);
         this.toFront();
@@ -462,10 +463,21 @@ public class MainWindow extends Stage {
         topBar.getDock().addOrderListener(this::refreshTraySites);
         refreshTraySites();
         fxWebViewPane.setOnSiteShortcut(topBar.getDock()::select);
-        fxWebViewPane.setOnSiteUpdated(topBar.getDock()::markUpdated);
+        fxWebViewPane.setOnSiteUpdated(this::siteUpdated);
         topArea.getChildren().setAll(topBar, loadingBar);
         StackPane.setAlignment(loadingBar, Pos.BOTTOM_LEFT);
         rootPane.setTop(topArea);
+    }
+
+    private void siteUpdated(String siteId) {
+        topBar.getDock().markUpdated(siteId);
+
+        if (!isShowing() || isHiding()) {
+            aiConfiguration.getConfigurations().stream()
+                    .filter(site -> site.id().equals(siteId))
+                    .findFirst()
+                    .ifPresent(site -> tray.markUpdated(site.name()));
+        }
     }
 
     private void scheduleTutorial() {

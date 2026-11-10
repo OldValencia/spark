@@ -153,11 +153,12 @@ public class FxWebViewPane extends StackPane {
         });
     }
 
-    /** Only a site that is not on screen can have news; the open one is being looked at. */
+    /** News on the site on screen is seen at once, unless Spark is hidden. */
     private void siteUpdated(WebviewManager source) {
         var site = sessions.findSite(source);
+        var unseen = source != bridge || !windowVisible();
 
-        if (!disposed && source != bridge && site != null && onSiteUpdated != null) {
+        if (!disposed && unseen && site != null && onSiteUpdated != null) {
             onSiteUpdated.accept(site.id());
         }
     }

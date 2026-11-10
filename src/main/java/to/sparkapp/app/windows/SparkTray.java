@@ -2,7 +2,9 @@ package to.sparkapp.app.windows;
 
 import java.awt.*;
 import java.io.IOException;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import javafx.application.Platform;
@@ -18,8 +20,13 @@ final class SparkTray implements AutoCloseable {
     private final Runnable exitApplication;
     private final Consumer<String> openSite;
     private volatile List<AiConfig> sites = List.of();
+    private static final String TOOLTIP = "Spark";
+    /** Changed on the JavaFX thread. */
+    private final Set<String> updatedSites = new LinkedHashSet<>();
     private TraySiteMenu siteMenu;
-    private TrayIcon trayIcon;
+    private volatile TrayIcon trayIcon;
+    private Image icon;
+    private Image updatedIcon;
 
     SparkTray(Runnable showApplication, Consumer<String> openSite, Runnable exitApplication) {
         this.showApplication = showApplication;
@@ -74,7 +81,9 @@ final class SparkTray implements AutoCloseable {
         exitItem.addActionListener(e -> Platform.runLater(exitApplication));
         popup.add(exitItem);
 
-        trayIcon = new TrayIcon(image, "Spark", popup);
+        icon = image;
+        updatedIcon = TrayUpdateDot.onto(image);
+        trayIcon = new TrayIcon(image, TOOLTIP, popup);
         trayIcon.setImageAutoSize(true);
         trayIcon.addActionListener(e -> Platform.runLater(showApplication));
 
@@ -83,6 +92,31 @@ final class SparkTray implements AutoCloseable {
         } catch (AWTException e) {
             log.error("Failed to setup system tray", e);
         }
+    }
+
+    /** Puts a dot on the tray icon: a site changed its page while Spark was hidden. */
+    void markUpdated(String siteName) {
+        updatedSites.add(siteName);
+        showUpdates(List.copyOf(updatedSites));
+    }
+
+    /** Removes the dot once Spark is shown, where each tab shows its own dot. */
+    void clearUpdates() {
+        if (!updatedSites.isEmpty()) {
+            updatedSites.clear();
+            showUpdates(List.of());
+        }
+    }
+
+    private void showUpdates(List<String> names) {
+        EventQueue.invokeLater(() -> {
+            if (trayIcon == null) {
+                return;
+            }
+
+            trayIcon.setImage(names.isEmpty() ? icon : updatedIcon);
+            trayIcon.setToolTip(names.isEmpty() ? TOOLTIP : TOOLTIP + " · New on " + String.join(", ", names));
+        });
     }
 
     @Override
