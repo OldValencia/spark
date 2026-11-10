@@ -17,7 +17,7 @@ import to.sparkapp.app.config.AppPreferences;
 import to.sparkapp.app.extensions.ExtensionImporter;
 
 /**
- * Prepares the disposable capture profile: the default sites plus Wikipedia, and the sample
+ * Prepares the disposable capture profile: the tutorial marked as seen, the default sites plus Wikipedia, and the sample
  * extensions downloaded by tools/extensions/download-samples.ps1. No user profile is read.
  */
 final class ReadmeProfile {
@@ -28,7 +28,10 @@ final class ReadmeProfile {
     }
 
     static void prepare() throws Exception {
-        new AiConfiguration(new AppPreferences());
+        // The first-launch tutorial would cover the bar and take the keyboard from Spark's window.
+        var preferences = new AppPreferences();
+        preferences.setTutorialDone(true);
+        new AiConfiguration(preferences);
         addWikipedia(new File(AppPaths.DATA_DIR, "providers.json").toPath());
         importExtensions(AppPaths.DATA_DIR.toPath().resolve("extensions"));
     }

@@ -6,8 +6,11 @@ tour labels the shell's controls; it does not replace the website's own UI.
 
 - `hero.svg`: project banner with the mascot.
 - `tour.svg`: annotated header guide.
-- `guide-sites.svg`, `guide-window.svg`, `guide-settings.svg`, `guide-extensions.svg`:
-  short mascot captions for the corresponding parts of the README.
+- `guide-*.svg`: one card at the top of each README section, with the mascot's pose, a line of
+  its own, and a badge for the topic. The cards are listed in `generate-assets.mjs`.
+
+The mascot's poses follow the app: `normal`, `curious` (looking at something), `gears`
+(settings and loading), `sad` (MascotFace's frown) and `sleepy` (its doze).
 
 Regenerate after changing their source:
 
