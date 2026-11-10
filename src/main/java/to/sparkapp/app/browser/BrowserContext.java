@@ -15,6 +15,7 @@ import static to.sparkapp.app.browser.ComCalls.*;
 final class BrowserContext implements AutoCloseable {
     public static class Bounds extends RECT implements ByValue {
     }
+    private static final int CORE_RELOAD = 31;
     private final Pointer controller;
     private final Pointer core;
     private final boolean child;
@@ -22,6 +23,7 @@ final class BrowserContext implements AutoCloseable {
     private final BrowserComEvents events = new BrowserComEvents();
     private final BrowserMemoryPolicy memoryPolicy;
     private final BrowserAudio audio;
+    private final BrowserMobileView mobileView;
     private Pointer documentEvents;
     private boolean closed;
     long navigationId;
@@ -48,12 +50,23 @@ final class BrowserContext implements AutoCloseable {
         core = out.getValue();
         memoryPolicy = new BrowserMemoryPolicy(core);
         audio = new BrowserAudio(core);
+        mobileView = new BrowserMobileView(core);
     }
 
     void setMuted(boolean muted) {
         if (!closed) {
             audio.setMuted(muted);
         }
+    }
+
+    void setMobile(boolean mobile) {
+        if (!closed) {
+            mobileView.setMobile(mobile);
+        }
+    }
+
+    void reload() {
+        check(call(core, CORE_RELOAD));
     }
 
     Pointer documentEvents() {

@@ -67,6 +67,16 @@ final class SiteSettingsStore {
         changed.run();
     }
 
+    boolean isMobile(String siteId) {
+        return Boolean.TRUE.equals(find(siteId).mobile());
+    }
+
+    /** The desktop version is the default, so it is not stored. */
+    void setMobile(String siteId, boolean mobile) {
+        put(siteId, find(siteId).withMobile(mobile ? true : null));
+        changed.run();
+    }
+
     void prune(List<AiConfig> sites) {
         if (config.siteSettings == null) {
             return;

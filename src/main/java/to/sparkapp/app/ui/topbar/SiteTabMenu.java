@@ -26,6 +26,7 @@ final class SiteTabMenu extends ShellPopover {
     private final AppPreferences preferences;
     private final BooleanProperty muted = new SimpleBooleanProperty();
     private final BooleanProperty mutedWhileHidden = new SimpleBooleanProperty();
+    private final BooleanProperty mobile = new SimpleBooleanProperty();
     private final SiteZoomRow zoom = new SiteZoomRow();
     private final List<Button> pageActions;
     private final Button moveLeft;
@@ -43,6 +44,7 @@ final class SiteTabMenu extends ShellPopover {
         var reload = action("arrow-path", "Reload", () -> page.reload());
         pageActions = List.of(back, reload);
         add(zoom);
+        setting("device-phone-mobile", "Mobile version", mobile, this::toggleMobile);
         separator();
 
         action("link", "Copy link", this::copyLink);
@@ -84,12 +86,20 @@ final class SiteTabMenu extends ShellPopover {
         pageActions.forEach(action -> action.setDisable(!page.isOpen()));
         zoom.show(page);
 
+        mobile.set(preferences.isSiteMobile(site().id()));
         muted.set(preferences.isSiteMuted(site().id(), MuteRule.ALWAYS));
         mutedWhileHidden.set(preferences.isSiteMuted(site().id(), MuteRule.WHILE_HIDDEN));
 
         var index = dock.indexOf(site().id());
         moveLeft.setDisable(index <= 0);
         moveRight.setDisable(index >= dock.getDockItems().size() - 1);
+    }
+
+    /** The site's page is loaded again in the other version right away. */
+    private void toggleMobile() {
+        mobile.set(!mobile.get());
+        preferences.setSiteMobile(site().id(), mobile.get());
+        browser.setMobile(site().id(), mobile.get());
     }
 
     private void toggleMute(MuteRule rule, BooleanProperty state) {

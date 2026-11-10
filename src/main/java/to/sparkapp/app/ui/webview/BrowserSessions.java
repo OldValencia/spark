@@ -63,6 +63,7 @@ final class BrowserSessions {
             onCreated.accept(active);
 
             var remembered = targetUrl != null ? targetUrl : appPreferences.getSiteUrl(config);
+            active.setMobile(appPreferences.isSiteMobile(config.id()));
             active.setCurrentConfig(config, remembered);
         } else {
             active = existing;

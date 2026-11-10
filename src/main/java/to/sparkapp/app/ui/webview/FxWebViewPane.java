@@ -413,6 +413,15 @@ public class FxWebViewPane extends StackPane {
         sound.refresh();
     }
 
+    /** Shows a site's mobile or desktop version, reloading its page when it is open. */
+    public void setMobile(String siteId, boolean mobile) {
+        var browser = sessions.find(siteId);
+
+        if (browser != null) {
+            browser.setMobile(mobile);
+        }
+    }
+
     /** Reapplies the stored zoom of every open site, for example after zoom was switched off. */
     public void refreshZoom() {
         sessions.forEach(WebviewManager::refreshZoom);

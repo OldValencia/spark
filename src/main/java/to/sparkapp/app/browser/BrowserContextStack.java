@@ -28,6 +28,7 @@ final class BrowserContextStack {
     private boolean visible;
     private boolean lowMemory;
     private boolean muted;
+    private boolean mobile;
     private boolean closed;
     @Setter
     private boolean reduceInactive = true;
@@ -62,6 +63,7 @@ final class BrowserContextStack {
             request.create(script, context -> {
                 zoom.prepare(context);
                 context.setMuted(muted);
+                context.setMobile(mobile);
                 prepare.accept(context);
                 installPopupEvents(context);
             }, context -> {
@@ -100,6 +102,12 @@ final class BrowserContextStack {
     void setMuted(boolean muted) {
         this.muted = muted;
         contexts.forEach(context -> context.setMuted(muted));
+    }
+
+    /** Shows the site's main page and every page it opened as on a phone, including pages it opens later. */
+    void setMobile(boolean mobile) {
+        this.mobile = mobile;
+        contexts.forEach(context -> context.setMobile(mobile));
     }
 
     void back() {

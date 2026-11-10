@@ -56,6 +56,7 @@ public class WebviewManager {
     private volatile boolean recreateOnRetry;
     private volatile boolean restartRequested;
     private volatile boolean muted;
+    private volatile boolean mobile;
     @Getter
     private volatile boolean extraPageOpen;
     private long navigationId;
@@ -160,6 +161,7 @@ public class WebviewManager {
         // Set before the first navigation, so the page never appears at the wrong size.
         browser.setZoomFactor(zoomManager.currentFactor());
         browser.setMuted(muted);
+        browser.setMobile(mobile);
         browser.setPresentation(false, presentation.wantsLowMemory());
         browser.observeProcessFailures(this::handleProcessFailure);
         browser.observeShortcuts(this::siteShortcutPressed);
@@ -608,6 +610,27 @@ public class WebviewManager {
         // Startup applies the latest value once the browser is ready.
         if (ready.get()) {
             dispatch(this::applyMuted);
+        }
+    }
+
+    /** Shows the site's mobile or desktop version; a page already open is loaded again in that version. */
+    public void setMobile(boolean value) {
+        if (mobile == value) {
+            return;
+        }
+
+        mobile = value;
+
+        // Startup applies the latest value before the first page loads.
+        if (ready.get()) {
+            dispatch(this::applyMobile);
+        }
+    }
+
+    private void applyMobile() {
+        if (SystemUtils.isWindows() && webview != null) {
+            webview.windows().setMobile(mobile);
+            webview.windows().reloadPage();
         }
     }
 

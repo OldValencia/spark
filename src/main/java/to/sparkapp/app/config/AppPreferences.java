@@ -308,6 +308,15 @@ public class AppPreferences {
         siteSettings.setWindowSize(siteId, size);
     }
 
+    /** Whether the site shows its mobile version, as on a phone. */
+    public synchronized boolean isSiteMobile(String siteId) {
+        return siteSettings.isMobile(siteId);
+    }
+
+    public synchronized void setSiteMobile(String siteId, boolean mobile) {
+        siteSettings.setMobile(siteId, mobile);
+    }
+
     public record WindowPlacement(boolean docked, double x, double y, double width, double height, double manualWidth,
                                   double manualHeight, double monitorX, double monitorY) {
     }

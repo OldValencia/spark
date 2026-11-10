@@ -121,6 +121,20 @@ final class WindowsBrowser implements AutoCloseable {
         }
     }
 
+    void setMobile(boolean mobile) {
+        requireOwner();
+
+        if (!closed && !browserProcessExited) {
+            pages.setMobile(mobile);
+        }
+    }
+
+    /** Loads the page on screen again, for example so it is served in its mobile version. */
+    void reloadPage() {
+        requireOwner();
+        activeContext().reload();
+    }
+
     void setBackgroundMemoryReduction(boolean enabled) {
         requireOwner();
         pages.setReduceInactive(enabled);
